@@ -502,10 +502,30 @@
                             <label for="issueBranch" class="block text-slate-600 text-sm font-medium mb-2">Chi nhánh bị lỗi <span class="text-red-500">*</span>:</label>
                             <select id="issueBranch" class="input-field rounded" required>
                                 <option value="">-- Chọn chi nhánh --</option>
-                                <option value="Chi nhánh A">Chi nhánh A</option>
-                                <option value="Chi nhánh B">Chi nhánh B</option>
-                                <option value="Chi nhánh C">Chi nhánh C</option>
-                                <option value="Chi nhánh D">Chi nhánh D</option>
+                                <option value="Chi nhánh ICOOL XÔ VIẾT NGHỆ TĨNH">ICOOL XÔ VIẾT NGHỆ TĨNH</option>
+                                <option value="Chi nhánh ICOOL BÌNH PHÚ">ICOOL BÌNH PHÚ</option>
+                                <option value="Chi nhánh ICOOL UNG VĂN KHIÊM">ICOOL UNG VĂN KHIÊM</option>
+                                <option value="Chi nhánh ICOOL TÔ KÝ">ICOOL TÔ KÝ</option>
+                                <option value="Chi nhánh ICOOL DƯƠNG BÁ TRẠC">ICOOL DƯƠNG BÁ TRẠC</option>
+                                <option value="Chi nhánh ICOOL TRẦN NÃO">ICOOL TRẦN NÃO</option>
+                                <option value="Chi nhánh ICOOL THÀNH THÁI">ICOOL THÀNH THÁI</option>
+                                <option value="Chi nhánh ICOOL MẠC ĐĨNH CHI">ICOOL MẠC ĐĨNH CHI</option>
+                                <option value="Chi nhánh ICOOL NGUYỄN SƠN">ICOOL NGUYỄN SƠN</option>
+                                <option value="Chi nhánh ICOOL NGUYỄN TRÃI">ICOOL NGUYỄN TRÃI</option>
+                                <option value="Chi nhánh ICOOL NHỊ THIÊN ĐƯỜNG">ICOOL NHỊ THIÊN ĐƯỜNG</option>
+                                <option value="Chi nhánh ICOOL CÁCH MẠNG THÁNG TÁM">ICOOL CÁCH MẠNG THÁNG TÁM</option>
+                                <option value="Chi nhánh ICOOL TRẦN BÌNH TRỌNG">ICOOL TRẦN BÌNH TRỌNG</option>
+                                <option value="Chi nhánh ICOOL ĐỒNG ĐEN">ICOOL ĐỒNG ĐEN</option>
+                                <option value="Chi nhánh ICOOL PHAN CHU TRINH">ICOOL PHAN CHU TRINH</option>
+                                <option value="Chi nhánh ICOOL NGUYỄN TRI PHƯƠNG">ICOOL NGUYỄN TRI PHƯƠNG</option>
+                                <option value="Chi nhánh ICOOL PHAN XÍCH LONG">ICOOL PHAN XÍCH LONG</option>
+                                <option value="Chi nhánh ICOOL HOÀNG DIỆU 2">ICOOL HOÀNG DIỆU 2</option>
+                                <option value="Chi nhánh ICOOL CẦU CHỮ Y">ICOOL CẦU CHỮ Y</option>
+                                <option value="Chi nhánh ICOOL LÊ VĂN VIỆT">ICOOL LÊ VĂN VIỆT</option>
+                                <option value="Chi nhánh ICOOL SƯ VẠN HẠNH">ICOOL SƯ VẠN HẠNH</option>
+                                <option value="Chi nhánh ICOOL ĐẠI LỘ 2">ICOOL ĐẠI LỘ 2</option>
+                                <option value="Chi nhánh ICOOL LÊ THỊ HÀ">ICOOL LÊ THỊ HÀ</option>
+                                <option value="Chi nhánh ICOOL VŨNG TÀUICOOL VŨNG TÀU">ICOOL VŨNG TÀU</option>
                             </select>
                         </div>
                         <div class="md:col-span-2">
@@ -530,9 +550,20 @@
                     <h2 class="text-2xl sm:text-3xl font-bold text-slate-800 mb-6 flex items-center">
                         <i class="fas fa-clipboard-list mr-3 text-blue-600"></i>Lịch Sử Báo Cáo
                     </h2>
-                    <div class="mb-4">
-                        <label for="issueHistoryFilterInput" class="block text-slate-600 text-sm font-medium mb-2">Tìm kiếm:</label>
-                        <input type="text" id="issueHistoryFilterInput" class="input-field" placeholder="Nhập chi nhánh, người gửi, loại sự cố...">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                        <div>
+                             <label for="issueHistoryFilterInput" class="block text-slate-600 text-sm font-medium mb-2">Tìm kiếm:</label>
+                             <input type="text" id="issueHistoryFilterInput" class="input-field" placeholder="Nhập chi nhánh, người gửi, loại sự cố...">
+                        </div>
+                        <div>
+                             <label for="issueStatusFilter" class="block text-slate-600 text-sm font-medium mb-2">Lọc theo trạng thái:</label>
+                             <select id="issueStatusFilter" class="input-field rounded">
+                                 <option value="Tất cả">Tất cả</option>
+                                 <option value="Mới tạo">Mới tạo</option>
+                                 <option value="Đang xử lý">Đang xử lý</option>
+                                 <option value="Đã giải quyết">Đã giải quyết</option>
+                             </select>
+                        </div>
                     </div>
                     <div class="table-responsive">
                         <table class="min-w-full divide-y divide-slate-200 responsive-table professional-table">
@@ -888,7 +919,7 @@
         // View-specific elements
         let employeeNameInput, checkInBtn, checkOutBtn, attendanceMessage, attendanceHistoryList;
         let reporterNameInput, issueTypeSelect, issuePrioritySelect, issueBranchSelect, issueImageInput, issueDescriptionTextarea, reportIssueBtn, issueMessage;
-        let allIssueReportsTableBody, issueHistoryMessage, actionColumnHeader, issueHistoryFilterInput;
+        let allIssueReportsTableBody, issueHistoryMessage, actionColumnHeader, issueHistoryFilterInput, issueStatusFilter;
         let loginLogTableBody, loginLogMessage;
         let newAccountEmployeeId, newAccountUsername, newAccountEmail, newAccountPassword, createAccountBtn, createAccountMessage, registeredAccountsTableBody, exportAccountsBtn, exportAccountsMessage;
         
@@ -1165,7 +1196,9 @@
                     issueHistoryMessage = mainContentContainer.querySelector('#issueHistoryMessage');
                     actionColumnHeader = mainContentContainer.querySelector('#actionColumnHeader');
                     issueHistoryFilterInput = mainContentContainer.querySelector('#issueHistoryFilterInput');
+                    issueStatusFilter = mainContentContainer.querySelector('#issueStatusFilter');
                     if (issueHistoryFilterInput) issueHistoryFilterInput.addEventListener('keyup', filterIssueHistory);
+                    if (issueStatusFilter) issueStatusFilter.addEventListener('change', filterIssueHistory);
                     listenToAllIssueReports();
                     break;
                 case 'dashboardView':
@@ -1180,26 +1213,26 @@
                          dashboardExportMenu.style.visibility = 'hidden';
                          
                          dashboardExportBtn.addEventListener('click', (e) => {
-                            e.stopPropagation();
-                            const isShown = dashboardExportMenu.classList.toggle('show');
-                            if(isShown) {
-                                dashboardExportMenu.style.opacity = '1';
-                                dashboardExportMenu.style.visibility = 'visible';
-                            } else {
-                                dashboardExportMenu.style.opacity = '0';
-                                dashboardExportMenu.style.visibility = 'hidden';
-                            }
+                             e.stopPropagation();
+                             const isShown = dashboardExportMenu.classList.toggle('show');
+                             if(isShown) {
+                                 dashboardExportMenu.style.opacity = '1';
+                                 dashboardExportMenu.style.visibility = 'visible';
+                             } else {
+                                 dashboardExportMenu.style.opacity = '0';
+                                 dashboardExportMenu.style.visibility = 'hidden';
+                             }
                          });
                     }
                     mainContentContainer.querySelector('#exportReportsCsvBtn')?.addEventListener('click', handleExportAllReports);
                     mainContentContainer.querySelector('#exportSummaryCsvBtn')?.addEventListener('click', handleExportDashboardSummary);
                     mainContentContainer.querySelector('#exportChartPngBtn')?.addEventListener('click', handleExportChart);
                     document.addEventListener('click', (event) => {
-                        if (dashboardExportMenu && !dashboardExportBtn?.contains(event.target) && !dashboardExportMenu.contains(event.target)) {
-                            dashboardExportMenu.classList.remove('show');
-                            dashboardExportMenu.style.opacity = '0';
-                            dashboardExportMenu.style.visibility = 'hidden';
-                        }
+                         if (dashboardExportMenu && !dashboardExportBtn?.contains(event.target) && !dashboardExportMenu.contains(event.target)) {
+                             dashboardExportMenu.classList.remove('show');
+                             dashboardExportMenu.style.opacity = '0';
+                             dashboardExportMenu.style.visibility = 'hidden';
+                         }
                     });
                     break;
                 case 'loginLogView':
@@ -1406,9 +1439,23 @@
         }
         
         function filterIssueHistory() {
-            if (!issueHistoryFilterInput) return;
+            if (!issueHistoryFilterInput || !issueStatusFilter) return;
+            
             const searchTerm = issueHistoryFilterInput.value.toLowerCase();
-            const filteredDocs = !searchTerm ? allIssueDocs : allIssueDocs.filter(doc => Object.values(doc.data()).some(value => String(value).toLowerCase().includes(searchTerm)));
+            const statusFilter = issueStatusFilter.value;
+            
+            const filteredDocs = allIssueDocs.filter(doc => {
+                const report = doc.data();
+                
+                const statusMatch = (statusFilter === 'Tất cả') || (report.status === statusFilter);
+                
+                const searchMatch = !searchTerm || Object.values(report).some(value => 
+                    String(value).toLowerCase().includes(searchTerm)
+                );
+
+                return statusMatch && searchMatch;
+            });
+
             renderIssueHistoryTable(filteredDocs);
         }
         
@@ -1716,6 +1763,13 @@
             } else { showMessage(globalAppMessage, 'Không có dữ liệu biểu đồ để xuất.', 'info'); }
         }
 
+        function showConfirmModal(title, text, callback) {
+            confirmModalTitle.textContent = title;
+            confirmModalText.textContent = text;
+            confirmCallback = callback;
+            confirmModal.style.display = 'flex';
+        }
+
         function closeConfirmModal() {
             confirmModal.style.display = 'none';
             confirmCallback = null;
@@ -1730,4 +1784,3 @@
     </script>
 </body>
 </html>
-
