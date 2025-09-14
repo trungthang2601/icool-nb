@@ -1,0 +1,1071 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hệ thống Vận hành Thông minh</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Font Awesome for icons -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" rel="stylesheet">
+    <!-- Inter Font -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Chart.js for dashboard charts -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root {
+            --primary-color: #4f46e5; /* indigo-600 */
+            --primary-hover: #4338ca; /* indigo-700 */
+            --danger-color: #dc2626; /* red-600 */
+            --body-bg: #f8fafc; /* slate-50 */
+            --text-primary: #1e2d3b; /* slate-800 */
+            --text-secondary: #64748b; /* slate-500 */
+            --border-color: #e2e8f0; /* slate-200 */
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--body-bg);
+            color: var(--text-primary);
+        }
+        .card {
+            background-color: #ffffff;
+            border-radius: 0.75rem;
+            box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.07), 0 1px 2px -1px rgba(0, 0, 0, 0.07);
+            border: 1px solid var(--border-color);
+        }
+        .btn-primary {
+            background-color: var(--primary-color);
+            color: white;
+            padding: 0.625rem 1.25rem;
+            border-radius: 0.5rem;
+            font-weight: 500;
+            transition: all 0.2s ease-in-out;
+        }
+        .btn-primary:hover {
+            background-color: var(--primary-hover);
+            transform: translateY(-1px);
+        }
+        .btn-secondary {
+            background-color: #eef2ff; /* indigo-50 */
+            color: var(--primary-color);
+            border: 1px solid #a5b4fc; /* indigo-300 */
+            padding: 0.625rem 1.25rem;
+            border-radius: 0.5rem;
+            font-weight: 500;
+            transition: all 0.2s ease-in-out;
+        }
+        .btn-secondary:hover {
+            background-color: #e0e7ff; /* indigo-100 */
+        }
+        .btn-danger {
+            background-color: var(--danger-color);
+            color: white;
+        }
+        .btn-danger:hover {
+            background-color: #b91c1c; /* red-700 */
+        }
+        .alert-success { background-color: #dcfce7; color: #166534; border-left: 4px solid #22c55e; }
+        .alert-error { background-color: #fee2e2; color: #991b1b; border-left: 4px solid #ef4444; }
+        .alert-info { background-color: #e0f2fe; color: #0c4a6e; border-left: 4px solid #38bdf8; }
+        
+        .input-field, .textarea-field, .select-field {
+            border: 1px solid var(--border-color);
+            border-radius: 0.5rem;
+            padding: 0.625rem 0.75rem;
+            width: 100%;
+            transition: all 0.2s ease-in-out;
+            background-color: #f9fafb;
+        }
+        .input-field:focus, .textarea-field:focus, .select-field:focus {
+            outline: 2px solid transparent;
+            outline-offset: 2px;
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 2px rgba(79, 70, 229, 0.3);
+        }
+        .modal {
+            display: none; position: fixed; z-index: 100;
+            left: 0; top: 0; width: 100%; height: 100%;
+            overflow: auto; background-color: rgba(0,0,0,0.5);
+            justify-content: center; align-items: center;
+        }
+        .modal-content {
+            background-color: #fefefe; margin: auto; padding: 2rem;
+            border-radius: 1rem; width: 90%; max-width: 600px;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+        }
+        .dropdown-menu {
+            position: absolute; right: 0; background-color: white;
+            border-radius: 0.5rem; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+            border: 1px solid var(--border-color); min-width: 12rem;
+            z-index: 50; padding: 0.5rem 0; opacity: 0; visibility: hidden;
+            transform: translateY(10px);
+            transition: opacity 0.2s ease-out, transform 0.2s ease-out;
+        }
+        .dropdown-menu.show { opacity: 1; visibility: visible; transform: translateY(0); }
+        .sidebar-nav-link.active {
+            background-color: var(--primary-color); color: white;
+        }
+        
+        @media (max-width: 767px) {
+            .responsive-table thead { display: none; }
+            .responsive-table, .responsive-table tbody, .responsive-table tr, .responsive-table td {
+                display: block; width: 100%;
+            }
+            .responsive-table tr { margin-bottom: 1.5rem; border: 1px solid var(--border-color); border-radius: 0.75rem; padding: 1rem; }
+            .responsive-table td { padding: 0.5rem 0; display: flex; justify-content: space-between; align-items: center; text-align: right; border-bottom: 1px solid var(--border-color); }
+            .responsive-table td:last-child { border-bottom: 0; }
+            .responsive-table td::before { content: attr(data-label); font-weight: 600; text-align: left; color: var(--text-primary); }
+        }
+
+        .notification-badge-container { position: relative; }
+        .notification-badge {
+            position: absolute; top: -5px; right: -8px;
+            height: 20px; width: 20px;
+            background-color: var(--danger-color); color: white;
+            border-radius: 50%; display: flex;
+            align-items: center; justify-content: center;
+            font-size: 12px; font-weight: bold;
+            border: 2px solid white;
+            transform: scale(0); transition: transform 0.2s ease-out;
+        }
+        .notification-badge.show { transform: scale(1); }
+        .notification-item { border-bottom: 1px solid var(--border-color); }
+        .notification-item:last-child { border-bottom: none; }
+        .notification-item.unread { background-color: #eef2ff; }
+    </style>
+</head>
+<body class="min-h-screen">
+
+    <div id="skeletonLoader" class="w-full h-full flex flex-col items-center">
+        <header class="w-full bg-white border-b border-slate-200"><div class="container mx-auto flex justify-between items-center p-4"><div class="h-6 bg-slate-200 rounded w-1/4 animate-pulse"></div><div class="h-10 w-10 bg-slate-200 rounded-full animate-pulse"></div></div></header>
+        <main class="w-full flex-grow container mx-auto p-4 sm:p-6 mt-4"><div class="card p-6"><div class="h-8 bg-slate-200 rounded w-1/3 mb-6 animate-pulse"></div><div class="space-y-4"><div class="h-4 bg-slate-200 rounded w-full animate-pulse"></div><div class="h-4 bg-slate-200 rounded w-5/6 animate-pulse"></div><div class="h-12 bg-slate-200 rounded w-full mt-6 animate-pulse"></div></div></div></main>
+    </div>
+
+    <div id="authSection" class="min-h-screen flex items-center justify-center p-4 hidden">
+        <div class="w-full max-w-md card p-8 space-y-6">
+            <div class="text-center"><h2 class="mt-4 text-3xl font-bold text-slate-900">Đăng nhập hệ thống</h2></div>
+            <div><label for="authEmail" class="block text-slate-700 text-sm font-medium mb-2">Email:</label><input type="email" id="authEmail" class="input-field" placeholder="email@example.com"></div>
+            <div><label for="authPassword" class="block text-slate-700 text-sm font-medium mb-2">Mật khẩu:</label><input type="password" id="authPassword" class="input-field" placeholder="••••••••"></div>
+            <button id="loginBtn" class="btn-primary w-full text-base py-3">Đăng nhập</button>
+            <div id="authMessage" class="hidden mt-4 p-3 rounded-lg text-sm text-center"></div>
+        </div>
+    </div>
+
+    <div id="appContainer" class="hidden">
+        <aside id="sidebar" class="bg-white w-64 min-h-screen fixed top-0 left-0 z-40 lg:translate-x-0 -translate-x-full transition-transform duration-300 ease-in-out border-r border-slate-200 flex flex-col">
+            <div class="p-4 border-b border-slate-200"><button id="homeBtn" class="font-bold text-lg text-slate-800 focus:outline-none w-full text-left">Hệ Thống Vận Hành</button></div>
+            <nav id="sidebarNav" class="p-4 space-y-2 flex-grow"></nav>
+        </aside>
+
+        <div id="mainContent" class="lg:ml-64 transition-all duration-300 ease-in-out">
+            <header class="bg-white/80 backdrop-blur-lg sticky top-0 z-30 border-b border-slate-200">
+                <div class="mx-auto flex justify-between items-center p-4">
+                    <button id="mobileMenuToggle" class="lg:hidden text-xl text-slate-600"><i class="fas fa-bars"></i></button>
+                    <div class="flex-1"></div>
+                    <div class="flex items-center space-x-4">
+                        <div class="relative">
+                            <button id="notificationToggle" class="text-xl text-slate-600 hover:text-indigo-600 transition-colors notification-badge-container">
+                                <i class="fas fa-bell"></i>
+                                <div id="notificationBadge" class="notification-badge"></div>
+                            </button>
+                            <div id="notificationMenu" class="dropdown-menu !w-80 sm:!w-96 max-h-96 overflow-y-auto">
+                                <div class="p-3 font-semibold border-b border-slate-200">Thông Báo</div>
+                                <div id="notificationList"></div>
+                            </div>
+                        </div>
+                        <div class="relative">
+                            <button id="userDropdownToggle" class="flex items-center space-x-2"><i class="fas fa-user-circle text-2xl text-slate-600"></i><span id="loggedInUserDisplay" class="font-medium text-slate-700 hidden sm:block"></span><i class="fas fa-chevron-down text-xs text-slate-500"></i></button>
+                            <div id="userDropdownMenu" class="dropdown-menu">
+                                <div class="p-2 border-b border-slate-100"><p id="dropdownUserName" class="truncate font-semibold"></p><p id="dropdownUserRole" class="truncate text-xs text-slate-500"></p></div>
+                                <a href="#" id="logoutDropdownBtn" class="flex items-center p-2 text-red-600 hover:bg-slate-100 rounded-b-md"><i class="fas fa-sign-out-alt fa-fw mr-2"></i>Thoát</a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </header>
+            <main class="p-4 sm:p-6 space-y-6"></main>
+        </div>
+        
+        <div id="viewsContainer" class="hidden">
+            <div id="attendanceView">
+                 <div class="card p-6 lg:p-8">
+                    <h2 class="text-3xl font-bold text-slate-800 mb-6 flex items-center"><i class="fas fa-user-clock mr-3 text-indigo-600"></i>Điểm Danh Chấm Công</h2>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                        <div>
+                             <div class="mb-4"><label class="block text-slate-600 mb-2">Tên nhân viên:</label><input type="text" id="employeeName" class="input-field bg-slate-100" disabled></div>
+                             <div class="flex space-x-4"><button id="checkInBtn" class="btn-primary flex-1 py-3"><i class="fas fa-sign-in-alt mr-2"></i>Check In</button><button id="checkOutBtn" class="btn-secondary flex-1 py-3"><i class="fas fa-sign-out-alt mr-2"></i>Check Out</button></div>
+                             <div id="attendanceMessage" class="hidden mt-4 p-3 rounded-lg text-sm"></div>
+                        </div>
+                        <div>
+                            <h3 class="text-lg font-semibold text-slate-800 mb-3">Lịch Sử Gần Đây</h3>
+                            <ul id="attendanceHistory" class="space-y-2 text-slate-600 max-h-48 overflow-y-auto pr-2"></ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div id="manageAccountsView">
+                <div class="card p-6 mb-6">
+                    <h3 class="text-xl font-bold text-slate-800 mb-4">Tạo Tài Khoản Mới</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div><label class="font-medium text-sm">Email:</label><input type="email" id="createAccountEmail" class="input-field"></div>
+                        <div><label class="font-medium text-sm">Mật khẩu (tối thiểu 6 ký tự):</label><input type="password" id="createAccountPassword" class="input-field"></div>
+                        <div><label class="font-medium text-sm">Tên người dùng:</label><input type="text" id="createAccountUsername" class="input-field"></div>
+                        <div><label class="font-medium text-sm">Mã nhân viên (MSNV):</label><input type="text" id="createAccountEmployeeId" class="input-field"></div>
+                    </div>
+                    <button id="createAccountBtn" class="btn-primary mt-4">Tạo Tài Khoản</button>
+                    <div id="createAccountMessage" class="hidden mt-4 p-3 rounded-lg text-sm"></div>
+                </div>
+                <div class="card p-6">
+                    <h3 class="text-xl font-bold text-slate-800 mb-4">Danh Sách Tài Khoản</h3>
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full divide-y divide-slate-200 responsive-table">
+                            <thead class="bg-slate-50">
+                                <tr>
+                                    <th class="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase">Tên Người Dùng</th>
+                                    <th class="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase">Email</th>
+                                    <th class="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase">Vai Trò</th>
+                                    <th class="px-4 py-3 text-right text-xs font-semibold text-slate-500 uppercase">Hành Động</th>
+                                </tr>
+                            </thead>
+                            <tbody id="accountsTableBody" class="bg-white divide-y divide-slate-200"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            <div id="dashboardView">
+                <h2 class="text-3xl font-bold text-slate-800">Dashboard</h2>
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-4">
+                    <div class="card p-5"><p class="text-sm text-slate-500">Lỗi Phát Sinh Hôm Nay</p><p id="errorsToday" class="text-3xl font-bold">0</p></div>
+                    <div class="card p-5"><p class="text-sm text-slate-500">Lỗi Trong Tuần Này</p><p id="errorsThisWeek" class="text-3xl font-bold">0</p></div>
+                    <div class="card p-5"><p class="text-sm text-slate-500">Lỗi Trong Tháng Này</p><p id="errorsThisMonth" class="text-3xl font-bold">0</p></div>
+                </div>
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-6">
+                    <div class="lg:col-span-1 card p-6"><h3 class="font-semibold mb-4">Phân Loại Lỗi</h3><div class="h-64"><canvas id="issueTypePieChart"></canvas></div></div>
+                    <div class="lg:col-span-2 card p-6"><h3 class="font-semibold mb-4">Trạng Thái Xử Lý</h3><div id="statusSummary" class="space-y-3"></div></div>
+                </div>
+            </div>
+            <div id="issueReportView">
+                <div class="card p-6 lg:p-8">
+                    <h2 class="text-2xl sm:text-3xl font-bold text-slate-800 mb-6 flex items-center"><i class="fas fa-exclamation-triangle mr-3 text-red-600"></i>Báo Lỗi & Sự Cố</h2>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
+                        <div><label for="reporterName" class="block text-slate-600 text-sm font-medium mb-2">Người báo cáo:</label><input type="text" id="reporterName" class="input-field bg-slate-100" disabled></div>
+                        <div><label for="issueType" class="block text-slate-600 text-sm font-medium mb-2">Loại sự cố:</label><select id="issueType" class="select-field"><option value="Kỹ thuật">Kỹ thuật</option><option value="Vận hành">Vận hành</option><option value="Hệ thống">Hệ thống</option><option value="Con người">Con người</option><option value="Khác">Khác</option></select></div>
+                        <div><label for="issuePriority" class="block text-slate-600 text-sm font-medium mb-2">Mức độ ưu tiên:</label><select id="issuePriority" class="select-field"><option value="Thấp">Thấp</option><option value="Trung bình">Trung bình</option><option value="Nghiêm trọng">Nghiêm trọng</option></select></div>
+                        <div><label for="issueBranch" class="block text-slate-600 text-sm font-medium mb-2">Chi nhánh:</label><select id="issueBranch" class="select-field"></select></div>
+                        <div class="md:col-span-2"><label for="issueImage" class="block text-slate-600 text-sm font-medium mb-2">Ảnh mô tả lỗi:</label><input type="file" id="issueImage" accept="image/*" class="input-field"></div>
+                        <div class="md:col-span-2"><label for="issueDescription" class="block text-slate-600 text-sm font-medium mb-2">Mô tả chi tiết:</label><textarea id="issueDescription" class="textarea-field" placeholder="Mô tả sự cố..."></textarea></div>
+                    </div>
+                    <button id="reportIssueBtn" class="btn-primary mt-6"><i class="fas fa-paper-plane mr-2"></i>Gửi Báo Cáo</button>
+                    <div id="issueMessage" class="hidden mt-4 p-3 rounded-lg text-sm"></div>
+                </div>
+            </div>
+            <div id="issueHistoryView">
+                <div class="card p-6">
+                    <h2 class="text-2xl font-bold text-slate-800 mb-4">Lịch Sử Báo Cáo</h2>
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full divide-y divide-slate-200 responsive-table">
+                            <thead class="bg-slate-50">
+                                <tr>
+                                    <th class="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase">Chi nhánh</th>
+                                    <th class="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase">Người gửi</th>
+                                    <th class="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase">Loại sự cố</th>
+                                    <th class="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase">Ngày báo cáo</th>
+                                    <th class="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase">Trạng thái</th>
+                                </tr>
+                            </thead>
+                            <tbody id="issueHistoryTableBody" class="bg-white divide-y divide-slate-200"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            <div id="activityLogView">
+                <div class="card p-6">
+                    <h2 class="text-2xl font-bold text-slate-800 mb-4">Nhật Ký Hoạt Động</h2>
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full divide-y divide-slate-200 responsive-table">
+                             <thead class="bg-slate-50">
+                                <tr>
+                                    <th class="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase">Thời Gian</th>
+                                    <th class="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase">Người Thực Hiện</th>
+                                    <th class="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase">Hành Động</th>
+                                    <th class="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase">Chi Tiết</th>
+                                </tr>
+                            </thead>
+                            <tbody id="activityLogTableBody" class="bg-white divide-y divide-slate-200"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="editAccountModal" class="modal">
+            <div class="modal-content !max-w-3xl">
+                <div class="flex justify-between items-center mb-6"><h3 class="text-2xl font-bold text-slate-800">Chỉnh Sửa Tài Khoản</h3><span id="closeEditAccountModalBtn" class="cursor-pointer text-2xl">&times;</span></div>
+                <div class="space-y-4">
+                    <input type="hidden" id="editAccountUid">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div><label class="font-medium">Email:</label><input type="email" id="editAccountEmail" class="input-field bg-slate-100" disabled></div>
+                        <div><label class="font-medium">Vai trò:</label><select id="editAccountRole" class="select-field"></select></div>
+                        <div><label class="font-medium">Mã nhân viên (MSNV):</label><input type="text" id="editAccountEmployeeId" class="input-field"></div>
+                        <div><label class="font-medium">Tên người dùng:</label><input type="text" id="editAccountUsername" class="input-field"></div>
+                    </div>
+                    <div id="managedBranchesContainer" class="hidden pt-4 border-t"><h4 class="font-semibold mb-2">Phân Quyền Quản Lý Chi Nhánh</h4><div id="managedBranchesCheckboxes" class="grid grid-cols-2 md:grid-cols-3 gap-2 max-h-48 overflow-y-auto"></div></div>
+                    <div id="allowedViewsContainer" class="pt-4 border-t"><h4 class="font-semibold mb-2">Phân Quyền Truy Cập Chức Năng</h4><div id="allowedViewsCheckboxes" class="grid grid-cols-2 md:grid-cols-3 gap-2"></div></div>
+                    <div id="editAccountMessage" class="hidden mt-4 p-3 rounded-lg text-sm"></div>
+                    <div class="flex justify-end space-x-4 mt-6"><button id="cancelEditAccountBtn" class="btn-secondary">Hủy</button><button id="saveAccountDetailsBtn" class="btn-primary"><i class="fas fa-save mr-2"></i>Lưu Thay Đổi</button></div>
+                </div>
+            </div>
+        </div>
+
+        <div id="cameraModal" class="modal">
+            <div class="modal-content max-w-lg">
+                <div class="flex justify-between items-center mb-4"><h3 id="cameraModalTitle" class="text-xl font-bold text-slate-800">Điểm Danh</h3><span id="closeCameraModalBtn" class="cursor-pointer text-2xl">&times;</span></div>
+                <div class="relative w-full aspect-video bg-slate-200 rounded-lg overflow-hidden">
+                    <video id="cameraFeed" class="w-full h-full object-cover" autoplay playsinline></video>
+                    <canvas id="photoCanvas" class="hidden"></canvas>
+                    <img id="photoPreview" src="" class="hidden absolute top-0 left-0 w-full h-full object-cover"/>
+                </div>
+                <div id="cameraMessage" class="hidden mt-4 p-3 rounded-lg text-sm"></div>
+                <div class="flex justify-center space-x-4 mt-4">
+                    <button id="captureBtn" class="btn-primary px-8 py-3 rounded-full"><i class="fas fa-camera"></i></button>
+                    <button id="recaptureBtn" class="btn-secondary hidden">Chụp Lại</button>
+                    <button id="confirmAttendanceBtn" class="btn-primary hidden">Xác Nhận</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut, signInWithCustomToken, createUserWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, collection, query, orderBy, onSnapshot, addDoc, updateDoc, where, getDocs, getDoc, setDoc, serverTimestamp, limit } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getStorage, ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-storage.js";
+
+        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {
+            apiKey: "AIzaSyD3FBCihM1QA1DZmMxn0ysR2khs43M-2sE",
+            authDomain: "icool-ea266.firebaseapp.com",
+            projectId: "icool-ea266",
+            storageBucket: "icool-ea266.firebasestorage.app",
+            messagingSenderId: "338046663113",
+            appId: "1:338046663113:web:cef72e289e7546f3271018",
+            measurementId: "G-NBGEQSDT6N"
+        };
+        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+        const canvasAppId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+        const DEFAULT_ADMIN_EMAIL = 'trungthang2601@gmail.com';
+        const ALL_BRANCHES = ["ICOOL XÔ VIẾT NGHỆ TĨNH", "ICOOL BÌNH PHÚ", "ICOOL UNG VĂN KHIÊM", "ICOOL TÔ KÝ", "ICOOL DƯƠNG BÁ TRẠC", "ICOOL TRẦN NÃO", "ICOOL THÀNH THÁI", "ICOOL MẠC ĐĨNH CHI", "ICOOL NGUYỄN SƠN", "ICOOL NGUYỄN TRÃI", "ICOOL NHỊ THIÊN ĐƯỜNG", "ICOOL CÁCH MẠNG THÁNG TÁM", "ICOOL TRẦN BÌNH TRỌNG", "ICOOL ĐỒNG ĐEN", "ICOOL PHAN CHU TRINH", "ICOOL NGUYỄN TRI PHƯƠNG", "ICOOL PHAN XÍCH LONG", "ICOOL HOÀNG DIỆU 2", "ICOOL CẦU CHỮ Y", "ICOOL LÊ VĂN VIỆT", "ICOOL SƯ VẠN HẠNH", "ICOOL ĐẠI LỘ 2", "ICOOL LÊ THỊ HÀ", "ICOOL VŨNG TÀU"];
+        const ALL_VIEWS = {
+            dashboardView: "Dashboard", attendanceView: "Điểm Danh", issueReportView: "Báo Lỗi",
+            issueHistoryView: "Lịch Sử Báo Cáo", manageAccountsView: "Quản Lý Tài Khoản", activityLogView: "Nhật Ký Hoạt Động",
+        };
+        const ROLES = ['Admin', 'Manager', 'Nhân viên'];
+        const DEFAULT_VIEWS = {
+            'Admin': Object.keys(ALL_VIEWS),
+            'Manager': ['dashboardView', 'attendanceView', 'issueReportView', 'issueHistoryView'],
+            'Nhân viên': ['attendanceView', 'issueReportView', 'issueHistoryView']
+        };
+
+        let app, auth, db, storage;
+        let currentUser = null;
+        let currentUserProfile = null;
+        let unsubscribeListeners = [];
+        let issueTypeChart = null;
+        let cameraModal, currentCameraStream, capturedPhotoBlob, currentAttendanceAction;
+
+        let skeletonLoader, authSection, appContainer, mainContentContainer, viewsContainer, sidebarNav;
+        let authEmailInput, authPasswordInput, loginBtn, authMessage;
+        let loggedInUserDisplay, dropdownUserName, dropdownUserRole;
+        let notificationToggle, notificationBadge, notificationMenu, notificationList;
+        let editAccountModal;
+
+        document.addEventListener('DOMContentLoaded', async () => {
+            try {
+                app = initializeApp(firebaseConfig);
+                auth = getAuth(app);
+                db = getFirestore(app);
+                storage = getStorage(app);
+
+                bindShellDOMElements();
+                bindShellEventListeners();
+                
+                onAuthStateChanged(auth, handleAuthStateChange);
+
+                if (initialAuthToken) {
+                    await signInWithCustomToken(auth, initialAuthToken);
+                }
+
+            } catch (error) {
+                console.error("Firebase Init Error:", error);
+                skeletonLoader.classList.add('hidden');
+                authSection.classList.remove('hidden');
+            }
+        });
+
+        async function handleAuthStateChange(user) {
+            unsubscribeAll();
+            currentUser = user;
+
+            if (user) {
+                await fetchAndSetUserProfile(user.uid, user);
+                if (currentUserProfile) {
+                    setupUIForLoggedInUser();
+                    listenToNotifications();
+                    showInitialView();
+                    setTimeout(() => logActivity("User Login", { email: user.email }), 500);
+                } else {
+                    console.error("Could not fetch user profile. Logging out.");
+                    handleLogout();
+                }
+            } else {
+                setupUIForLoggedOutUser();
+            }
+            skeletonLoader.classList.add('hidden');
+        }
+
+        async function fetchAndSetUserProfile(uid, authUser) {
+            const userDocRef = doc(db, `/artifacts/${canvasAppId}/users/${uid}`);
+            let userDoc = await getDoc(userDocRef);
+
+            if (!userDoc.exists()) {
+                const userRole = authUser.email === DEFAULT_ADMIN_EMAIL ? 'Admin' : 'Nhân viên';
+                const defaultProfile = {
+                    email: authUser.email,
+                    displayName: authUser.displayName || ((authUser.email || '').split('@')[0] || 'Người dùng mới'),
+                    employeeId: 'N/A',
+                    role: userRole,
+                    allowedViews: DEFAULT_VIEWS[userRole],
+                    managedBranches: []
+                };
+                await setDoc(userDocRef, defaultProfile);
+                userDoc = await getDoc(userDocRef);
+            }
+            currentUserProfile = userDoc.data();
+        }
+
+        async function handleLogin() {
+            const email = authEmailInput.value.trim();
+            const password = authPasswordInput.value;
+            if (!email || !password) {
+                authMessage.textContent = 'Vui lòng nhập email và mật khẩu.';
+                authMessage.className = 'p-3 rounded-lg text-sm text-center alert-error';
+                authMessage.classList.remove('hidden');
+                return;
+            }
+            try {
+                await signInWithEmailAndPassword(auth, email, password);
+                authMessage.classList.add('hidden');
+            } catch (error) {
+                authMessage.textContent = `Lỗi đăng nhập: ${error.code === 'auth/invalid-credential' ? 'Email hoặc mật khẩu không đúng.' : error.message}`;
+                authMessage.className = 'p-3 rounded-lg text-sm text-center alert-error';
+                authMessage.classList.remove('hidden');
+            }
+        }
+        
+        async function handleLogout() {
+            try { await signOut(auth); } catch (error) { console.error("Logout Error:", error); }
+        }
+
+        function setupUIForLoggedInUser() {
+            authSection.classList.add('hidden');
+            appContainer.classList.remove('hidden');
+            loggedInUserDisplay.textContent = currentUserProfile.displayName;
+            dropdownUserName.textContent = currentUserProfile.displayName;
+            dropdownUserRole.textContent = currentUserProfile.role;
+            renderSidebarNav();
+        }
+
+        function setupUIForLoggedOutUser() {
+            authSection.classList.remove('hidden');
+            appContainer.classList.add('hidden');
+            currentUserProfile = null;
+        }
+
+        function renderSidebarNav() {
+            sidebarNav.innerHTML = '';
+            currentUserProfile.allowedViews.forEach(viewId => {
+                if (ALL_VIEWS[viewId]) {
+                    const button = document.createElement('button');
+                    button.className = 'sidebar-nav-link w-full text-left p-3 rounded-md';
+                    button.dataset.view = viewId;
+                    const icons = { dashboardView: 'fa-chart-line', attendanceView: 'fa-user-clock', issueReportView: 'fa-exclamation-triangle', issueHistoryView: 'fa-history', manageAccountsView: 'fa-users-cog', activityLogView: 'fa-clipboard-list' };
+                    button.innerHTML = `<i class="fas ${icons[viewId]} fa-fw mr-3"></i>${ALL_VIEWS[viewId]}`;
+                    button.addEventListener('click', () => showView(viewId));
+                    sidebarNav.appendChild(button);
+                }
+            });
+        }
+        
+        function showInitialView() {
+            const firstAllowedView = currentUserProfile.allowedViews[0] || 'attendanceView';
+            showView(firstAllowedView);
+        }
+
+        function showView(viewId) {
+            const viewTemplate = viewsContainer.querySelector(`#${viewId}`);
+            mainContentContainer.innerHTML = viewTemplate ? viewTemplate.innerHTML : `<h2>${ALL_VIEWS[viewId] || 'Trang không xác định'}</h2>`;
+            document.querySelectorAll('.sidebar-nav-link').forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.view === viewId);
+            });
+            const setupFunction = window[`setup_${viewId}`];
+            if(typeof setupFunction === 'function') {
+                setupFunction();
+            }
+        }
+        
+        function listenToNotifications() {
+            const q = query(collection(db, `/artifacts/${canvasAppId}/users/${currentUser.uid}/notifications`), orderBy('timestamp', 'desc'), limit(20));
+            const unsubscribe = onSnapshot(q, snapshot => {
+                const notifications = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                renderNotifications(notifications);
+            });
+            unsubscribeListeners.push(unsubscribe);
+        }
+
+        function renderNotifications(notifications) {
+            const unreadCount = notifications.filter(n => !n.read).length;
+            notificationBadge.textContent = unreadCount;
+            notificationBadge.classList.toggle('show', unreadCount > 0);
+            notificationList.innerHTML = notifications.length === 0 
+                ? `<div class="p-4 text-center text-sm text-slate-500">Không có thông báo mới.</div>`
+                : notifications.map(n => {
+                    const timestamp = n.timestamp ? new Date(n.timestamp.toDate()).toLocaleString('vi-VN') : 'Vừa xong';
+                    return `<div class="notification-item p-3 cursor-pointer hover:bg-slate-50 ${n.read ? '' : 'unread'}"><p class="text-sm">${n.message}</p><p class="text-xs text-slate-400 mt-1">${timestamp}</p></div>`
+                }).join('');
+        }
+        
+        async function logActivity(action, details = {}) {
+            try {
+                if (!currentUserProfile) return;
+                const logCollection = collection(db, `/artifacts/${canvasAppId}/public/data/activityLogs`);
+                await addDoc(logCollection, {
+                    action, details, timestamp: serverTimestamp(),
+                    actor: { uid: currentUser?.uid, email: currentUser?.email, displayName: currentUserProfile?.displayName }
+                });
+            } catch (error) {
+                console.warn(`Could not write to activity log (permissions issue?): ${error.message}`);
+            }
+        }
+
+        function getScopedIssuesQuery() {
+            let q = collection(db, `/artifacts/${canvasAppId}/public/data/issueReports`);
+            if (currentUserProfile.role === 'Manager') {
+                const managedBranches = currentUserProfile.managedBranches || [];
+                if (managedBranches.length > 0) {
+                    q = query(q, where('issueBranch', 'in', managedBranches));
+                } else {
+                    return query(q, where('issueBranch', '==', '__NO_BRANCH_ASSIGNED__'));
+                }
+            } else if (currentUserProfile.role === 'Nhân viên') {
+                q = query(q, where('reporterId', '==', currentUser.uid));
+            }
+            return query(q, orderBy('reportDate', 'desc'));
+        }
+
+        // --- VIEW SETUP FUNCTIONS ---
+        window.setup_attendanceView = function() {
+            mainContentContainer.querySelector('#employeeName').value = currentUserProfile.displayName;
+            mainContentContainer.querySelector('#checkInBtn').addEventListener('click', () => handleAttendance('Check-In'));
+            mainContentContainer.querySelector('#checkOutBtn').addEventListener('click', () => handleAttendance('Check-Out'));
+            listenToAttendance();
+        };
+
+        window.setup_manageAccountsView = function() {
+            mainContentContainer.querySelector('#createAccountBtn').addEventListener('click', handleCreateAccount);
+            renderRegisteredAccountsTable();
+        };
+
+        window.setup_dashboardView = function() {
+            const q = getScopedIssuesQuery();
+            const unsubscribe = onSnapshot(q, (snapshot) => {
+                const reports = snapshot.docs.map(doc => doc.data());
+                updateDashboardUI(reports);
+            }, (error) => console.error("Dashboard listener failed:", error));
+            unsubscribeListeners.push(unsubscribe);
+        };
+        
+        window.setup_issueReportView = function() {
+            mainContentContainer.querySelector('#reporterName').value = currentUserProfile.displayName;
+            const branchSelect = mainContentContainer.querySelector('#issueBranch');
+            branchSelect.innerHTML = ALL_BRANCHES.map(b => `<option value="${b}">${b}</option>`).join('');
+            mainContentContainer.querySelector('#reportIssueBtn').addEventListener('click', handleReportIssue);
+        };
+
+        window.setup_issueHistoryView = function() {
+            const tableBody = mainContentContainer.querySelector('#issueHistoryTableBody');
+            if (!tableBody) return;
+            tableBody.innerHTML = `<tr><td colspan="5" class="text-center p-4">Đang tải...</td></tr>`;
+            
+            const q = getScopedIssuesQuery();
+            const unsubscribe = onSnapshot(q, (snapshot) => {
+                const reports = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                renderIssueHistoryTable(reports);
+            }, (error) => console.error("Issue history listener failed:", error));
+            unsubscribeListeners.push(unsubscribe);
+        };
+        
+        window.setup_activityLogView = function() {
+            const tableBody = mainContentContainer.querySelector('#activityLogTableBody');
+            if (!tableBody) return;
+            tableBody.innerHTML = `<tr><td colspan="4" class="text-center p-4">Đang tải...</td></tr>`;
+
+            const q = query(collection(db, `/artifacts/${canvasAppId}/public/data/activityLogs`), orderBy('timestamp', 'desc'), limit(50));
+            const unsubscribe = onSnapshot(q, (snapshot) => {
+                const logs = snapshot.docs.map(doc => doc.data());
+                renderActivityLogTable(logs);
+            }, (error) => console.error("Activity log listener failed:", error));
+            unsubscribeListeners.push(unsubscribe);
+        };
+        
+        // --- RENDER FUNCTIONS ---
+        function renderActivityLogTable(logs) {
+            const tableBody = mainContentContainer.querySelector('#activityLogTableBody');
+            if (!tableBody) return;
+            tableBody.innerHTML = logs.length > 0 ? logs.map(log => `
+                <tr class="hover:bg-gray-50">
+                    <td data-label="Thời Gian" class="px-4 py-3">${log.timestamp ? new Date(log.timestamp.toDate()).toLocaleString('vi-VN') : ''}</td>
+                    <td data-label="Người Thực Hiện" class="px-4 py-3">${log.actor.displayName || log.actor.email}</td>
+                    <td data-label="Hành Động" class="px-4 py-3">${log.action}</td>
+                    <td data-label="Chi Tiết" class="px-4 py-3 text-xs font-mono">${JSON.stringify(log.details)}</td>
+                </tr>
+            `).join('') : `<tr><td colspan="4" class="text-center p-4">Không có hoạt động nào.</td></tr>`;
+        }
+
+        function updateDashboardUI(reports) {
+            const dashboardView = mainContentContainer.querySelector('#dashboardView');
+            if (!dashboardView) return;
+            
+            const now = new Date();
+            const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+            const weekStart = new Date(todayStart);
+            weekStart.setDate(weekStart.getDate() - weekStart.getDay());
+            const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+
+            dashboardView.querySelector('#errorsToday').textContent = reports.filter(r => new Date(r.reportDate) >= todayStart).length;
+            dashboardView.querySelector('#errorsThisWeek').textContent = reports.filter(r => new Date(r.reportDate) >= weekStart).length;
+            dashboardView.querySelector('#errorsThisMonth').textContent = reports.filter(r => new Date(r.reportDate) >= monthStart).length;
+            
+            const typeCounts = reports.reduce((acc, report) => { acc[report.issueType] = (acc[report.issueType] || 0) + 1; return acc; }, {});
+            renderIssueTypePieChart(typeCounts);
+
+            const statusCounts = reports.reduce((acc, report) => { acc[report.status] = (acc[report.status] || 0) + 1; return acc; }, {});
+            renderStatusSummary(statusCounts, reports.length);
+        }
+
+        function renderIssueTypePieChart(data) {
+            const canvas = mainContentContainer.querySelector('#issueTypePieChart');
+            if (!canvas) return;
+            if (issueTypeChart) issueTypeChart.destroy();
+            issueTypeChart = new Chart(canvas.getContext('2d'), {
+                type: 'pie',
+                data: {
+                    labels: Object.keys(data),
+                    datasets: [{ data: Object.values(data), backgroundColor: ['#3B82F6', '#10B981', '#F59E0B', '#8B5CF6', '#EF4444'] }]
+                },
+                options: { responsive: true, maintainAspectRatio: false }
+            });
+        }
+
+        function renderStatusSummary(data, total) {
+            const container = mainContentContainer.querySelector('#statusSummary');
+            if (!container) return;
+            const statuses = { 'Mới tạo': 'bg-blue-500', 'Đang xử lý': 'bg-yellow-500', 'Đã giải quyết': 'bg-green-500' };
+            container.innerHTML = Object.entries(statuses).map(([status, color]) => {
+                const count = data[status] || 0;
+                const percentage = total > 0 ? ((count / total) * 100).toFixed(0) : 0;
+                return `<div><div class="flex justify-between mb-1"><span class="text-sm font-medium">${status} (${count})</span><span class="text-sm">${percentage}%</span></div><div class="w-full bg-slate-200 rounded-full h-2"><div class="${color} h-2 rounded-full" style="width: ${percentage}%"></div></div></div>`;
+            }).join('');
+        }
+
+        function renderIssueHistoryTable(reports) {
+             const tableBody = mainContentContainer.querySelector('#issueHistoryTableBody');
+             if (!tableBody) return;
+             tableBody.innerHTML = reports.length > 0 ? reports.map(report => `
+                <tr class="hover:bg-gray-50">
+                    <td data-label="Chi nhánh" class="px-4 py-3">${report.issueBranch}</td>
+                    <td data-label="Người gửi" class="px-4 py-3">${report.reporterName}</td>
+                    <td data-label="Loại sự cố" class="px-4 py-3">${report.issueType}</td>
+                    <td data-label="Ngày báo cáo" class="px-4 py-3">${new Date(report.reportDate).toLocaleString('vi-VN')}</td>
+                    <td data-label="Trạng thái" class="px-4 py-3">${report.status}</td>
+                </tr>
+             `).join('') : `<tr><td colspan="5" class="text-center p-4">Không có báo cáo nào.</td></tr>`;
+        }
+        
+        async function renderRegisteredAccountsTable() {
+            const tableBody = mainContentContainer.querySelector('#accountsTableBody');
+            if (!tableBody) return;
+            tableBody.innerHTML = `<tr><td colspan="4" class="text-center p-4">Đang tải...</td></tr>`;
+
+            try {
+                const usersSnapshot = await getDocs(collection(db, `/artifacts/${canvasAppId}/users`));
+                const users = usersSnapshot.docs.map(doc => ({ uid: doc.id, ...doc.data() }));
+                
+                tableBody.innerHTML = users.map(user => `
+                    <tr class="hover:bg-gray-50">
+                        <td data-label="Tên Người Dùng" class="px-4 py-3">${user.displayName}</td>
+                        <td data-label="Email" class="px-4 py-3">${user.email}</td>
+                        <td data-label="Vai Trò" class="px-4 py-3">${user.role}</td>
+                        <td data-label="Hành Động" class="px-4 py-3 text-right">
+                            <button class="edit-user-btn btn-secondary !text-sm !py-1 !px-2" data-uid="${user.uid}">Sửa</button>
+                        </td>
+                    </tr>
+                `).join('');
+
+                tableBody.querySelectorAll('.edit-user-btn').forEach(btn => {
+                    btn.addEventListener('click', () => {
+                        const userToEdit = users.find(u => u.uid === btn.dataset.uid);
+                        if (userToEdit) populateEditAccountModal(userToEdit);
+                    });
+                });
+            } catch (error) {
+                console.error("Error rendering accounts table:", error);
+                tableBody.innerHTML = `<tr><td colspan="4" class="text-center p-4 text-red-500">Lỗi tải danh sách người dùng. Kiểm tra lại quy tắc bảo mật.</td></tr>`;
+            }
+        }
+        
+        function populateEditAccountModal(userData) {
+            editAccountModal.querySelector('#editAccountUid').value = userData.uid;
+            editAccountModal.querySelector('#editAccountEmail').value = userData.email;
+            editAccountModal.querySelector('#editAccountEmployeeId').value = userData.employeeId || '';
+            editAccountModal.querySelector('#editAccountUsername').value = userData.displayName || '';
+            
+            const roleSelect = editAccountModal.querySelector('#editAccountRole');
+            roleSelect.innerHTML = ROLES.map(r => `<option value="${r}" ${userData.role === r ? 'selected' : ''}>${r}</option>`).join('');
+
+            const branchesContainer = editAccountModal.querySelector('#managedBranchesCheckboxes');
+            branchesContainer.innerHTML = ALL_BRANCHES.map(b => `<label class="flex items-center space-x-2 cursor-pointer"><input type="checkbox" value="${b}" class="form-checkbox h-4 w-4 text-indigo-600 rounded" ${userData.managedBranches?.includes(b) ? 'checked' : ''}><span class="text-sm">${b.replace('Chi nhánh ICOOL ','')}</span></label>`).join('');
+            
+            const viewsContainer = editAccountModal.querySelector('#allowedViewsCheckboxes');
+            viewsContainer.innerHTML = Object.entries(ALL_VIEWS).map(([id, name]) => `<label class="flex items-center space-x-2 cursor-pointer"><input type="checkbox" value="${id}" class="form-checkbox h-4 w-4 text-indigo-600 rounded" ${userData.allowedViews?.includes(id) ? 'checked' : ''}><span class="text-sm">${name}</span></label>`).join('');
+
+            const handleRoleChange = () => {
+                const role = roleSelect.value;
+                document.getElementById('managedBranchesContainer').classList.toggle('hidden', role !== 'Manager');
+            };
+
+            roleSelect.addEventListener('change', handleRoleChange);
+            handleRoleChange();
+            
+            editAccountModal.style.display = 'flex';
+        }
+        
+        async function handleUpdateAccountDetails() {
+            const uid = editAccountModal.querySelector('#editAccountUid').value;
+            const messageEl = editAccountModal.querySelector('#editAccountMessage');
+            const saveBtn = editAccountModal.querySelector('#saveAccountDetailsBtn');
+            if (!uid) return;
+
+            const updatedData = {
+                role: editAccountModal.querySelector('#editAccountRole').value,
+                employeeId: editAccountModal.querySelector('#editAccountEmployeeId').value.trim(),
+                displayName: editAccountModal.querySelector('#editAccountUsername').value.trim(),
+                managedBranches: Array.from(editAccountModal.querySelectorAll('#managedBranchesCheckboxes input:checked')).map(cb => cb.value),
+                allowedViews: Array.from(editAccountModal.querySelectorAll('#allowedViewsCheckboxes input:checked')).map(cb => cb.value)
+            };
+            
+            saveBtn.disabled = true;
+            saveBtn.innerHTML = `<i class="fas fa-spinner fa-spin mr-2"></i>Đang lưu...`;
+            
+            try {
+                const userDocRef = doc(db, `/artifacts/${canvasAppId}/users/${uid}`);
+                await updateDoc(userDocRef, updatedData);
+                await logActivity("Update User Profile", { targetUid: uid });
+                
+                messageEl.className = 'p-3 rounded-lg text-sm text-center alert-success';
+                messageEl.textContent = 'Cập nhật thành công!';
+                messageEl.classList.remove('hidden');
+                
+                renderRegisteredAccountsTable();
+                setTimeout(() => {
+                    editAccountModal.style.display = 'none';
+                    messageEl.classList.add('hidden');
+                }, 1500);
+
+            } catch (error) {
+                console.error("Error updating user:", error);
+                messageEl.className = 'p-3 rounded-lg text-sm text-center alert-error';
+                messageEl.textContent = `Lỗi: ${error.message}`;
+                messageEl.classList.remove('hidden');
+            } finally {
+                saveBtn.disabled = false;
+                saveBtn.innerHTML = `<i class="fas fa-save mr-2"></i>Lưu Thay Đổi`;
+            }
+        }
+
+        async function handleCreateAccount() {
+            const email = mainContentContainer.querySelector('#createAccountEmail').value;
+            const password = mainContentContainer.querySelector('#createAccountPassword').value;
+            const displayName = mainContentContainer.querySelector('#createAccountUsername').value;
+            const employeeId = mainContentContainer.querySelector('#createAccountEmployeeId').value;
+            const messageEl = mainContentContainer.querySelector('#createAccountMessage');
+
+            if (!email || password.length < 6 || !displayName || !employeeId) {
+                messageEl.textContent = 'Vui lòng điền đầy đủ thông tin hợp lệ.';
+                messageEl.className = 'p-3 rounded-lg text-sm text-center alert-error';
+                messageEl.classList.remove('hidden');
+                return;
+            }
+            
+            // This is not secure for production. Use Cloud Functions instead.
+            try {
+                const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+                const newUid = userCredential.user.uid;
+                
+                const newUserProfile = {
+                    email: email,
+                    displayName: displayName,
+                    employeeId: employeeId,
+                    role: 'Nhân viên', // Default role
+                    allowedViews: DEFAULT_VIEWS['Nhân viên'],
+                    managedBranches: []
+                };
+
+                await setDoc(doc(db, `/artifacts/${canvasAppId}/users/${newUid}`), newUserProfile);
+                
+                await logActivity("Admin Create User", { newEmail: email, newUid: newUid });
+
+                messageEl.textContent = `Tạo tài khoản ${email} thành công!`;
+                messageEl.className = 'p-3 rounded-lg text-sm text-center alert-success';
+                messageEl.classList.remove('hidden');
+                renderRegisteredAccountsTable();
+            } catch (error) {
+                 messageEl.textContent = `Lỗi tạo tài khoản: ${error.message}`;
+                 messageEl.className = 'p-3 rounded-lg text-sm text-center alert-error';
+                 messageEl.classList.remove('hidden');
+            }
+        }
+        
+        async function handleReportIssue() {
+            const reporterName = mainContentContainer.querySelector('#reporterName').value;
+            const issueType = mainContentContainer.querySelector('#issueType').value;
+            const priority = mainContentContainer.querySelector('#issuePriority').value;
+            const issueBranch = mainContentContainer.querySelector('#issueBranch').value;
+            const issueDescription = mainContentContainer.querySelector('#issueDescription').value;
+            const imageFile = mainContentContainer.querySelector('#issueImage').files[0];
+            const messageEl = mainContentContainer.querySelector('#issueMessage');
+            const button = mainContentContainer.querySelector('#reportIssueBtn');
+
+            if (!issueBranch || !issueDescription) {
+                 messageEl.textContent = 'Vui lòng điền đầy đủ thông tin.';
+                 messageEl.className = 'p-3 rounded-lg text-sm text-center alert-error';
+                 messageEl.classList.remove('hidden');
+                 return;
+            }
+            
+            button.disabled = true;
+            button.innerHTML = `<i class="fas fa-spinner fa-spin mr-2"></i>Đang gửi...`;
+
+            try {
+                let imageUrl = '';
+                if (imageFile) {
+                    const storageRef = ref(storage, `issue_images/${currentUser.uid}/${Date.now()}-${imageFile.name}`);
+                    const snapshot = await uploadBytes(storageRef, imageFile);
+                    imageUrl = await getDownloadURL(snapshot.ref);
+                }
+
+                const reportData = {
+                    reporterId: currentUser.uid,
+                    reporterName: reporterName,
+                    issueType: issueType,
+                    priority: priority,
+                    issueBranch: issueBranch,
+                    issueDescription: issueDescription,
+                    issueImageUrl: imageUrl,
+                    reportDate: new Date().toISOString(),
+                    status: 'Mới tạo',
+                };
+                
+                await addDoc(collection(db, `/artifacts/${canvasAppId}/public/data/issueReports`), reportData);
+                
+                messageEl.textContent = 'Báo cáo sự cố thành công!';
+                messageEl.className = 'p-3 rounded-lg text-sm text-center alert-success';
+                messageEl.classList.remove('hidden');
+                 mainContentContainer.querySelector('#issueDescription').value = '';
+                 mainContentContainer.querySelector('#issueImage').value = '';
+
+            } catch (error) {
+                 messageEl.textContent = `Lỗi: ${error.message}`;
+                 messageEl.className = 'p-3 rounded-lg text-sm text-center alert-error';
+                 messageEl.classList.remove('hidden');
+            } finally {
+                 button.disabled = false;
+                 button.innerHTML = `<i class="fas fa-paper-plane mr-2"></i>Gửi Báo Cáo`;
+            }
+        }
+
+        // --- ATTENDANCE FUNCTIONS ---
+        function handleAttendance(action) {
+            currentAttendanceAction = action;
+            cameraModal.style.display = 'flex';
+            cameraModal.querySelector('#cameraModalTitle').textContent = `${action} - Chụp Ảnh Xác Thực`;
+            startCameraStream();
+        }
+
+        async function startCameraStream() {
+            if (currentCameraStream) {
+                currentCameraStream.getTracks().forEach(track => track.stop());
+            }
+
+            const video = cameraModal.querySelector('#cameraFeed');
+            const preview = cameraModal.querySelector('#photoPreview');
+            const captureBtn = cameraModal.querySelector('#captureBtn');
+            const recaptureBtn = cameraModal.querySelector('#recaptureBtn');
+            const confirmBtn = cameraModal.querySelector('#confirmAttendanceBtn');
+
+            video.classList.remove('hidden');
+            preview.classList.add('hidden');
+            captureBtn.classList.remove('hidden');
+            recaptureBtn.classList.add('hidden');
+            confirmBtn.classList.add('hidden');
+
+            try {
+                currentCameraStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" } });
+                video.srcObject = currentCameraStream;
+            } catch (err) {
+                console.error("Camera error:", err);
+                cameraModal.querySelector('#cameraMessage').textContent = 'Không thể truy cập camera. Vui lòng cấp quyền.';
+            }
+        }
+
+        function capturePhoto() {
+            const video = cameraModal.querySelector('#cameraFeed');
+            const canvas = cameraModal.querySelector('#photoCanvas');
+            const preview = cameraModal.querySelector('#photoPreview');
+            
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            canvas.getContext('2d').drawImage(video, 0, 0);
+
+            canvas.toBlob(blob => {
+                capturedPhotoBlob = blob;
+                preview.src = URL.createObjectURL(blob);
+                
+                video.classList.add('hidden');
+                preview.classList.remove('hidden');
+                cameraModal.querySelector('#captureBtn').classList.add('hidden');
+                cameraModal.querySelector('#recaptureBtn').classList.remove('hidden');
+                cameraModal.querySelector('#confirmAttendanceBtn').classList.remove('hidden');
+
+                stopCameraStream();
+            }, 'image/jpeg');
+        }
+
+        function stopCameraStream() {
+            if (currentCameraStream) {
+                currentCameraStream.getTracks().forEach(track => track.stop());
+                currentCameraStream = null;
+            }
+        }
+
+        async function confirmAttendance() {
+            if (!capturedPhotoBlob) return;
+
+            const messageEl = mainContentContainer.querySelector('#attendanceMessage');
+            const modalMessageEl = cameraModal.querySelector('#cameraMessage');
+            const confirmBtn = cameraModal.querySelector('#confirmAttendanceBtn');
+
+            confirmBtn.disabled = true;
+            confirmBtn.innerHTML = `<i class="fas fa-spinner fa-spin"></i>`;
+            
+            try {
+                 const storageRef = ref(storage, `attendance_photos/${currentUser.uid}/${Date.now()}.jpg`);
+                 const snapshot = await uploadBytes(storageRef, capturedPhotoBlob);
+                 const photoUrl = await getDownloadURL(snapshot.ref);
+
+                 await addDoc(collection(db, `/artifacts/${canvasAppId}/users/${currentUser.uid}/attendance`), {
+                     action: currentAttendanceAction,
+                     timestamp: serverTimestamp(),
+                     photoUrl: photoUrl,
+                 });
+                 
+                 messageEl.textContent = `${currentAttendanceAction} thành công!`;
+                 messageEl.className = 'p-3 rounded-lg text-sm text-center alert-success';
+                 messageEl.classList.remove('hidden');
+                 closeCameraModal();
+
+            } catch (error) {
+                 modalMessageEl.textContent = `Lỗi: ${error.message}`;
+                 modalMessageEl.className = 'p-3 rounded-lg text-sm text-center alert-error';
+                 modalMessageEl.classList.remove('hidden');
+            } finally {
+                 confirmBtn.disabled = false;
+                 confirmBtn.textContent = 'Xác Nhận';
+            }
+        }
+        
+        function closeCameraModal() {
+            stopCameraStream();
+            cameraModal.style.display = 'none';
+        }
+
+        function listenToAttendance() {
+            const listEl = mainContentContainer.querySelector('#attendanceHistory');
+            if (!listEl) return;
+            const q = query(collection(db, `/artifacts/${canvasAppId}/users/${currentUser.uid}/attendance`), orderBy('timestamp', 'desc'), limit(5));
+            const unsubscribe = onSnapshot(q, (snapshot) => {
+                listEl.innerHTML = snapshot.docs.length > 0
+                    ? snapshot.docs.map(doc => {
+                        const data = doc.data();
+                        const time = data.timestamp ? new Date(data.timestamp.toDate()).toLocaleString('vi-VN') : '';
+                        return `<li class="p-2 bg-slate-50 rounded-md text-sm">${data.action} lúc: ${time}</li>`;
+                    }).join('')
+                    : `<li class="text-slate-500">Chưa có lịch sử.</li>`;
+            });
+            unsubscribeListeners.push(unsubscribe);
+        }
+
+        
+        // --- UTILITY FUNCTIONS ---
+        function bindShellDOMElements() {
+            skeletonLoader = document.getElementById('skeletonLoader');
+            authSection = document.getElementById('authSection');
+            appContainer = document.getElementById('appContainer');
+            mainContentContainer = document.querySelector('#mainContent main');
+            viewsContainer = document.getElementById('viewsContainer');
+            sidebarNav = document.getElementById('sidebarNav');
+            authEmailInput = document.getElementById('authEmail');
+            authPasswordInput = document.getElementById('authPassword');
+            loginBtn = document.getElementById('loginBtn');
+            authMessage = document.getElementById('authMessage');
+            loggedInUserDisplay = document.getElementById('loggedInUserDisplay');
+            dropdownUserName = document.getElementById('dropdownUserName');
+            dropdownUserRole = document.getElementById('dropdownUserRole');
+            notificationToggle = document.getElementById('notificationToggle');
+            notificationBadge = document.getElementById('notificationBadge');
+            notificationMenu = document.getElementById('notificationMenu');
+            notificationList = document.getElementById('notificationList');
+            editAccountModal = document.getElementById('editAccountModal');
+            cameraModal = document.getElementById('cameraModal');
+        }
+
+        function bindShellEventListeners() {
+            loginBtn.addEventListener('click', handleLogin);
+            document.getElementById('logoutDropdownBtn').addEventListener('click', handleLogout);
+            document.getElementById('userDropdownToggle').addEventListener('click', (e) => { e.stopPropagation(); document.getElementById('userDropdownMenu').classList.toggle('show'); });
+            notificationToggle.addEventListener('click', (e) => { e.stopPropagation(); notificationMenu.classList.toggle('show'); });
+            document.addEventListener('click', (e) => {
+                if (!notificationToggle.contains(e.target) && !notificationMenu.contains(e.target)) { notificationMenu.classList.remove('show'); }
+                if (!document.getElementById('userDropdownToggle').contains(e.target) && !document.getElementById('userDropdownMenu').contains(e.target)) { document.getElementById('userDropdownMenu').classList.remove('show'); }
+            });
+
+            editAccountModal.querySelector('#saveAccountDetailsBtn').addEventListener('click', handleUpdateAccountDetails);
+            const closeEditModal = () => editAccountModal.style.display = 'none';
+            editAccountModal.querySelector('#cancelEditAccountBtn').addEventListener('click', closeEditModal);
+            editAccountModal.querySelector('#closeEditAccountModalBtn').addEventListener('click', closeEditModal);
+            
+            cameraModal.querySelector('#closeCameraModalBtn').addEventListener('click', closeCameraModal);
+            cameraModal.querySelector('#captureBtn').addEventListener('click', capturePhoto);
+            cameraModal.querySelector('#recaptureBtn').addEventListener('click', startCameraStream);
+            cameraModal.querySelector('#confirmAttendanceBtn').addEventListener('click', confirmAttendance);
+        }
+        
+        function unsubscribeAll() {
+            unsubscribeListeners.forEach(unsub => unsub());
+            unsubscribeListeners = [];
+        }
+    </script>
+</body>
+</html>
+
