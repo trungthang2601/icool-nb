@@ -380,6 +380,7 @@
         let loggedInUserDisplay, dropdownUserName, dropdownUserRole;
         let notificationToggle, notificationBadge, notificationMenu, notificationList;
         let editAccountModal;
+        let sidebar, mobileMenuToggle;
 
         document.addEventListener('DOMContentLoaded', async () => {
             try {
@@ -512,6 +513,18 @@
             const setupFunction = window[`setup_${viewId}`];
             if(typeof setupFunction === 'function') {
                 setupFunction();
+            }
+
+            if (window.innerWidth < 1024) {
+                toggleMobileMenu(true);
+            }
+        }
+
+        function toggleMobileMenu(forceClose = false) {
+            if (forceClose) {
+                sidebar.classList.add('-translate-x-full');
+            } else {
+                sidebar.classList.toggle('-translate-x-full');
             }
         }
         
@@ -808,7 +821,6 @@
                 return;
             }
             
-            // This is not secure for production. Use Cloud Functions instead.
             try {
                 const userCredential = await createUserWithEmailAndPassword(auth, email, password);
                 const newUid = userCredential.user.uid;
@@ -817,7 +829,7 @@
                     email: email,
                     displayName: displayName,
                     employeeId: employeeId,
-                    role: 'Nhân viên', // Default role
+                    role: 'Nhân viên',
                     allowedViews: DEFAULT_VIEWS['Nhân viên'],
                     managedBranches: []
                 };
@@ -1038,6 +1050,8 @@
             notificationList = document.getElementById('notificationList');
             editAccountModal = document.getElementById('editAccountModal');
             cameraModal = document.getElementById('cameraModal');
+            sidebar = document.getElementById('sidebar');
+            mobileMenuToggle = document.getElementById('mobileMenuToggle');
         }
 
         function bindShellEventListeners() {
@@ -1045,9 +1059,15 @@
             document.getElementById('logoutDropdownBtn').addEventListener('click', handleLogout);
             document.getElementById('userDropdownToggle').addEventListener('click', (e) => { e.stopPropagation(); document.getElementById('userDropdownMenu').classList.toggle('show'); });
             notificationToggle.addEventListener('click', (e) => { e.stopPropagation(); notificationMenu.classList.toggle('show'); });
+            
+            mobileMenuToggle.addEventListener('click', () => toggleMobileMenu(false));
+
             document.addEventListener('click', (e) => {
                 if (!notificationToggle.contains(e.target) && !notificationMenu.contains(e.target)) { notificationMenu.classList.remove('show'); }
                 if (!document.getElementById('userDropdownToggle').contains(e.target) && !document.getElementById('userDropdownMenu').contains(e.target)) { document.getElementById('userDropdownMenu').classList.remove('show'); }
+                if (window.innerWidth < 1024 && !sidebar.contains(e.target) && !mobileMenuToggle.contains(e.target)) {
+                    toggleMobileMenu(true);
+                }
             });
 
             editAccountModal.querySelector('#saveAccountDetailsBtn').addEventListener('click', handleUpdateAccountDetails);
