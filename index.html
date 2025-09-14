@@ -3,7 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<<<<<<< HEAD
     <title>Hệ thống Vận hành Thông minh</title>
+=======
+    <title>Hệ thống Điểm Danh & Báo Lỗi</title>
+>>>>>>> ed8fcad195e59ac9fc5e428a0b337476aca91d92
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Font Awesome for icons -->
@@ -18,7 +22,20 @@
         :root {
             --primary-color: #4f46e5; /* indigo-600 */
             --primary-hover: #4338ca; /* indigo-700 */
+<<<<<<< HEAD
             --danger-color: #dc2626; /* red-600 */
+=======
+            --primary-active: #3730a3; /* indigo-800 */
+            --secondary-bg: #eef2ff; /* indigo-50 */
+            --secondary-text: #4f46e5; /* indigo-600 */
+            --secondary-border: #a5b4fc; /* indigo-300 */
+            --danger-color: #dc2626; /* red-600 */
+            --danger-hover: #b91c1c; /* red-700 */
+            --success-bg: #dcfce7; /* green-100 */
+            --success-text: #166534; /* green-800 */
+            --success-border: #22c55e; /* green-500 */
+            --card-bg: #ffffff;
+>>>>>>> ed8fcad195e59ac9fc5e428a0b337476aca91d92
             --body-bg: #f8fafc; /* slate-50 */
             --text-primary: #1e2d3b; /* slate-800 */
             --text-secondary: #64748b; /* slate-500 */
@@ -30,8 +47,16 @@
             background-color: var(--body-bg);
             color: var(--text-primary);
         }
+<<<<<<< HEAD
         .card {
             background-color: #ffffff;
+=======
+        .container {
+            max-width: 90%;
+        }
+        .card {
+            background-color: var(--card-bg);
+>>>>>>> ed8fcad195e59ac9fc5e428a0b337476aca91d92
             border-radius: 0.75rem;
             box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.07), 0 1px 2px -1px rgba(0, 0, 0, 0.07);
             border: 1px solid var(--border-color);
@@ -43,6 +68,7 @@
             border-radius: 0.5rem;
             font-weight: 500;
             transition: all 0.2s ease-in-out;
+<<<<<<< HEAD
         }
         .btn-primary:hover {
             background-color: var(--primary-hover);
@@ -52,6 +78,19 @@
             background-color: #eef2ff; /* indigo-50 */
             color: var(--primary-color);
             border: 1px solid #a5b4fc; /* indigo-300 */
+=======
+            box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+        }
+        .btn-primary:hover {
+            background-color: var(--primary-hover);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1);
+            transform: translateY(-1px);
+        }
+        .btn-secondary {
+            background-color: var(--secondary-bg);
+            color: var(--secondary-text);
+            border: 1px solid var(--secondary-border);
+>>>>>>> ed8fcad195e59ac9fc5e428a0b337476aca91d92
             padding: 0.625rem 1.25rem;
             border-radius: 0.5rem;
             font-weight: 500;
@@ -59,10 +98,24 @@
         }
         .btn-secondary:hover {
             background-color: #e0e7ff; /* indigo-100 */
+<<<<<<< HEAD
+=======
+            border-color: #818cf8; /* indigo-400 */
+        }
+         .btn-edit {
+            background-color: #dbeafe; /* blue-100 */
+            color: #2563eb; /* blue-600 */
+            border: 1px solid #93c5fd; /* blue-300 */
+        }
+        .btn-edit:hover {
+            background-color: #bfdbfe; /* blue-200 */
+            border-color: #60a5fa; /* blue-400 */
+>>>>>>> ed8fcad195e59ac9fc5e428a0b337476aca91d92
         }
         .btn-danger {
             background-color: var(--danger-color);
             color: white;
+<<<<<<< HEAD
         }
         .btn-danger:hover {
             background-color: #b91c1c; /* red-700 */
@@ -72,18 +125,56 @@
         .alert-info { background-color: #e0f2fe; color: #0c4a6e; border-left: 4px solid #38bdf8; }
         
         .input-field, .textarea-field, .select-field {
+=======
+            padding: 0.5rem 1rem;
+            border-radius: 0.5rem;
+            font-weight: 500;
+            transition: all 0.2s ease-in-out;
+            font-size: 0.875rem;
+            line-height: 1.25rem;
+            display: inline-flex;
+            align-items: center;
+        }
+        .btn-danger:hover {
+            background-color: var(--danger-hover);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1);
+        }
+        .alert-success {
+            background-color: var(--success-bg);
+            color: var(--success-text);
+            border-left: 4px solid var(--success-border);
+        }
+        .alert-error {
+            background-color: #fee2e2;
+            color: #991b1b;
+            border-left: 4px solid #ef4444;
+        }
+        .alert-info {
+            background-color: #e0f2fe;
+            color: #0c4a6e;
+            border-left: 4px solid #38bdf8;
+        }
+        .input-field {
+>>>>>>> ed8fcad195e59ac9fc5e428a0b337476aca91d92
             border: 1px solid var(--border-color);
             border-radius: 0.5rem;
             padding: 0.625rem 0.75rem;
             width: 100%;
             transition: all 0.2s ease-in-out;
+<<<<<<< HEAD
             background-color: #f9fafb;
         }
         .input-field:focus, .textarea-field:focus, .select-field:focus {
+=======
+            background-color: #f9fafb; /* gray-50 */
+        }
+        .input-field:focus {
+>>>>>>> ed8fcad195e59ac9fc5e428a0b337476aca91d92
             outline: 2px solid transparent;
             outline-offset: 2px;
             border-color: var(--primary-color);
             box-shadow: 0 0 0 2px rgba(79, 70, 229, 0.3);
+<<<<<<< HEAD
         }
         .modal {
             display: none; position: fixed; z-index: 100;
@@ -135,10 +226,183 @@
         .notification-item { border-bottom: 1px solid var(--border-color); }
         .notification-item:last-child { border-bottom: none; }
         .notification-item.unread { background-color: #eef2ff; }
+=======
+            background-color: white;
+        }
+        .textarea-field {
+            border: 1px solid var(--border-color);
+            border-radius: 0.5rem;
+            padding: 0.75rem;
+            width: 100%;
+            min-height: 100px;
+            transition: all 0.2s ease-in-out;
+            background-color: #f9fafb;
+        }
+        .textarea-field:focus {
+             outline: 2px solid transparent;
+            outline-offset: 2px;
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 2px rgba(79, 70, 229, 0.3);
+            background-color: white;
+        }
+        .login-container {
+            width: 100%;
+            max-width: 420px;
+        }
+        /* Modal styles */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 100;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            background-color: rgba(0,0,0,0.5);
+            justify-content: center;
+            align-items: center;
+        }
+        .modal-content {
+            background-color: #fefefe;
+            margin: auto;
+            padding: 2rem;
+            border-radius: 1rem;
+            width: 90%;
+            max-width: 600px;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.1);
+        }
+        .close-button {
+            color: #9ca3af;
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+            transition: color 0.2s ease;
+        }
+        .close-button:hover,
+        .close-button:focus {
+            color: #111827;
+            text-decoration: none;
+            cursor: pointer;
+        }
+        .dropdown-menu {
+            position: absolute;
+            right: 0;
+            background-color: white;
+            border-radius: 0.5rem;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.1);
+            border: 1px solid var(--border-color);
+            min-width: 12rem;
+            z-index: 20;
+            padding: 0.5rem 0;
+            opacity: 0;
+            visibility: hidden;
+            transform: translateY(10px);
+            transition: opacity 0.2s ease-out, transform 0.2s ease-out, visibility 0.2s ease-out;
+        }
+        .dropdown-menu.show {
+            opacity: 1;
+            visibility: visible;
+            transform: translateY(0);
+        }
+        .dropdown-item {
+            display: flex;
+            align-items: center;
+            padding: 0.75rem 1rem;
+            font-size: 0.9rem;
+            color: var(--text-primary);
+            cursor: pointer;
+            transition: background-color 0.2s ease;
+        }
+        .dropdown-item:hover {
+            background-color: #f9fafb; /* gray-50 */
+        }
+        .dropdown-item i {
+            margin-right: 0.75rem;
+            color: var(--text-secondary);
+        }
+        .dropdown-item.logout-item {
+            color: var(--danger-color);
+        }
+        .dropdown-item.logout-item i {
+            color: var(--danger-color);
+        }
+        
+        .professional-table tbody tr:hover {
+            background-color: #f9fafb; /* gray-50 */
+        }
+        .professional-table th {
+             background-color: #f9fafb; /* gray-50 */
+        }
+        .sidebar-nav-link {
+            display: flex;
+            align-items: center;
+            padding: 0.75rem 1rem;
+            border-radius: 0.5rem;
+            font-weight: 500;
+            color: var(--text-secondary);
+            transition: all 0.2s ease-in-out;
+        }
+        .sidebar-nav-link:hover {
+            background-color: var(--secondary-bg);
+            color: var(--primary-color);
+        }
+        .sidebar-nav-link.active {
+            background-color: var(--primary-color);
+            color: white;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1);
+        }
+        /* Responsive Table Styles */
+        @media (max-width: 767px) {
+            .responsive-table thead {
+                display: none;
+            }
+            .responsive-table, .responsive-table tbody, .responsive-table tr, .responsive-table td {
+                display: block;
+                width: 100%;
+            }
+            .responsive-table tr {
+                margin-bottom: 1.5rem;
+                border: 1px solid var(--border-color);
+                border-radius: 0.75rem;
+                padding: 1rem;
+                background-color: white;
+                 box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+            }
+            .responsive-table td {
+                padding: 0.5rem 0;
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                text-align: right;
+                border-bottom: 1px solid var(--border-color);
+            }
+            .responsive-table td:last-child {
+                border-bottom: 0;
+            }
+            .responsive-table td::before {
+                content: attr(data-label);
+                font-weight: 600;
+                text-align: left;
+                color: var(--text-primary);
+            }
+            .responsive-table td[data-label="UID"],
+            .responsive-table td[data-label="ID Người dùng"] {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+             .responsive-table td[data-label="UID"] > span,
+            .responsive-table td[data-label="ID Người dùng"] > span {
+                text-align: left;
+                margin-top: 0.25rem;
+            }
+        }
+>>>>>>> ed8fcad195e59ac9fc5e428a0b337476aca91d92
     </style>
 </head>
 <body class="min-h-screen">
 
+<<<<<<< HEAD
     <div id="skeletonLoader" class="w-full h-full flex flex-col items-center">
         <header class="w-full bg-white border-b border-slate-200"><div class="container mx-auto flex justify-between items-center p-4"><div class="h-6 bg-slate-200 rounded w-1/4 animate-pulse"></div><div class="h-10 w-10 bg-slate-200 rounded-full animate-pulse"></div></div></header>
         <main class="w-full flex-grow container mx-auto p-4 sm:p-6 mt-4"><div class="card p-6"><div class="h-8 bg-slate-200 rounded w-1/3 mb-6 animate-pulse"></div><div class="space-y-4"><div class="h-4 bg-slate-200 rounded w-full animate-pulse"></div><div class="h-4 bg-slate-200 rounded w-5/6 animate-pulse"></div><div class="h-12 bg-slate-200 rounded w-full mt-6 animate-pulse"></div></div></div></main>
@@ -158,11 +422,98 @@
         <aside id="sidebar" class="bg-white w-64 min-h-screen fixed top-0 left-0 z-40 lg:translate-x-0 -translate-x-full transition-transform duration-300 ease-in-out border-r border-slate-200 flex flex-col">
             <div class="p-4 border-b border-slate-200"><button id="homeBtn" class="font-bold text-lg text-slate-800 focus:outline-none w-full text-left">Hệ Thống Vận Hành</button></div>
             <nav id="sidebarNav" class="p-4 space-y-2 flex-grow"></nav>
+=======
+    <!-- Skeleton screen -->
+    <div id="skeletonLoader" class="w-full h-full flex flex-col items-center">
+        <!-- Skeleton Header -->
+        <header class="w-full bg-white border-b border-slate-200">
+            <div class="container mx-auto flex justify-between items-center p-4">
+                <div class="h-6 bg-slate-200 rounded w-1/4 animate-pulse"></div>
+                <div class="flex items-center space-x-2">
+                    <div class="h-10 w-10 bg-slate-200 rounded-full animate-pulse"></div>
+                    <div class="h-6 bg-slate-200 rounded w-24 animate-pulse hidden sm:block"></div>
+                </div>
+            </div>
+        </header>
+        <!-- Skeleton Nav -->
+        <nav class="w-full my-4 px-4 hidden lg:flex flex-wrap justify-center items-center gap-2">
+            <div class="h-12 bg-slate-200 rounded w-48 animate-pulse"></div>
+            <div class="h-12 bg-slate-200 rounded w-48 animate-pulse"></div>
+            <div class="h-12 bg-slate-200 rounded w-48 animate-pulse"></div>
+        </nav>
+        <!-- Skeleton Main Content -->
+        <main class="w-full flex-grow container mx-auto p-4 sm:p-6 mt-4">
+             <div class="card p-6">
+                 <div class="h-8 bg-slate-200 rounded w-1/3 mb-6 animate-pulse"></div>
+                 <div class="space-y-4">
+                     <div class="h-4 bg-slate-200 rounded w-full animate-pulse"></div>
+                     <div class="h-4 bg-slate-200 rounded w-5/6 animate-pulse"></div>
+                     <div class="h-12 bg-slate-200 rounded w-full mt-6 animate-pulse"></div>
+                 </div>
+             </div>
+        </main>
+    </div>
+
+    <!-- Login Section -->
+    <div id="authSection" class="min-h-screen flex items-center justify-center p-4 hidden">
+        <div class="login-container card p-8 sm:p-10 space-y-6">
+             <div class="text-center">
+                <svg class="mx-auto h-12 w-auto text-indigo-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75m-3-7.036A11.959 11.959 0 013.598 6 11.99 11.99 0 003 9.749c0 5.592 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.286zm0 13.036h.008v.008h-.008v-.008z" />
+                </svg>
+                <h2 class="mt-4 text-2xl sm:text-3xl font-bold text-slate-900">Đăng nhập hệ thống</h2>
+            </div>
+            <div>
+                <label for="authEmail" class="block text-slate-700 text-sm font-medium mb-2">Email:</label>
+                <input type="email" id="authEmail" class="input-field" placeholder="email@example.com">
+            </div>
+            <div>
+                <label for="authPassword" class="block text-slate-700 text-sm font-medium mb-2">Mật khẩu:</label>
+                <input type="password" id="authPassword" class="input-field" placeholder="••••••••">
+            </div>
+            <button id="loginBtn" class="btn-primary w-full text-base py-3 flex items-center justify-center">
+                <i class="fas fa-arrow-right-to-bracket mr-2"></i>Đăng nhập
+            </button>
+            <div class="text-center">
+                <a href="#" id="forgotPasswordLink" class="text-sm text-indigo-600 hover:text-indigo-800 hover:underline">Quên mật khẩu?</a>
+            </div>
+            <div id="authMessage" class="hidden mt-4 p-3 rounded-lg text-sm text-center transition-all duration-300"></div>
+        </div>
+    </div>
+
+    <!-- Main App Container -->
+    <div id="appContainer" class="hidden">
+        <aside id="sidebar" class="bg-white w-64 min-h-screen fixed top-0 left-0 z-40 lg:translate-x-0 -translate-x-full transition-transform duration-300 ease-in-out border-r border-slate-200 flex flex-col">
+            <div class="p-4 border-b border-slate-200">
+                 <button id="homeBtn" class="font-bold text-lg text-slate-800 focus:outline-none w-full text-left">Hệ Thống Báo Cáo</button>
+            </div>
+            <nav class="p-4 space-y-2 flex-grow">
+                <button data-view="attendanceView" class="sidebar-nav-link w-full">
+                    <i class="fas fa-user-clock fa-fw mr-3"></i>Điểm Danh
+                </button>
+                <button data-view="issueReportView" class="sidebar-nav-link w-full">
+                    <i class="fas fa-exclamation-triangle fa-fw mr-3"></i>Báo Lỗi
+                </button>
+                <button data-view="issueHistoryView" class="sidebar-nav-link w-full">
+                    <i class="fas fa-history fa-fw mr-3"></i>Lịch Sử
+                </button>
+                <button data-view="dashboardView" class="sidebar-nav-link w-full">
+                    <i class="fas fa-chart-line fa-fw mr-3"></i>Dashboard
+                </button>
+                <button data-view="loginLogView" class="sidebar-nav-link w-full">
+                    <i class="fas fa-file-alt fa-fw mr-3"></i>Nhật Ký Đăng Nhập
+                </button>
+                <button data-view="manageAccountsView" id="showManageAccountsBtn" class="sidebar-nav-link w-full hidden">
+                    <i class="fas fa-users-cog fa-fw mr-3"></i>Quản lý
+                </button>
+            </nav>
+>>>>>>> ed8fcad195e59ac9fc5e428a0b337476aca91d92
         </aside>
 
         <div id="mainContent" class="lg:ml-64 transition-all duration-300 ease-in-out">
             <header class="bg-white/80 backdrop-blur-lg sticky top-0 z-30 border-b border-slate-200">
                 <div class="mx-auto flex justify-between items-center p-4">
+<<<<<<< HEAD
                     <button id="mobileMenuToggle" class="lg:hidden text-xl text-slate-600"><i class="fas fa-bars"></i></button>
                     <div class="flex-1"></div>
                     <div class="flex items-center space-x-4">
@@ -182,10 +533,43 @@
                                 <div class="p-2 border-b border-slate-100"><p id="dropdownUserName" class="truncate font-semibold"></p><p id="dropdownUserRole" class="truncate text-xs text-slate-500"></p></div>
                                 <a href="#" id="logoutDropdownBtn" class="flex items-center p-2 text-red-600 hover:bg-slate-100 rounded-b-md"><i class="fas fa-sign-out-alt fa-fw mr-2"></i>Thoát</a>
                             </div>
+=======
+                    <button id="mobileMenuToggle" class="lg:hidden text-xl text-slate-600">
+                        <i class="fas fa-bars"></i>
+                    </button>
+                    <div class="flex-1"></div> <!-- Spacer -->
+                    <div class="relative">
+                        <button id="userDropdownToggle" class="flex items-center space-x-2 p-2 rounded-full hover:bg-slate-100 transition-colors">
+                            <i class="fas fa-user-circle text-2xl text-slate-600"></i>
+                            <span id="loggedInUserDisplay" class="font-medium text-slate-700 hidden sm:block"></span>
+                            <i class="fas fa-chevron-down text-slate-500 text-xs"></i>
+                        </button>
+                        <div id="userDropdownMenu" class="dropdown-menu">
+                            <div class="dropdown-item cursor-default">
+                                <i class="fas fa-envelope"></i>
+                                <span id="dropdownUserName" class="truncate"></span>
+                            </div>
+                            <div class="dropdown-item cursor-default">
+                                <i class="fas fa-hashtag"></i>
+                                <span id="dropdownUserId" class="truncate text-xs"></span>
+                            </div>
+                            <hr class="my-1 border-slate-100">
+                            <a href="#" id="manageAccountDropdownBtn" class="dropdown-item user-dropdown-item hidden">
+                                <i class="fas fa-users-cog"></i> Quản lý Tài Khoản
+                            </a>
+                            <a href="#" id="changePasswordDropdownBtn" class="dropdown-item user-dropdown-item">
+                                <i class="fas fa-key"></i> Đổi Mật Khẩu
+                            </a>
+                            <hr class="my-1 border-slate-100">
+                            <a href="#" id="logoutDropdownBtn" class="dropdown-item logout-item user-dropdown-item">
+                                <i class="fas fa-sign-out-alt"></i> Thoát
+                            </a>
+>>>>>>> ed8fcad195e59ac9fc5e428a0b337476aca91d92
                         </div>
                     </div>
                 </div>
             </header>
+<<<<<<< HEAD
             <main class="p-4 sm:p-6 space-y-6"></main>
         </div>
         
@@ -202,10 +586,51 @@
                         <div>
                             <h3 class="text-lg font-semibold text-slate-800 mb-3">Lịch Sử Gần Đây</h3>
                             <ul id="attendanceHistory" class="space-y-2 text-slate-600 max-h-48 overflow-y-auto pr-2"></ul>
+=======
+
+            <main class="p-4 sm:p-6 space-y-6">
+                 <div id="globalAppMessage" class="hidden"></div>
+                <!-- Views will be injected here -->
+            </main>
+        </div>
+        
+        <!-- Views -->
+        <div id="viewsContainer" class="hidden">
+             <!-- Attendance View -->
+            <div id="attendanceView">
+                <div class="card p-6 lg:p-8">
+                    <h2 class="text-2xl sm:text-3xl font-bold text-slate-800 mb-6 flex items-center">
+                        <i class="fas fa-user-clock mr-3 text-indigo-600"></i>Điểm Danh Chấm Công
+                    </h2>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                        <div>
+                             <div class="mb-4">
+                                <label for="employeeName" class="block text-slate-600 text-sm font-medium mb-2">Tên nhân viên:</label>
+                                <input type="text" id="employeeName" class="input-field bg-slate-100" disabled>
+                            </div>
+                            <div class="mb-6">
+                                <p class="text-slate-600 text-sm font-medium mb-2">Chọn hành động:</p>
+                                <div class="flex space-x-4">
+                                    <button id="checkInBtn" class="btn-primary flex-1 rounded py-3">
+                                        <i class="fas fa-sign-in-alt mr-2"></i>Check In
+                                    </button>
+                                    <button id="checkOutBtn" class="btn-secondary flex-1 rounded py-3">
+                                        <i class="fas fa-sign-out-alt mr-2"></i>Check Out
+                                    </button>
+                                </div>
+                            </div>
+                            <div id="attendanceMessage" class="hidden p-3 rounded-lg text-sm transition-all duration-300"></div>
+                        </div>
+                        <div>
+                            <h3 class="text-lg font-semibold text-slate-800 mb-3">Lịch Sử Gần Đây</h3>
+                            <ul id="attendanceHistory" class="space-y-2 text-slate-600 max-h-48 overflow-y-auto pr-2">
+                            </ul>
+>>>>>>> ed8fcad195e59ac9fc5e428a0b337476aca91d92
                         </div>
                     </div>
                 </div>
             </div>
+<<<<<<< HEAD
             <div id="manageAccountsView">
                 <div class="card p-6 mb-6">
                     <h3 class="text-xl font-bold text-slate-800 mb-4">Tạo Tài Khoản Mới</h3>
@@ -295,12 +720,306 @@
                                 </tr>
                             </thead>
                             <tbody id="activityLogTableBody" class="bg-white divide-y divide-slate-200"></tbody>
+=======
+
+            <!-- Issue Report View -->
+            <div id="issueReportView">
+                <div class="card p-6 lg:p-8">
+                    <h2 class="text-2xl sm:text-3xl font-bold text-slate-800 mb-6 flex items-center">
+                        <i class="fas fa-exclamation-triangle mr-3 text-red-600"></i>Báo Lỗi & Sự Cố
+                    </h2>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
+                        <div>
+                            <label for="reporterName" class="block text-slate-600 text-sm font-medium mb-2">Người báo cáo:</label>
+                            <input type="text" id="reporterName" class="input-field bg-slate-100" disabled>
+                        </div>
+                        <div>
+                            <label for="issueType" class="block text-slate-600 text-sm font-medium mb-2">Loại sự cố:</label>
+                            <select id="issueType" class="input-field rounded">
+                                <option value="">-- Chọn loại sự cố --</option>
+                                <option value="Kỹ thuật">Kỹ thuật</option>
+                                <option value="Vận hành">Vận hành</option>
+                                <option value="Hệ thống">Hệ thống</option>
+                                <option value="Con người">Con người</option>
+                                <option value="Khác">Khác</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label for="issuePriority" class="block text-slate-600 text-sm font-medium mb-2">Mức độ ưu tiên:</label>
+                            <select id="issuePriority" class="input-field rounded">
+                                <option value="Thấp">Thấp</option>
+                                <option value="Trung bình">Trung bình</option>
+                                <option value="Nghiêm trọng">Nghiêm trọng</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label for="issueBranch" class="block text-slate-600 text-sm font-medium mb-2">Chi nhánh bị lỗi <span class="text-red-500">*</span>:</label>
+                            <select id="issueBranch" class="input-field rounded" required>
+                                <option value="">-- Chọn chi nhánh --</option>
+                                <option value="Chi nhánh ICOOL XÔ VIẾT NGHỆ TĨNH">ICOOL XÔ VIẾT NGHỆ TĨNH</option>
+                                <option value="Chi nhánh ICOOL BÌNH PHÚ">ICOOL BÌNH PHÚ</option>
+                                <option value="Chi nhánh ICOOL UNG VĂN KHIÊM">ICOOL UNG VĂN KHIÊM</option>
+                                <option value="Chi nhánh ICOOL TÔ KÝ">ICOOL TÔ KÝ</option>
+                                <option value="Chi nhánh ICOOL DƯƠNG BÁ TRẠC">ICOOL DƯƠNG BÁ TRẠC</option>
+                                <option value="Chi nhánh ICOOL TRẦN NÃO">ICOOL TRẦN NÃO</option>
+                                <option value="Chi nhánh ICOOL THÀNH THÁI">ICOOL THÀNH THÁI</option>
+                                <option value="Chi nhánh ICOOL MẠC ĐĨNH CHI">ICOOL MẠC ĐĨNH CHI</option>
+                                <option value="Chi nhánh ICOOL NGUYỄN SƠN">ICOOL NGUYỄN SƠN</option>
+                                <option value="Chi nhánh ICOOL NGUYỄN TRÃI">ICOOL NGUYỄN TRÃI</option>
+                                <option value="Chi nhánh ICOOL NHỊ THIÊN ĐƯỜNG">ICOOL NHỊ THIÊN ĐƯỜNG</option>
+                                <option value="Chi nhánh ICOOL CÁCH MẠNG THÁNG TÁM">ICOOL CÁCH MẠNG THÁNG TÁM</option>
+                                <option value="Chi nhánh ICOOL TRẦN BÌNH TRỌNG">ICOOL TRẦN BÌNH TRỌNG</option>
+                                <option value="Chi nhánh ICOOL ĐỒNG ĐEN">ICOOL ĐỒNG ĐEN</option>
+                                <option value="Chi nhánh ICOOL PHAN CHU TRINH">ICOOL PHAN CHU TRINH</option>
+                                <option value="Chi nhánh ICOOL NGUYỄN TRI PHƯƠNG">ICOOL NGUYỄN TRI PHƯƠNG</option>
+                                <option value="Chi nhánh ICOOL PHAN XÍCH LONG">ICOOL PHAN XÍCH LONG</option>
+                                <option value="Chi nhánh ICOOL HOÀNG DIỆU 2">ICOOL HOÀNG DIỆU 2</option>
+                                <option value="Chi nhánh ICOOL CẦU CHỮ Y">ICOOL CẦU CHỮ Y</option>
+                                <option value="Chi nhánh ICOOL LÊ VĂN VIỆT">ICOOL LÊ VĂN VIỆT</option>
+                                <option value="Chi nhánh ICOOL SƯ VẠN HẠNH">ICOOL SƯ VẠN HẠNH</option>
+                                <option value="Chi nhánh ICOOL ĐẠI LỘ 2">ICOOL ĐẠI LỘ 2</option>
+                                <option value="Chi nhánh ICOOL LÊ THỊ HÀ">ICOOL LÊ THỊ HÀ</option>
+                                <option value="Chi nhánh ICOOL VŨNG TÀUICOOL VŨNG TÀU">ICOOL VŨNG TÀU</option>
+                            </select>
+                        </div>
+                        <div class="md:col-span-2">
+                            <label for="issueImage" class="block text-slate-600 text-sm font-medium mb-2">Ảnh mô tả lỗi <span class="text-red-500">*</span>:</label>
+                            <input type="file" id="issueImage" accept="image/*" class="input-field rounded" required>
+                        </div>
+                        <div class="md:col-span-2">
+                            <label for="issueDescription" class="block text-slate-600 text-sm font-medium mb-2">Mô tả chi tiết:</label>
+                            <textarea id="issueDescription" class="textarea-field rounded" placeholder="Mô tả sự cố bạn gặp phải..."></textarea>
+                        </div>
+                    </div>
+                     <button id="reportIssueBtn" class="btn-primary w-full md:w-auto rounded mt-6 py-3">
+                        <i class="fas fa-paper-plane mr-2"></i>Gửi Báo Cáo
+                    </button>
+                    <div id="issueMessage" class="hidden mt-4 p-3 rounded-lg text-sm transition-all duration-300"></div>
+                </div>
+            </div>
+            
+            <!-- Issue History View -->
+            <div id="issueHistoryView">
+                <div class="card p-6 lg:p-8">
+                    <h2 class="text-2xl sm:text-3xl font-bold text-slate-800 mb-6 flex items-center">
+                        <i class="fas fa-clipboard-list mr-3 text-blue-600"></i>Lịch Sử Báo Cáo
+                    </h2>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                        <div>
+                             <label for="issueHistoryFilterInput" class="block text-slate-600 text-sm font-medium mb-2">Tìm kiếm:</label>
+                             <input type="text" id="issueHistoryFilterInput" class="input-field" placeholder="Nhập chi nhánh, người gửi, loại sự cố...">
+                        </div>
+                        <div>
+                             <label for="issueStatusFilter" class="block text-slate-600 text-sm font-medium mb-2">Lọc theo trạng thái:</label>
+                             <select id="issueStatusFilter" class="input-field rounded">
+                                 <option value="Tất cả">Tất cả</option>
+                                 <option value="Mới tạo">Mới tạo</option>
+                                 <option value="Đang xử lý">Đang xử lý</option>
+                                 <option value="Đã giải quyết">Đã giải quyết</option>
+                             </select>
+                        </div>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="min-w-full divide-y divide-slate-200 responsive-table professional-table">
+                            <thead class="bg-slate-50">
+                                <tr>
+                                    <th class="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Chi nhánh</th>
+                                    <th class="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Người gửi</th>
+                                    <th class="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Loại sự cố</th>
+                                    <th class="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Ảnh</th>
+                                    <th class="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Mô tả</th>
+                                    <th class="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Ngày báo cáo</th>
+                                    <th class="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Trạng thái</th>
+                                    <th id="actionColumnHeader" class="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Hành động</th>
+                                </tr>
+                            </thead>
+                            <tbody id="allIssueReportsTableBody" class="bg-white divide-y divide-slate-200">
+                            </tbody>
+                        </table>
+                    </div>
+                    <div id="issueHistoryMessage" class="hidden mt-4 p-3 rounded-lg text-sm transition-all duration-300"></div>
+                </div>
+            </div>
+
+            <!-- Dashboard View -->
+            <div id="dashboardView">
+                 <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6">
+                    <h2 class="text-2xl sm:text-3xl font-bold text-slate-800 flex items-center">
+                        <i class="fas fa-chart-line mr-3 text-green-600"></i>Dashboard Báo Cáo Lỗi
+                    </h2>
+                    <div class="relative mt-4 sm:mt-0">
+                        <button id="dashboardExportBtn" class="btn-secondary rounded flex items-center">
+                            <i class="fas fa-file-export mr-2"></i>Xuất Dữ Liệu <i class="fas fa-chevron-down ml-2 text-xs"></i>
+                        </button>
+                        <div id="dashboardExportMenu" class="dropdown-menu !-left-2 !right-auto">
+                            <a href="#" id="exportReportsCsvBtn" class="dropdown-item">
+                                <i class="fas fa-file-csv"></i> Xuất Báo Cáo (.csv)
+                            </a>
+                            <a href="#" id="exportSummaryCsvBtn" class="dropdown-item">
+                                <i class="fas fa-table"></i> Xuất Tóm Tắt (.csv)
+                            </a>
+                            <a href="#" id="exportChartPngBtn" class="dropdown-item">
+                                <i class="fas fa-image"></i> Xuất Biểu Đồ (.png)
+                            </a>
+                        </div>
+                    </div>
+                </div>
+                <!-- Stat Cards -->
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    <div class="card p-5 flex items-center">
+                        <div class="bg-blue-100 rounded-full p-4 mr-4">
+                            <i class="fas fa-calendar-day text-2xl text-blue-600"></i>
+                        </div>
+                        <div>
+                            <p class="text-sm text-slate-500">Lỗi Phát Sinh Hôm Nay</p>
+                            <p id="errorsToday" class="text-3xl font-bold text-slate-800">0</p>
+                        </div>
+                    </div>
+                    <div class="card p-5 flex items-center">
+                        <div class="bg-green-100 rounded-full p-4 mr-4">
+                            <i class="fas fa-calendar-week text-2xl text-green-600"></i>
+                        </div>
+                        <div>
+                            <p class="text-sm text-slate-500">Lỗi Trong Tuần Này</p>
+                            <p id="errorsThisWeek" class="text-3xl font-bold text-slate-800">0</p>
+                        </div>
+                    </div>
+                    <div class="card p-5 flex items-center">
+                        <div class="bg-purple-100 rounded-full p-4 mr-4">
+                            <i class="fas fa-calendar-alt text-2xl text-purple-600"></i>
+                        </div>
+                        <div>
+                            <p class="text-sm text-slate-500">Lỗi Trong Tháng Này</p>
+                            <p id="errorsThisMonth" class="text-3xl font-bold text-slate-800">0</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Charts and Summaries -->
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-6">
+                    <div class="lg:col-span-1 card p-6">
+                        <h3 class="font-semibold text-slate-800 mb-4">Phân Loại Lỗi</h3>
+                        <div class="h-64 flex items-center justify-center">
+                             <canvas id="issueTypePieChart"></canvas>
+                        </div>
+                    </div>
+                    <div class="lg:col-span-2 card p-6 space-y-6">
+                        <div>
+                           <h3 class="font-semibold text-slate-800 mb-4">Trạng Thái Xử Lý</h3>
+                           <div id="statusSummary" class="space-y-3">
+                           </div>
+                        </div>
+                         <div>
+                           <h3 class="font-semibold text-slate-800 mb-4">Mức Độ Ưu Tiên</h3>
+                           <div id="prioritySummary" class="flex items-center justify-around text-center">
+                           </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="card p-6 mt-6">
+                       <h3 class="font-semibold text-slate-800 mb-4">Lỗi Nổi Bật (Chưa xử lý)</h3>
+                       <div class="table-responsive">
+                            <table class="min-w-full professional-table responsive-table">
+                                <thead class="bg-slate-50">
+                                    <tr>
+                                        <th class="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase">Ưu tiên</th>
+                                        <th class="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase">Sự Cố</th>
+                                        <th class="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase">Mô tả</th>
+                                        <th class="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase">Người báo cáo</th>
+                                        <th class="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase">Ngày báo cáo</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="featuredIssuesTableBody" class="bg-white divide-y divide-slate-200">
+                                </tbody>
+                            </table>
+                        </div>
+                </div>
+            </div>
+
+            <!-- Login Log View -->
+            <div id="loginLogView">
+                 <div class="card p-6 lg:p-8">
+                    <h2 class="text-2xl sm:text-3xl font-bold text-slate-800 mb-6 flex items-center">
+                        <i class="fas fa-history mr-3 text-purple-600"></i>Nhật Ký Đăng Nhập
+                    </h2>
+                    <div class="table-responsive">
+                        <table class="min-w-full professional-table responsive-table">
+                            <thead class="bg-slate-50">
+                                <tr>
+                                    <th class="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Tên người dùng</th>
+                                    <th class="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">ID Người dùng</th>
+                                    <th class="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Thời gian đăng nhập</th>
+                                </tr>
+                            </thead>
+                            <tbody id="loginLogTableBody" class="bg-white">
+                            </tbody>
+                        </table>
+                    </div>
+                    <div id="loginLogMessage" class="hidden mt-4 p-3 rounded-lg text-sm transition-all duration-300"></div>
+                </div>
+            </div>
+
+            <!-- Manage Accounts View -->
+            <div id="manageAccountsView" class="space-y-6">
+                 <h2 class="text-2xl sm:text-3xl font-bold text-slate-800 flex items-center">
+                    <i class="fas fa-users-cog mr-3 text-indigo-600"></i>Quản lý Tài Khoản
+                </h2>
+                <div class="card p-6 lg:p-8">
+                    <h3 class="text-xl font-semibold text-slate-800 mb-4">Tạo Tài Khoản Mới</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
+                        <div>
+                            <label for="newAccountEmployeeId" class="block text-slate-600 text-sm font-medium mb-2">Mã số nhân viên (MSNV):</label>
+                            <input type="text" inputmode="numeric" pattern="[0-9]*" id="newAccountEmployeeId" class="input-field rounded" placeholder="Nhập MSNV (chỉ số)">
+                        </div>
+                        <div>
+                            <label for="newAccountUsername" class="block text-slate-600 text-sm font-medium mb-2">Tên người dùng:</label>
+                            <input type="text" id="newAccountUsername" class="input-field rounded" placeholder="Nhập tên người dùng">
+                        </div>
+                        <div>
+                            <label for="newAccountEmail" class="block text-slate-600 text-sm font-medium mb-2">Email:</label>
+                            <input type="email" id="newAccountEmail" class="input-field rounded" placeholder="Nhập email">
+                        </div>
+                        <div>
+                            <label for="newAccountPassword" class="block text-slate-600 text-sm font-medium mb-2">Mật khẩu:</label>
+                            <input type="password" id="newAccountPassword" class="input-field rounded" placeholder="Nhập mật khẩu">
+                        </div>
+                    </div>
+                    <button id="createAccountBtn" class="btn-primary rounded mt-6 py-2.5">
+                        <i class="fas fa-user-plus mr-2"></i>Tạo Tài Khoản
+                    </button>
+                    <div id="createAccountMessage" class="hidden mt-4 p-3 rounded-lg text-sm transition-all duration-300"></div>
+                </div>
+
+                <div class="card p-6 lg:p-8">
+                     <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4">
+                        <h3 class="text-xl font-semibold text-slate-800">Danh Sách Tài Khoản</h3>
+                        <button id="exportAccountsBtn" class="btn-secondary rounded mt-4 sm:mt-0">
+                            <i class="fas fa-file-export mr-2"></i>Xuất File (.csv)
+                        </button>
+                    </div>
+                    <div id="exportAccountsMessage" class="hidden mb-4 p-3 rounded-lg text-sm transition-all duration-300"></div>
+                    <div class="overflow-x-auto table-responsive">
+                        <table class="min-w-full professional-table responsive-table">
+                            <thead class="bg-slate-50">
+                                <tr>
+                                    <th class="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">MSNV</th>
+                                    <th class="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Tên người dùng</th>
+                                    <th class="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Email</th>
+                                    <th class="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">UID</th>
+                                    <th class="px-4 py-3 text-right text-xs font-semibold text-slate-500 uppercase tracking-wider">Hành động</th>
+                                </tr>
+                            </thead>
+                            <tbody id="registeredAccountsTableBody" class="bg-white">
+                            </tbody>
+>>>>>>> ed8fcad195e59ac9fc5e428a0b337476aca91d92
                         </table>
                     </div>
                 </div>
             </div>
         </div>
 
+<<<<<<< HEAD
         <div id="editAccountModal" class="modal">
             <div class="modal-content !max-w-3xl">
                 <div class="flex justify-between items-center mb-6"><h3 class="text-2xl font-bold text-slate-800">Chỉnh Sửa Tài Khoản</h3><span id="closeEditAccountModalBtn" class="cursor-pointer text-2xl">&times;</span></div>
@@ -333,11 +1052,82 @@
                     <button id="captureBtn" class="btn-primary px-8 py-3 rounded-full"><i class="fas fa-camera"></i></button>
                     <button id="recaptureBtn" class="btn-secondary hidden">Chụp Lại</button>
                     <button id="confirmAttendanceBtn" class="btn-primary hidden">Xác Nhận</button>
+=======
+    </div>
+
+    <!-- Edit Issue Modal -->
+    <div id="editIssueModal" class="modal">
+        <div class="modal-content">
+            <div class="flex justify-between items-center mb-4">
+                 <h3 class="text-xl font-bold text-slate-800">Cập Nhật Báo Cáo Sự Cố</h3>
+                <span class="close-button cursor-pointer">&times;</span>
+            </div>
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-slate-600 text-sm font-medium mb-2">Mã báo cáo:</label>
+                    <input type="text" id="modalReportId" class="input-field bg-slate-100 rounded" disabled>
+                </div>
+                <div>
+                    <label class="block text-slate-600 text-sm font-medium mb-2">Người báo cáo:</label>
+                    <input type="text" id="modalReporter" class="input-field bg-slate-100 rounded" disabled>
+                </div>
+                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-slate-600 text-sm font-medium mb-2">Loại sự cố:</label>
+                        <input type="text" id="modalIssueType" class="input-field bg-slate-100 rounded" disabled>
+                    </div>
+                    <div>
+                        <label class="block text-slate-600 text-sm font-medium mb-2">Chi nhánh:</label>
+                        <input type="text" id="modalIssueBranch" class="input-field bg-slate-100 rounded" disabled>
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-slate-600 text-sm font-medium mb-2">Mô tả:</label>
+                    <textarea id="modalIssueDescription" class="textarea-field bg-slate-100 rounded" disabled></textarea>
+                </div>
+                 <div class="mb-4">
+                    <label class="block text-slate-600 text-sm font-medium mb-2">Ảnh sự cố:</label>
+                    <img id="modalIssueImagePreview" src="" alt="Ảnh sự cố" class="w-full h-auto rounded-lg border border-slate-200" style="max-height: 200px; object-fit: contain;">
+                </div>
+                <div>
+                    <label class="block text-slate-600 text-sm font-medium mb-2">Ngày báo cáo:</label>
+                    <input type="text" id="modalReportDate" class="input-field bg-slate-100 rounded" disabled>
+                </div>
+                <hr class="my-4 border-slate-200">
+                <h4 class="text-lg font-semibold text-slate-700 mb-2">Thông tin xử lý:</h4>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                        <label for="modalResolutionDate" class="block text-slate-600 text-sm font-medium mb-2">Ngày xử lý:</label>
+                        <input type="date" id="modalResolutionDate" class="input-field rounded">
+                    </div>
+                    <div>
+                        <label for="modalResolver" class="block text-slate-600 text-sm font-medium mb-2">Người xử lý:</label>
+                        <input type="text" id="modalResolver" class="input-field rounded" placeholder="Tên người xử lý">
+                    </div>
+                </div>
+                <div>
+                    <label for="modalCause" class="block text-slate-600 text-sm font-medium mb-2">Nguyên nhân:</label>
+                    <textarea id="modalCause" class="textarea-field rounded" placeholder="Mô tả nguyên nhân sự cố"></textarea>
+                </div>
+                <div>
+                    <label for="modalSolution" class="block text-slate-600 text-sm font-medium mb-2">Cách xử lý:</label>
+                    <textarea id="modalSolution" class="textarea-field rounded" placeholder="Mô tả cách thức xử lý"></textarea>
+                </div>
+                <div id="modalMessage" class="hidden mt-4 p-3 rounded-lg text-sm transition-all duration-300"></div>
+                <div class="flex justify-end space-x-4 mt-6">
+                    <button id="cancelEditBtn" class="btn-secondary rounded">
+                        <i class="fas fa-times-circle mr-2"></i>Hủy
+                    </button>
+                    <button id="saveIssueDetailsBtn" class="btn-primary rounded">
+                        <i class="fas fa-save mr-2"></i>Lưu
+                    </button>
+>>>>>>> ed8fcad195e59ac9fc5e428a0b337476aca91d92
                 </div>
             </div>
         </div>
     </div>
     
+<<<<<<< HEAD
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut, signInWithCustomToken, createUserWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
@@ -380,6 +1170,100 @@
         let loggedInUserDisplay, dropdownUserName, dropdownUserRole;
         let notificationToggle, notificationBadge, notificationMenu, notificationList;
         let editAccountModal;
+=======
+    <!-- Edit User Account Modal -->
+    <div id="editAccountModal" class="modal">
+        <div class="modal-content max-w-md">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-xl font-bold text-slate-800">Chỉnh Sửa Thông Tin Tài Khoản</h3>
+                <span class="close-button cursor-pointer">&times;</span>
+            </div>
+            <div class="space-y-4">
+                <input type="hidden" id="editAccountUid">
+                <div>
+                    <label for="editAccountEmail" class="block text-slate-600 text-sm font-medium mb-2">Email:</label>
+                    <input type="email" id="editAccountEmail" class="input-field bg-slate-100 rounded" disabled>
+                </div>
+                <div>
+                    <label for="editAccountEmployeeId" class="block text-slate-600 text-sm font-medium mb-2">Mã số nhân viên (MSNV):</label>
+                    <input type="text" id="editAccountEmployeeId" class="input-field rounded" placeholder="Nhập MSNV mới">
+                </div>
+                <div>
+                    <label for="editAccountUsername" class="block text-slate-600 text-sm font-medium mb-2">Tên người dùng:</label>
+                    <input type="text" id="editAccountUsername" class="input-field rounded" placeholder="Nhập tên người dùng mới">
+                </div>
+                <div id="editAccountMessage" class="hidden mt-4 p-3 rounded-lg text-sm transition-all duration-300"></div>
+                <div class="flex justify-end space-x-4 mt-6">
+                    <button id="cancelEditAccountBtn" class="btn-secondary rounded">Hủy</button>
+                    <button id="saveAccountDetailsBtn" class="btn-primary rounded">
+                        <i class="fas fa-save mr-2"></i>Lưu Thay Đổi
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Confirmation modal -->
+    <div id="confirmModal" class="modal">
+        <div class="modal-content max-w-sm">
+            <h3 id="confirmModalTitle" class="text-lg font-bold text-slate-800 mb-4">Xác nhận hành động</h3>
+            <p id="confirmModalText" class="text-slate-600 mb-6">Bạn có chắc chắn muốn tiếp tục?</p>
+            <div class="flex justify-end space-x-4">
+                <button id="confirmModalCancelBtn" class="btn-secondary rounded">Hủy</button>
+                <button id="confirmModalConfirmBtn" class="btn-primary bg-red-600 hover:bg-red-700 rounded">Xác nhận</button>
+            </div>
+        </div>
+    </div>
+
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged, signOut, updateProfile, sendPasswordResetEmail, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, collection, query, orderBy, onSnapshot, addDoc, updateDoc, where, getDocs, limit, getDoc, deleteDoc, writeBatch } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getStorage, ref, uploadBytes, getDownloadURL, deleteObject } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-storage.js";
+        import { getFunctions, httpsCallable } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-functions.js";
+
+        const canvasAppId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {
+             apiKey: "AIzaSyD3FBCihM1QA1DZmMxn0ysR2khs43M-2sE",
+             authDomain: "icool-ea266.firebaseapp.com",
+             projectId: "icool-ea266",
+             storageBucket: "icool-ea266.firebasestorage.app", 
+             messagingSenderId: "338046663113",
+             appId: "1:338046663113:web:cef72e289e7546f3271018",
+             measurementId: "G-NBGEQSDT6N"
+        };
+        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+        const DEFAULT_ADMIN_EMAIL = 'trungthang2601@gmail.com'; 
+
+        let app, auth, db, storage, functions, currentUser = null;
+        let userId;
+        let unsubscribeAttendance = null, unsubscribeAllIssues = null, unsubscribeDashboard = null, unsubscribeLoginLog = null;
+        
+        // Shell elements
+        let authSection, appContainer, mainContentContainer, viewsContainer, skeletonLoader;
+        let authEmailInput, authPasswordInput, loginBtn, authMessage, forgotPasswordLink;
+        let userDropdownToggle, userDropdownMenu, loggedInUserDisplay, dropdownUserName, dropdownUserId, logoutDropdownBtn;
+        let manageAccountDropdownBtn, changePasswordDropdownBtn;
+        let mobileMenuToggle, sidebar, showManageAccountsBtn, homeBtn;
+        let globalAppMessage;
+        let confirmModal, confirmModalTitle, confirmModalText, confirmModalCancelBtn, confirmModalConfirmBtn;
+        let editIssueModal, editAccountModal;
+        
+        // View-specific elements
+        let employeeNameInput, checkInBtn, checkOutBtn, attendanceMessage, attendanceHistoryList;
+        let reporterNameInput, issueTypeSelect, issuePrioritySelect, issueBranchSelect, issueImageInput, issueDescriptionTextarea, reportIssueBtn, issueMessage;
+        let allIssueReportsTableBody, issueHistoryMessage, actionColumnHeader, issueHistoryFilterInput, issueStatusFilter;
+        let loginLogTableBody, loginLogMessage;
+        let newAccountEmployeeId, newAccountUsername, newAccountEmail, newAccountPassword, createAccountBtn, createAccountMessage, registeredAccountsTableBody, exportAccountsBtn, exportAccountsMessage;
+        
+        // State
+        let confirmCallback = null;
+        let allIssueDocs = [];
+        let currentEditingIssueId = null;
+        let isUserAdmin = false;
+        let issueTypeChart = null;
+>>>>>>> ed8fcad195e59ac9fc5e428a0b337476aca91d92
 
         document.addEventListener('DOMContentLoaded', async () => {
             try {
@@ -387,20 +1271,58 @@
                 auth = getAuth(app);
                 db = getFirestore(app);
                 storage = getStorage(app);
+<<<<<<< HEAD
 
                 bindShellDOMElements();
                 bindShellEventListeners();
                 
                 onAuthStateChanged(auth, handleAuthStateChange);
+=======
+                functions = getFunctions(app);
+                
+                assignShellDOMElements();
+                addShellEventListeners();
+                
+                onAuthStateChanged(auth, async (user) => {
+                    skeletonLoader.classList.add('hidden');
+                    currentUser = user;
+                    if (currentUser) {
+                        userId = currentUser.uid;
+                        isUserAdmin = (currentUser.email === DEFAULT_ADMIN_EMAIL);
+                        
+                        if (isUserAdmin && currentUser.displayName && !/^\d+ -/.test(currentUser.displayName)) {
+                            const currentName = currentUser.displayName; 
+                            const adminDisplayName = `92562 - ${currentName}`;
+                            try {
+                                await updateProfile(currentUser, { displayName: adminDisplayName });
+                                await currentUser.reload();
+                                currentUser = auth.currentUser;
+                            } catch (error) {
+                                console.error("Failed to update admin profile:", error);
+                            }
+                        }
+                        
+                        setupUIForLoggedInUser();
+                        await recordLoginAttempt(currentUser);
+                        showView('attendanceView');
+                    } else {
+                       setupUIForLoggedOutUser();
+                    }
+                });
+>>>>>>> ed8fcad195e59ac9fc5e428a0b337476aca91d92
 
                 if (initialAuthToken) {
                     await signInWithCustomToken(auth, initialAuthToken);
                 }
+<<<<<<< HEAD
 
+=======
+>>>>>>> ed8fcad195e59ac9fc5e428a0b337476aca91d92
             } catch (error) {
                 console.error("Firebase Init Error:", error);
                 skeletonLoader.classList.add('hidden');
                 authSection.classList.remove('hidden');
+<<<<<<< HEAD
             }
         });
 
@@ -443,11 +1365,117 @@
                 userDoc = await getDoc(userDocRef);
             }
             currentUserProfile = userDoc.data();
+=======
+                showMessage(authMessage, `Lỗi khởi tạo: ${error.message}`, 'error');
+            }
+        });
+        
+        function assignShellDOMElements() {
+            skeletonLoader = document.getElementById('skeletonLoader');
+            authSection = document.getElementById('authSection');
+            appContainer = document.getElementById('appContainer');
+            mainContentContainer = document.querySelector('#mainContent main');
+            viewsContainer = document.getElementById('viewsContainer');
+            authEmailInput = document.getElementById('authEmail');
+            authPasswordInput = document.getElementById('authPassword');
+            loginBtn = document.getElementById('loginBtn');
+            authMessage = document.getElementById('authMessage');
+            forgotPasswordLink = document.getElementById('forgotPasswordLink');
+            userDropdownToggle = document.getElementById('userDropdownToggle');
+            userDropdownMenu = document.getElementById('userDropdownMenu');
+            loggedInUserDisplay = document.getElementById('loggedInUserDisplay');
+            dropdownUserName = document.getElementById('dropdownUserName');
+            dropdownUserId = document.getElementById('dropdownUserId');
+            logoutDropdownBtn = document.getElementById('logoutDropdownBtn');
+            manageAccountDropdownBtn = document.getElementById('manageAccountDropdownBtn');
+            changePasswordDropdownBtn = document.getElementById('changePasswordDropdownBtn');
+            mobileMenuToggle = document.getElementById('mobileMenuToggle');
+            sidebar = document.getElementById('sidebar');
+            homeBtn = document.getElementById('homeBtn');
+            showManageAccountsBtn = document.getElementById('showManageAccountsBtn');
+            globalAppMessage = document.getElementById('globalAppMessage');
+            editIssueModal = document.getElementById('editIssueModal');
+            editAccountModal = document.getElementById('editAccountModal');
+            confirmModal = document.getElementById('confirmModal');
+            confirmModalTitle = document.getElementById('confirmModalTitle');
+            confirmModalText = document.getElementById('confirmModalText');
+            confirmModalCancelBtn = document.getElementById('confirmModalCancelBtn');
+            confirmModalConfirmBtn = document.getElementById('confirmModalConfirmBtn');
+        }
+
+        function addShellEventListeners() {
+            loginBtn.addEventListener('click', handleLogin);
+            forgotPasswordLink.addEventListener('click', handleForgotPassword);
+            logoutDropdownBtn.addEventListener('click', handleLogout);
+            manageAccountDropdownBtn.addEventListener('click', () => showView('manageAccountsView'));
+            changePasswordDropdownBtn.addEventListener('click', handleChangePassword);
+            homeBtn.addEventListener('click', () => showView('attendanceView'));
+            
+            document.querySelectorAll('.sidebar-nav-link').forEach(button => {
+                button.addEventListener('click', (e) => showView(e.currentTarget.dataset.view));
+            });
+
+            userDropdownToggle.addEventListener('click', toggleUserDropdown);
+            document.addEventListener('click', (event) => {
+                if (!userDropdownToggle.contains(event.target) && !userDropdownMenu.contains(event.target)) {
+                    userDropdownMenu.classList.remove('show');
+                }
+            });
+            mobileMenuToggle.addEventListener('click', () => toggleMobileMenu(false));
+            
+            editIssueModal.querySelector('.close-button').addEventListener('click', () => editIssueModal.style.display = 'none');
+            editAccountModal.querySelector('.close-button').addEventListener('click', () => editAccountModal.style.display = 'none');
+            document.getElementById('cancelEditAccountBtn').addEventListener('click', () => editAccountModal.style.display = 'none');
+            
+            confirmModalCancelBtn.addEventListener('click', closeConfirmModal);
+            confirmModalConfirmBtn.addEventListener('click', () => {
+                if (typeof confirmCallback === 'function') confirmCallback();
+                closeConfirmModal();
+            });
+
+            window.addEventListener('click', (event) => {
+                if (event.target == editIssueModal) editIssueModal.style.display = 'none';
+                if (event.target == editAccountModal) editAccountModal.style.display = 'none';
+                if (event.target == confirmModal) closeConfirmModal();
+                if (window.innerWidth < 1024 && !sidebar.contains(event.target) && !mobileMenuToggle.contains(event.target) && !sidebar.classList.contains('-translate-x-full')) {
+                    toggleMobileMenu(true);
+                }
+            });
+        }
+        
+        function setupUIForLoggedInUser() {
+            authSection.classList.add('hidden');
+            authSection.classList.remove('flex');
+            appContainer.classList.remove('hidden');
+            loggedInUserDisplay.textContent = currentUser.displayName || currentUser.email;
+            dropdownUserName.textContent = currentUser.email;
+            dropdownUserId.textContent = userId;
+            showManageAccountsBtn.classList.toggle('hidden', !isUserAdmin);
+            manageAccountDropdownBtn.classList.toggle('hidden', !isUserAdmin);
+        }
+
+        function setupUIForLoggedOutUser() {
+            userId = null;
+            isUserAdmin = false;
+            authSection.classList.remove('hidden');
+            authSection.classList.add('flex');
+            appContainer.classList.add('hidden');
+            unsubscribeAllListeners();
+        }
+
+        function toggleUserDropdown() {
+            userDropdownMenu.classList.toggle('show');
+        }
+
+        function toggleMobileMenu(forceClose = false) {
+             sidebar.classList.toggle('-translate-x-full', forceClose || !sidebar.classList.contains('-translate-x-full'));
+>>>>>>> ed8fcad195e59ac9fc5e428a0b337476aca91d92
         }
 
         async function handleLogin() {
             const email = authEmailInput.value.trim();
             const password = authPasswordInput.value;
+<<<<<<< HEAD
             if (!email || !password) {
                 authMessage.textContent = 'Vui lòng nhập email và mật khẩu.';
                 authMessage.className = 'p-3 rounded-lg text-sm text-center alert-error';
@@ -665,6 +1693,426 @@
                     datasets: [{ data: Object.values(data), backgroundColor: ['#3B82F6', '#10B981', '#F59E0B', '#8B5CF6', '#EF4444'] }]
                 },
                 options: { responsive: true, maintainAspectRatio: false }
+=======
+            if (!email || !password) return showMessage(authMessage, 'Vui lòng nhập email và mật khẩu.', 'error');
+            try {
+                await signInWithEmailAndPassword(auth, email, password);
+            } catch (error) {
+                showMessage(authMessage, `Lỗi đăng nhập: ${error.code === 'auth/invalid-credential' ? 'Email hoặc mật khẩu không đúng.' : error.message}`, 'error');
+            }
+        }
+
+        async function handleForgotPassword(e) {
+            e.preventDefault();
+            const email = authEmailInput.value.trim();
+            if (!email) return showMessage(authMessage, 'Vui lòng nhập email để đặt lại mật khẩu.', 'info');
+            try {
+                await sendPasswordResetEmail(auth, email);
+                showMessage(authMessage, 'Đã gửi email đặt lại mật khẩu. Vui lòng kiểm tra hộp thư.', 'success');
+            } catch (error) {
+                showMessage(authMessage, `Lỗi: ${error.message}`, 'error');
+            }
+        }
+
+        async function handleChangePassword() {
+            if (!currentUser?.email) return showMessage(globalAppMessage, 'Không thể gửi email. Người dùng không hợp lệ.', 'error');
+            try {
+                await sendPasswordResetEmail(auth, currentUser.email);
+                showMessage(globalAppMessage, 'Đã gửi email đặt lại mật khẩu. Vui lòng kiểm tra hộp thư.', 'success');
+            } catch (error) {
+                showMessage(globalAppMessage, `Lỗi: ${error.message}`, 'error');
+            }
+        }
+
+        async function handleLogout() {
+            try {
+                await signOut(auth);
+            } catch (error) {
+                console.error("Logout Error:", error);
+            }
+        }
+
+        async function recordLoginAttempt(user) {
+            if (!user) return;
+            try {
+                await addDoc(collection(db, `/artifacts/${canvasAppId}/public/data/loginLogs`), {
+                    userId: user.uid,
+                    username: user.displayName || user.email,
+                    email: user.email,
+                    timestamp: new Date().toISOString()
+                });
+            } catch (error) {
+                console.error("Login Log Error:", error);
+            }
+        }
+        
+        function showMessage(element, message, type) {
+            if(!element) return;
+            element.textContent = message;
+            element.className = `p-3 rounded-lg text-sm transition-all duration-300 ${type === 'success' ? 'alert-success' : type === 'error' ? 'alert-error' : 'alert-info'}`;
+            element.classList.remove('hidden');
+        }
+
+        function clearMessage(element) {
+            if(!element) return;
+            element.textContent = '';
+            element.classList.add('hidden');
+        }
+
+        function showView(viewId) {
+            const targetView = viewsContainer.querySelector(`#${viewId}`);
+            if(targetView) {
+                 mainContentContainer.innerHTML = targetView.innerHTML;
+            }
+            
+            document.querySelectorAll('.sidebar-nav-link').forEach(button => {
+                button.classList.toggle('active', button.dataset.view === viewId);
+            });
+
+            setupView(viewId);
+
+            if (window.innerWidth < 1024 && !sidebar.classList.contains('-translate-x-full')) {
+                toggleMobileMenu(true);
+            }
+        }
+
+        function setupView(viewId) {
+            if (!currentUser) return;
+            switch (viewId) {
+                case 'attendanceView':
+                    employeeNameInput = mainContentContainer.querySelector('#employeeName');
+                    checkInBtn = mainContentContainer.querySelector('#checkInBtn');
+                    checkOutBtn = mainContentContainer.querySelector('#checkOutBtn');
+                    attendanceMessage = mainContentContainer.querySelector('#attendanceMessage');
+                    attendanceHistoryList = mainContentContainer.querySelector('#attendanceHistory');
+                    if (employeeNameInput) employeeNameInput.value = currentUser.displayName || currentUser.email;
+                    if (checkInBtn) checkInBtn.addEventListener('click', handleCheckIn);
+                    if (checkOutBtn) checkOutBtn.addEventListener('click', handleCheckOut);
+                    listenToAttendance(userId);
+                    break;
+                case 'issueReportView':
+                    reporterNameInput = mainContentContainer.querySelector('#reporterName');
+                    issueTypeSelect = mainContentContainer.querySelector('#issueType');
+                    issuePrioritySelect = mainContentContainer.querySelector('#issuePriority');
+                    issueBranchSelect = mainContentContainer.querySelector('#issueBranch');
+                    issueImageInput = mainContentContainer.querySelector('#issueImage');
+                    issueDescriptionTextarea = mainContentContainer.querySelector('#issueDescription');
+                    reportIssueBtn = mainContentContainer.querySelector('#reportIssueBtn');
+                    issueMessage = mainContentContainer.querySelector('#issueMessage');
+                    if(reporterNameInput) reporterNameInput.value = currentUser.displayName || currentUser.email;
+                    if(reportIssueBtn) reportIssueBtn.addEventListener('click', handleReportIssue);
+                    break;
+                case 'issueHistoryView':
+                    allIssueReportsTableBody = mainContentContainer.querySelector('#allIssueReportsTableBody');
+                    issueHistoryMessage = mainContentContainer.querySelector('#issueHistoryMessage');
+                    actionColumnHeader = mainContentContainer.querySelector('#actionColumnHeader');
+                    issueHistoryFilterInput = mainContentContainer.querySelector('#issueHistoryFilterInput');
+                    issueStatusFilter = mainContentContainer.querySelector('#issueStatusFilter');
+                    if (issueHistoryFilterInput) issueHistoryFilterInput.addEventListener('keyup', filterIssueHistory);
+                    if (issueStatusFilter) issueStatusFilter.addEventListener('change', filterIssueHistory);
+                    listenToAllIssueReports();
+                    break;
+                case 'dashboardView':
+                    listenToDashboardData();
+                    const dashboardExportBtn = mainContentContainer.querySelector('#dashboardExportBtn');
+                    const dashboardExportMenu = mainContentContainer.querySelector('#dashboardExportMenu');
+                    if (dashboardExportBtn && dashboardExportMenu) {
+                         // Remove the 'hidden' class so CSS transitions can work
+                         dashboardExportMenu.classList.remove('hidden');
+                         // Set initial state for transition
+                         dashboardExportMenu.style.opacity = '0';
+                         dashboardExportMenu.style.visibility = 'hidden';
+                         
+                         dashboardExportBtn.addEventListener('click', (e) => {
+                             e.stopPropagation();
+                             const isShown = dashboardExportMenu.classList.toggle('show');
+                             if(isShown) {
+                                 dashboardExportMenu.style.opacity = '1';
+                                 dashboardExportMenu.style.visibility = 'visible';
+                             } else {
+                                 dashboardExportMenu.style.opacity = '0';
+                                 dashboardExportMenu.style.visibility = 'hidden';
+                             }
+                         });
+                    }
+                    mainContentContainer.querySelector('#exportReportsCsvBtn')?.addEventListener('click', handleExportAllReports);
+                    mainContentContainer.querySelector('#exportSummaryCsvBtn')?.addEventListener('click', handleExportDashboardSummary);
+                    mainContentContainer.querySelector('#exportChartPngBtn')?.addEventListener('click', handleExportChart);
+                    document.addEventListener('click', (event) => {
+                         if (dashboardExportMenu && !dashboardExportBtn?.contains(event.target) && !dashboardExportMenu.contains(event.target)) {
+                             dashboardExportMenu.classList.remove('show');
+                             dashboardExportMenu.style.opacity = '0';
+                             dashboardExportMenu.style.visibility = 'hidden';
+                         }
+                    });
+                    break;
+                case 'loginLogView':
+                    loginLogTableBody = mainContentContainer.querySelector('#loginLogTableBody');
+                    loginLogMessage = mainContentContainer.querySelector('#loginLogMessage');
+                    listenToLoginLogs();
+                    break;
+                case 'manageAccountsView':
+                    newAccountEmployeeId = mainContentContainer.querySelector('#newAccountEmployeeId');
+                    newAccountUsername = mainContentContainer.querySelector('#newAccountUsername');
+                    newAccountEmail = mainContentContainer.querySelector('#newAccountEmail');
+                    newAccountPassword = mainContentContainer.querySelector('#newAccountPassword');
+                    createAccountBtn = mainContentContainer.querySelector('#createAccountBtn');
+                    createAccountMessage = mainContentContainer.querySelector('#createAccountMessage');
+                    registeredAccountsTableBody = mainContentContainer.querySelector('#registeredAccountsTableBody');
+                    exportAccountsBtn = mainContentContainer.querySelector('#exportAccountsBtn');
+                    exportAccountsMessage = mainContentContainer.querySelector('#exportAccountsMessage');
+                    if (createAccountBtn) createAccountBtn.addEventListener('click', handleCreateAccount);
+                    if (exportAccountsBtn) exportAccountsBtn.addEventListener('click', handleExportAccounts);
+                    if (isUserAdmin) renderRegisteredAccountsTable();
+                    break;
+            }
+        }
+        
+        async function handleCheckIn() {
+            if (!currentUser || !attendanceMessage) return;
+            try {
+                await addDoc(collection(db, `/artifacts/${canvasAppId}/users/${userId}/attendance`), {
+                    action: 'Check-In', timestamp: new Date().toISOString(),
+                    username: currentUser.displayName || currentUser.email, userId: currentUser.uid
+                });
+                showMessage(attendanceMessage, 'Check-In thành công!', 'success');
+            } catch (error) { showMessage(attendanceMessage, `Lỗi Check-In: ${error.message}`, 'error'); }
+        }
+
+        async function handleCheckOut() {
+            if (!currentUser || !attendanceMessage) return;
+            try {
+                await addDoc(collection(db, `/artifacts/${canvasAppId}/users/${userId}/attendance`), {
+                    action: 'Check-Out', timestamp: new Date().toISOString(),
+                    username: currentUser.displayName || currentUser.email, userId: currentUser.uid
+                });
+                showMessage(attendanceMessage, 'Check-Out thành công!', 'success');
+            } catch (error) { showMessage(attendanceMessage, `Lỗi Check-Out: ${error.message}`, 'error'); }
+        }
+
+        function listenToAttendance(currentUserId) {
+            if (unsubscribeAttendance) unsubscribeAttendance();
+            if (!currentUserId || !attendanceHistoryList) return;
+            const q = query(collection(db, `/artifacts/${canvasAppId}/users/${currentUserId}/attendance`), orderBy('timestamp', 'desc'), limit(10));
+            unsubscribeAttendance = onSnapshot(q, (snapshot) => {
+                if (!attendanceHistoryList) return;
+                attendanceHistoryList.innerHTML = snapshot.empty ? '<li class="text-slate-500">Chưa có lịch sử.</li>' : snapshot.docs.map(doc => {
+                    const record = doc.data();
+                    return `<li class="p-2.5 bg-slate-50 rounded-md text-sm">${record.action} lúc: ${new Date(record.timestamp).toLocaleString('vi-VN')}</li>`;
+                }).join('');
+            }, (error) => showMessage(attendanceMessage, `Lỗi tải lịch sử: ${error.message}`, 'error'));
+        }
+
+        async function uploadIssueImage(file) {
+            if (!file) return null;
+            const storageRef = ref(storage, `issue_images/${crypto.randomUUID()}-${file.name}`);
+            const snapshot = await uploadBytes(storageRef, file, { contentType: file.type });
+            return await getDownloadURL(snapshot.ref);
+        }
+        
+        async function deleteIssueImage(imageUrl) {
+            if (!imageUrl) return;
+            try {
+                await deleteObject(ref(storage, imageUrl));
+            } catch (error) {
+                if (error.code !== 'storage/object-not-found') console.error("Error deleting image:", error);
+            }
+        }
+
+        async function handleReportIssue() {
+            if (!currentUser) return;
+            const issueData = {
+                reporterName: reporterNameInput.value.trim(), issueType: issueTypeSelect.value,
+                priority: issuePrioritySelect.value, issueBranch: issueBranchSelect.value,
+                issueImageFile: issueImageInput.files[0], issueDescription: issueDescriptionTextarea.value.trim()
+            };
+            if (Object.values(issueData).some(val => !val)) return showMessage(issueMessage, 'Vui lòng điền đủ thông tin.', 'error');
+            reportIssueBtn.disabled = true;
+            reportIssueBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Đang gửi...';
+            try {
+                const imageUrl = await uploadIssueImage(issueData.issueImageFile);
+                if (!imageUrl) throw new Error('Không thể tải ảnh lên.');
+                await addDoc(collection(db, `/artifacts/${canvasAppId}/public/data/issueReports`), {
+                    reporterId: currentUser.uid, 
+                    reporterName: issueData.reporterName,
+                    issueType: issueData.issueType,
+                    priority: issueData.priority,
+                    issueBranch: issueData.issueBranch,
+                    issueImageUrl: imageUrl,
+                    issueDescription: issueData.issueDescription,
+                    reportDate: new Date().toISOString(), 
+                    status: 'Mới tạo',
+                });
+                showMessage(issueMessage, 'Báo cáo thành công!', 'success');
+                [issueTypeSelect, issueBranchSelect, issueImageInput, issueDescriptionTextarea].forEach(el => el.value = '');
+                issuePrioritySelect.value = 'Thấp';
+            } catch (error) { showMessage(issueMessage, `Lỗi báo cáo: ${error.message}.`, 'error');
+            } finally {
+                reportIssueBtn.disabled = false;
+                reportIssueBtn.innerHTML = '<i class="fas fa-paper-plane mr-2"></i>Gửi Báo Cáo';
+            }
+        }
+        
+        function listenToAllIssueReports() {
+            if (unsubscribeAllIssues) unsubscribeAllIssues();
+            const baseQuery = isUserAdmin ? collection(db, `/artifacts/${canvasAppId}/public/data/issueReports`) : query(collection(db, `/artifacts/${canvasAppId}/public/data/issueReports`), where("reporterId", "==", userId));
+            const q = query(baseQuery, orderBy('reportDate', 'desc'));
+            const historyTitle = mainContentContainer.querySelector('#issueHistoryView h2');
+            if(historyTitle) historyTitle.innerHTML = `<i class="fas fa-clipboard-list mr-3 text-blue-600"></i>Lịch Sử Báo Cáo ${isUserAdmin ? '(Toàn hệ thống)' : 'Của Bạn'}`;
+            unsubscribeAllIssues = onSnapshot(q, (snapshot) => {
+                allIssueDocs = snapshot.docs;
+                renderIssueHistoryTable(allIssueDocs);
+            }, (error) => showMessage(issueHistoryMessage, `Lỗi tải lịch sử: ${error.message}`, 'error'));
+        }
+
+        function renderIssueHistoryTable(docs) {
+            if(!allIssueReportsTableBody) return;
+            allIssueReportsTableBody.innerHTML = docs.length === 0 ? `<tr><td colspan="${isUserAdmin ? 8 : 7}" class="px-4 py-4 text-center text-slate-500">Không có báo cáo.</td></tr>` : docs.map(docSnapshot => {
+                const report = docSnapshot.data();
+                const reportId = docSnapshot.id;
+                const statusClasses = { 'Đã giải quyết': 'text-green-600', 'Đang xử lý': 'text-yellow-600', 'Mới tạo': 'text-blue-600' };
+                return `
+                    <tr class="hover:bg-slate-50">
+                        <td data-label="Chi nhánh" class="px-4 py-3 text-sm text-slate-800 break-words">${report.issueBranch}</td>
+                        <td data-label="Người gửi" class="px-4 py-3 text-sm text-slate-800 break-words">${report.reporterName}</td>
+                        <td data-label="Loại sự cố" class="px-4 py-3 text-sm text-slate-800 break-words">${report.issueType}</td>
+                        <td data-label="Ảnh" class="px-4 py-3"><a href="${report.issueImageUrl}" target="_blank" rel="noopener noreferrer"><img src="${report.issueImageUrl}" class="h-10 w-10 rounded-md object-cover border border-slate-200"></a></td>
+                        <td data-label="Mô tả" class="px-4 py-3 text-sm text-slate-800 break-words">${report.issueDescription.substring(0, 50)}...</td>
+                        <td data-label="Ngày báo cáo" class="px-4 py-3 text-sm text-slate-800">${new Date(report.reportDate).toLocaleString('vi-VN')}</td>
+                        <td data-label="Trạng thái" class="px-4 py-3 text-sm font-semibold ${statusClasses[report.status] || ''}">${report.status}</td>
+                        <td data-label="Hành động" class="px-4 py-3 text-right text-sm font-medium ${isUserAdmin ? '' : 'hidden'}">
+                            <button class="text-indigo-600 hover:text-indigo-900" data-id="${reportId}" data-action="edit"><i class="fas fa-edit mr-1"></i>Sửa</button>
+                        </td>
+                    </tr>`;
+            }).join('');
+            allIssueReportsTableBody.querySelectorAll('button[data-action="edit"]').forEach(b => b.addEventListener('click', (e) => openEditIssueModal(e.currentTarget.dataset.id)));
+        }
+        
+        async function openEditIssueModal(issueId) {
+            currentEditingIssueId = issueId;
+            const modal = document.getElementById('editIssueModal');
+            try {
+                const docRef = doc(db, `/artifacts/${canvasAppId}/public/data/issueReports`, issueId);
+                const docSnap = await getDoc(docRef);
+                if (!docSnap.exists()) throw new Error('Không tìm thấy báo cáo.');
+                const report = docSnap.data();
+
+                modal.querySelector('#modalReportId').value = issueId;
+                modal.querySelector('#modalReporter').value = report.reporterName;
+                modal.querySelector('#modalIssueType').value = report.issueType;
+                modal.querySelector('#modalIssueBranch').value = report.issueBranch;
+                modal.querySelector('#modalIssueDescription').value = report.issueDescription;
+                modal.querySelector('#modalReportDate').value = new Date(report.reportDate).toLocaleString('vi-VN');
+                modal.querySelector('#modalResolutionDate').value = report.resolutionDate ? new Date(report.resolutionDate).toISOString().split('T')[0] : '';
+                modal.querySelector('#modalResolver').value = report.resolver || '';
+                modal.querySelector('#modalCause').value = report.cause || '';
+                modal.querySelector('#modalSolution').value = report.solution || '';
+                modal.querySelector('#modalIssueImagePreview').src = report.issueImageUrl || '';
+                
+                const saveBtn = modal.querySelector('#saveIssueDetailsBtn');
+                const cancelBtn = modal.querySelector('#cancelEditBtn');
+                
+                saveBtn.onclick = handleUpdateIssueDetails;
+                cancelBtn.onclick = () => modal.style.display = 'none';
+
+                modal.style.display = 'flex';
+            } catch (error) { showMessage(issueHistoryMessage, `Lỗi: ${error.message}`, 'error'); }
+        }
+        
+        async function handleUpdateIssueDetails() {
+            if (!currentEditingIssueId) return;
+            const modal = document.getElementById('editIssueModal');
+            const saveBtn = modal.querySelector('#saveIssueDetailsBtn');
+            const modalMessageEl = modal.querySelector('#modalMessage');
+
+            const dataToUpdate = {
+                resolutionDate: modal.querySelector('#modalResolutionDate').value,
+                resolver: modal.querySelector('#modalResolver').value.trim(),
+                cause: modal.querySelector('#modalCause').value.trim(),
+                solution: modal.querySelector('#modalSolution').value.trim()
+            };
+
+            if (Object.values(dataToUpdate).some(val => !val)) return showMessage(modalMessageEl, 'Vui lòng điền đủ thông tin xử lý.', 'error');
+            
+            saveBtn.disabled = true;
+            saveBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Đang lưu...';
+            try {
+                await updateDoc(doc(db, `/artifacts/${canvasAppId}/public/data/issueReports`, currentEditingIssueId), {
+                    ...dataToUpdate, status: 'Đã giải quyết', updatedAt: new Date().toISOString()
+                });
+                showMessage(modalMessageEl, 'Cập nhật thành công!', 'success');
+                setTimeout(() => modal.style.display = 'none', 1500);
+            } catch (error) { showMessage(modalMessageEl, `Lỗi: ${error.message}`, 'error');
+            } finally {
+                saveBtn.disabled = false;
+                saveBtn.innerHTML = '<i class="fas fa-save mr-2"></i>Lưu';
+            }
+        }
+        
+        function filterIssueHistory() {
+            if (!issueHistoryFilterInput || !issueStatusFilter) return;
+            
+            const searchTerm = issueHistoryFilterInput.value.toLowerCase();
+            const statusFilter = issueStatusFilter.value;
+            
+            const filteredDocs = allIssueDocs.filter(doc => {
+                const report = doc.data();
+                
+                const statusMatch = (statusFilter === 'Tất cả') || (report.status === statusFilter);
+                
+                const searchMatch = !searchTerm || Object.values(report).some(value => 
+                    String(value).toLowerCase().includes(searchTerm)
+                );
+
+                return statusMatch && searchMatch;
+            });
+
+            renderIssueHistoryTable(filteredDocs);
+        }
+        
+        function listenToDashboardData() {
+            if (unsubscribeDashboard) unsubscribeDashboard();
+            const q = isUserAdmin ? collection(db, `/artifacts/${canvasAppId}/public/data/issueReports`) : query(collection(db, `/artifacts/${canvasAppId}/public/data/issueReports`), where("reporterId", "==", userId));
+            unsubscribeDashboard = onSnapshot(q, (snapshot) => updateDashboardUI(snapshot.docs.map(doc => doc.data())), (error) => console.error(error));
+        }
+
+        function updateDashboardUI(reports) {
+            const errorsTodayEl = mainContentContainer.querySelector('#errorsToday');
+            if (!errorsTodayEl) return;
+            
+            const now = new Date();
+            const todayStart = new Date(now.setHours(0, 0, 0, 0));
+            const weekStart = new Date(new Date(todayStart).setDate(todayStart.getDate() - todayStart.getDay()));
+            const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+
+            mainContentContainer.querySelector('#errorsToday').textContent = reports.filter(r => new Date(r.reportDate) >= todayStart).length;
+            mainContentContainer.querySelector('#errorsThisWeek').textContent = reports.filter(r => new Date(r.reportDate) >= weekStart).length;
+            mainContentContainer.querySelector('#errorsThisMonth').textContent = reports.filter(r => new Date(r.reportDate) >= monthStart).length;
+            
+            const processCounts = (key) => reports.reduce((acc, report) => ({ ...acc, [report[key]]: (acc[report[key]] || 0) + 1 }), {});
+            
+            renderIssueTypePieChart(processCounts('issueType'));
+            renderStatusSummary(processCounts('status'), reports.length);
+            renderPrioritySummary(processCounts('priority'));
+            renderFeaturedIssues(reports.filter(r => r.status !== 'Đã giải quyết').sort((a, b) => new Date(b.reportDate) - new Date(a.reportDate)).slice(0, 5));
+        }
+        
+        function renderIssueTypePieChart(data) {
+            const canvas = mainContentContainer.querySelector('#issueTypePieChart');
+            if (!canvas) return;
+            const ctx = canvas.getContext('2d');
+            if (issueTypeChart) issueTypeChart.destroy();
+            if (Object.keys(data).length === 0) {
+                ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+                ctx.textAlign = 'center';
+                ctx.fillText('Chưa có dữ liệu', ctx.canvas.width / 2, ctx.canvas.height / 2);
+                return;
+            }
+            issueTypeChart = new Chart(ctx, {
+                type: 'pie',
+                data: { labels: Object.keys(data), datasets: [{ data: Object.values(data), backgroundColor: ['#3B82F6', '#10B981', '#F59E0B', '#8B5CF6', '#EF4444'], hoverOffset: 4 }] },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } } }
+>>>>>>> ed8fcad195e59ac9fc5e428a0b337476aca91d92
             });
         }
 
@@ -672,6 +2120,7 @@
             const container = mainContentContainer.querySelector('#statusSummary');
             if (!container) return;
             const statuses = { 'Mới tạo': 'bg-blue-500', 'Đang xử lý': 'bg-yellow-500', 'Đã giải quyết': 'bg-green-500' };
+<<<<<<< HEAD
             container.innerHTML = Object.entries(statuses).map(([status, color]) => {
                 const count = data[status] || 0;
                 const percentage = total > 0 ? ((count / total) * 100).toFixed(0) : 0;
@@ -1064,8 +2513,285 @@
         function unsubscribeAll() {
             unsubscribeListeners.forEach(unsub => unsub());
             unsubscribeListeners = [];
+=======
+            container.innerHTML = total === 0 ? `<p class="text-sm text-slate-500">Chưa có dữ liệu.</p>` : Object.entries(statuses).map(([status, color]) => {
+                const count = data[status] || 0;
+                const percentage = total > 0 ? ((count / total) * 100).toFixed(0) : 0;
+                return `<div><div class="flex justify-between mb-1"><span class="text-sm font-medium text-slate-700">${status} (${count})</span><span class="text-sm font-medium text-slate-500">${percentage}%</span></div><div class="w-full bg-slate-200 rounded-full h-2"><div class="${color} h-2 rounded-full" style="width: ${percentage}%"></div></div></div>`;
+            }).join('');
+        }
+
+        function renderPrioritySummary(data) {
+            const container = mainContentContainer.querySelector('#prioritySummary');
+            if (!container) return;
+            const priorities = { 'Nghiêm trọng': 'text-red-500', 'Trung bình': 'text-yellow-500', 'Thấp': 'text-green-500' };
+            container.innerHTML = Object.keys(data).length === 0 ? `<p class="text-sm text-slate-500">Chưa có dữ liệu.</p>` : Object.entries(priorities).map(([p, color]) => `<div><p class="text-3xl font-bold ${color}">${data[p] || 0}</p><p class="text-sm text-slate-500">${p}</p></div>`).join('');
+        }
+
+        function renderFeaturedIssues(issues) {
+            const tbody = mainContentContainer.querySelector('#featuredIssuesTableBody');
+            if (!tbody) return;
+            tbody.innerHTML = issues.length === 0 ? `<tr><td colspan="5" class="text-center py-4 text-slate-500">Không có lỗi nào chưa được giải quyết.</td></tr>` : issues.map(issue => {
+                const priorityColors = { 'Nghiêm trọng': 'bg-red-100 text-red-800', 'Trung bình': 'bg-yellow-100 text-yellow-800', 'Thấp': 'bg-green-100 text-green-800' };
+                return `<tr class="hover:bg-slate-50">
+                    <td data-label="Ưu tiên" class="px-4 py-3"><span class="px-2 py-1 text-xs font-semibold rounded-full ${priorityColors[issue.priority] || ''}">${issue.priority}</span></td>
+                    <td data-label="Sự cố" class="px-4 py-3 text-sm text-slate-800 font-semibold break-words">${issue.issueBranch} - ${issue.issueType}</td>
+                    <td data-label="Mô tả" class="px-4 py-3 text-sm text-slate-500 break-words">${issue.issueDescription.substring(0, 50)}...</td>
+                    <td data-label="Người báo cáo" class="px-4 py-3 text-sm text-slate-600 break-words">${issue.reporterName}</td>
+                    <td data-label="Ngày báo cáo" class="px-4 py-3 text-sm text-slate-600">${new Date(issue.reportDate).toLocaleDateString('vi-VN')}</td>
+                </tr>`;
+            }).join('');
+        }
+        
+        function listenToLoginLogs() {
+            if (unsubscribeLoginLog) unsubscribeLoginLog();
+            const q = query(collection(db, `/artifacts/${canvasAppId}/public/data/loginLogs`), orderBy('timestamp', 'desc'), limit(100));
+            unsubscribeLoginLog = onSnapshot(q, (snapshot) => renderLoginLogTable(snapshot.docs), (error) => console.error(error));
+        }
+
+        function renderLoginLogTable(docs) {
+            if(!loginLogTableBody) return;
+            loginLogTableBody.innerHTML = docs.length === 0 ? `<tr><td colspan="3" class="px-4 py-4 text-center text-slate-500">Chưa có nhật ký.</td></tr>` : docs.map(doc => {
+                const log = doc.data();
+                return `<tr class="hover:bg-slate-50">
+                    <td data-label="Tên người dùng" class="px-4 py-3 text-sm text-slate-800 break-words"><span>${log.username}</span></td>
+                    <td data-label="ID Người dùng" class="px-4 py-3 text-sm text-slate-500 font-mono text-xs break-all"><span>${log.userId}</span></td>
+                    <td data-label="Thời gian đăng nhập" class="px-4 py-3 text-sm text-slate-600"><span>${new Date(log.timestamp).toLocaleString('vi-VN')}</span></td>
+                </tr>`;
+            }).join('');
+        }
+
+        async function handleCreateAccount() {
+            if (!isUserAdmin) return;
+            const employeeId = newAccountEmployeeId.value.trim();
+            const username = newAccountUsername.value.trim();
+            const email = newAccountEmail.value.trim();
+            const password = newAccountPassword.value;
+            if (!/^[0-9]+$/.test(employeeId)) return showMessage(createAccountMessage, 'MSNV chỉ được chứa số.', 'error');
+            if (!employeeId || !username || !email || password.length < 6) return showMessage(createAccountMessage, 'Vui lòng điền đủ thông tin. Mật khẩu phải có ít nhất 6 ký tự.', 'error');
+            createAccountBtn.disabled = true;
+            createAccountBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Đang tạo...';
+            try {
+                const formattedDisplayName = `${employeeId} - ${username}`;
+                const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+                await updateProfile(userCredential.user, { displayName: formattedDisplayName });
+                await addDoc(collection(db, `/artifacts/${canvasAppId}/public/data/loginLogs`), { userId: userCredential.user.uid, username: formattedDisplayName, email, timestamp: new Date().toISOString() });
+                showMessage(createAccountMessage, `Tài khoản '${formattedDisplayName}' đã được tạo!`, 'success');
+                [newAccountEmployeeId, newAccountUsername, newAccountEmail, newAccountPassword].forEach(el => el.value = '');
+            } catch (error) {
+                showMessage(createAccountMessage, `Lỗi: ${error.code === 'auth/email-already-in-use' ? 'Email đã được sử dụng.' : error.message}`, 'error');
+            } finally {
+                createAccountBtn.disabled = false;
+                createAccountBtn.innerHTML = '<i class="fas fa-user-plus mr-2"></i>Tạo Tài Khoản';
+            }
+        }
+
+        async function renderRegisteredAccountsTable() {
+            if (!isUserAdmin || !registeredAccountsTableBody) return;
+            try {
+                const querySnapshot = await getDocs(query(collection(db, `/artifacts/${canvasAppId}/public/data/loginLogs`), orderBy('timestamp', 'desc')));
+                const usersMap = new Map();
+                querySnapshot.forEach(doc => { const log = doc.data(); if (!usersMap.has(log.userId)) usersMap.set(log.userId, log); });
+                
+                registeredAccountsTableBody.innerHTML = usersMap.size === 0 ? `<tr><td colspan="5" class="px-4 py-4 text-center text-slate-500">Chưa có tài khoản.</td></tr>` : Array.from(usersMap.values()).map(user => {
+                    const [employeeId, name] = user.username.includes(' - ') ? user.username.split(' - ', 2) : ['N/A', user.username];
+                    return `<tr class="hover:bg-slate-50">
+                        <td data-label="MSNV" class="px-4 py-3 text-sm text-slate-800 font-semibold"><span>${employeeId}</span></td>
+                        <td data-label="Tên người dùng" class="px-4 py-3 text-sm text-slate-800 break-words"><span>${name}</span></td>
+                        <td data-label="Email" class="px-4 py-3 text-sm text-slate-600 break-all"><span>${user.email}</span></td>
+                        <td data-label="UID" class="px-4 py-3 text-sm text-slate-500 font-mono text-xs break-all"><span>${user.uid}</span></td>
+                        <td data-label="Hành động" class="px-4 py-3 text-right">
+                            <div class="flex justify-end space-x-2">
+                                <button class="btn-secondary btn-edit text-xs" data-uid="${user.uid}" data-username="${user.username}" data-employeeid="${employeeId}" data-email="${user.email}"><i class="fas fa-edit mr-1"></i>Sửa</button>
+                                <button class="btn-danger text-xs" data-uid="${user.uid}" data-username="${user.username}"><i class="fas fa-trash-alt mr-1"></i>Xóa</button>
+                            </div>
+                        </td>
+                    </tr>`;
+                }).join('');
+                
+                registeredAccountsTableBody.querySelectorAll('button.btn-edit').forEach(b => b.addEventListener('click', (e) => openEditAccountModal(e.currentTarget.dataset)));
+                registeredAccountsTableBody.querySelectorAll('button.btn-danger').forEach(b => b.addEventListener('click', (e) => handleDeleteAllUserDataForUser(e.currentTarget.dataset.uid, e.currentTarget.dataset.username)));
+
+            } catch (error) { showMessage(exportAccountsMessage, `Lỗi tải danh sách: ${error.message}`, 'error'); }
+        }
+
+        function openEditAccountModal(userData) {
+            const modal = document.getElementById('editAccountModal');
+            modal.querySelector('#editAccountUid').value = userData.uid;
+            modal.querySelector('#editAccountEmail').value = userData.email;
+            modal.querySelector('#editAccountEmployeeId').value = userData.employeeid;
+            modal.querySelector('#editAccountUsername').value = userData.username.includes(' - ') ? userData.username.split(' - ', 2)[1] : userData.username;
+
+            modal.querySelector('#saveAccountDetailsBtn').onclick = handleUpdateAccountDetails;
+            modal.style.display = 'flex';
+        }
+
+        async function handleUpdateAccountDetails() {
+            const modal = document.getElementById('editAccountModal');
+            const saveBtn = modal.querySelector('#saveAccountDetailsBtn');
+            const messageEl = modal.querySelector('#editAccountMessage');
+            
+            const uid = modal.querySelector('#editAccountUid').value;
+            const newEmployeeId = modal.querySelector('#editAccountEmployeeId').value.trim();
+            const newUsername = modal.querySelector('#editAccountUsername').value.trim();
+
+            if (!newEmployeeId || !newUsername) return showMessage(messageEl, 'MSNV và Tên không được để trống.', 'error');
+            if (!/^[0-9]+$/.test(newEmployeeId)) return showMessage(messageEl, 'MSNV chỉ được chứa số.', 'error');
+
+            saveBtn.disabled = true;
+            saveBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Đang lưu...';
+            try {
+                const updateUserAccount = httpsCallable(functions, 'updateUserAccount');
+                const result = await updateUserAccount({ uid, newEmployeeId, newUsername });
+                showMessage(messageEl, result.data.message, 'success');
+                await renderRegisteredAccountsTable();
+                setTimeout(() => modal.style.display = 'none', 1500);
+            } catch (error) {
+                showMessage(messageEl, `Lỗi cập nhật: ${error.message}`, 'error');
+            } finally {
+                saveBtn.disabled = false;
+                saveBtn.innerHTML = '<i class="fas fa-save mr-2"></i>Lưu Thay Đổi';
+            }
+        }
+        
+        async function handleDeleteAllUserDataForUser(uid, username) {
+            if (!isUserAdmin || (currentUser && currentUser.uid === uid)) return showMessage(exportAccountsMessage, 'Bạn không thể xóa chính mình.', 'error');
+            showConfirmModal('Xác nhận xóa tài khoản & dữ liệu', `Bạn có chắc muốn xóa TÀI KHOẢN và TẤT CẢ dữ liệu của '${username}' không?`, async () => {
+                const deleteButton = registeredAccountsTableBody.querySelector(`button.btn-danger[data-uid="${uid}"]`);
+                if (deleteButton) {
+                    deleteButton.disabled = true;
+                    deleteButton.innerHTML = `<i class="fas fa-spinner fa-spin mr-1"></i>Đang xóa...`;
+                }
+                try {
+                    const deleteUserAccount = httpsCallable(functions, 'deleteUserAccount');
+                    await deleteUserAccount({ uid: uid });
+                    showMessage(exportAccountsMessage, `Đã xóa tài khoản và dữ liệu của '${username}'.`, 'success');
+                    await renderRegisteredAccountsTable();
+                } catch (error) {
+                    showMessage(exportAccountsMessage, `Lỗi khi xóa: ${error.message}`, 'error');
+                    if (deleteButton) {
+                        deleteButton.disabled = false;
+                        deleteButton.innerHTML = `<i class="fas fa-trash-alt mr-1"></i>Xóa`;
+                    }
+                }
+            });
+        }
+        
+        async function handleExportAccounts() {
+            if (!isUserAdmin) return;
+            try {
+                const querySnapshot = await getDocs(collection(db, `/artifacts/${canvasAppId}/public/data/loginLogs`));
+                const usersMap = new Map();
+                querySnapshot.forEach(doc => { const log = doc.data(); if (!usersMap.has(log.userId)) usersMap.set(log.userId, log); });
+                if (usersMap.size === 0) return showMessage(exportAccountsMessage, 'Không có tài khoản để xuất.', 'info');
+                
+                let csvContent = "MSNV;TenNguoiDung;Email;UID\n";
+                usersMap.forEach(user => {
+                    const [employeeId, name] = user.username.includes(' - ') ? user.username.split(' - ', 2) : ['N/A', user.username];
+                    csvContent += `${employeeId};"${name.replace(/"/g, '""')}";"${user.email}";"${user.uid}"\n`;
+                });
+                
+                const blob = new Blob(["\uFEFF" + csvContent], { type: 'text/csv;charset=utf-8' });
+                const a = document.createElement('a');
+                a.href = URL.createObjectURL(blob);
+                a.download = 'danh_sach_tai_khoan.csv';
+                a.click();
+                URL.revokeObjectURL(a.href);
+                showMessage(exportAccountsMessage, 'Đã xuất danh sách tài khoản thành công.', 'success');
+            } catch (error) { showMessage(exportAccountsMessage, `Lỗi xuất file: ${error.message}`, 'error'); }
+        }
+
+        async function handleExportAllReports(e) {
+            e.preventDefault();
+            const q = isUserAdmin ? collection(db, `/artifacts/${canvasAppId}/public/data/issueReports`) : query(collection(db, `/artifacts/${canvasAppId}/public/data/issueReports`), where("reporterId", "==", userId));
+            try {
+                const querySnapshot = await getDocs(q);
+                if (querySnapshot.empty) return showMessage(globalAppMessage, 'Không có báo cáo nào để xuất.', 'info');
+                let csvContent = "ID;ChiNhanh;NguoiGui;LoaiSuCo;DoUuTien;MoTa;NgayBaoCao;TrangThai;NgayXuLy;NguoiXuLy;NguyenNhan;GiaiPhap;URLAnh\n";
+                querySnapshot.forEach(doc => {
+                    const report = doc.data();
+                    const sanitize = (str) => `"${(str || '').replace(/"/g, '""')}"`;
+                    const row = [ doc.id, report.issueBranch, report.reporterName, report.issueType, report.priority, report.issueDescription, new Date(report.reportDate).toLocaleString('vi-VN'), report.status, report.resolutionDate ? new Date(report.resolutionDate).toLocaleDateString('vi-VN') : '', report.resolver, report.cause, report.solution, report.issueImageUrl ].map(sanitize).join(';');
+                    csvContent += row + "\n";
+                });
+                const blob = new Blob(["\uFEFF" + csvContent], { type: 'text/csv;charset=utf-8;' });
+                const link = document.createElement("a");
+                link.href = URL.createObjectURL(blob);
+                link.setAttribute("download", "tat_ca_bao_cao.csv");
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                showMessage(globalAppMessage, 'Đã xuất tất cả báo cáo thành công.', 'success');
+            } catch (error) { showMessage(globalAppMessage, `Lỗi khi xuất báo cáo: ${error.message}`, 'error'); }
+        }
+
+        function handleExportDashboardSummary(e) {
+            e.preventDefault();
+            try {
+                const errorsToday = mainContentContainer.querySelector('#errorsToday').textContent;
+                const errorsThisWeek = mainContentContainer.querySelector('#errorsThisWeek').textContent;
+                const errorsThisMonth = mainContentContainer.querySelector('#errorsThisMonth').textContent;
+                let csvContent = "ThongKe;SoLuong\n";
+                csvContent += `LoiPhatSinhHomNay;${errorsToday}\n`;
+                csvContent += `LoiTrongTuanNay;${errorsThisWeek}\n`;
+                csvContent += `LoiTrongThangNay;${errorsThisMonth}\n\n`;
+                csvContent += "TrangThai;SoLuong\n";
+                mainContentContainer.querySelector('#statusSummary').querySelectorAll('div > div.flex').forEach(item => {
+                    const matches = item.querySelector('span:first-child').textContent.match(/(.+) \((\d+)\)/);
+                    if(matches) csvContent += `${matches[1].trim()};${matches[2]}\n`;
+                });
+                csvContent += "\n";
+                csvContent += "DoUuTien;SoLuong\n";
+                mainContentContainer.querySelector('#prioritySummary').querySelectorAll('div').forEach(item => {
+                    csvContent += `${item.querySelector('p:last-child').textContent};${item.querySelector('p:first-child').textContent}\n`;
+                });
+                const blob = new Blob(["\uFEFF" + csvContent], { type: 'text/csv;charset=utf-8;' });
+                const link = document.createElement("a");
+                link.href = URL.createObjectURL(blob);
+                link.setAttribute("download", "tom_tat_dashboard.csv");
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                showMessage(globalAppMessage, 'Đã xuất tóm tắt thành công.', 'success');
+            } catch (error) { showMessage(globalAppMessage, `Lỗi khi xuất tóm tắt: ${error.message}`, 'error'); }
+        }
+
+        function handleExportChart(e) {
+            e.preventDefault();
+            if (issueTypeChart) {
+                try {
+                    const link = document.createElement('a');
+                    link.href = issueTypeChart.toBase64Image('image/png', 1);
+                    link.download = 'phan_loai_loi_chart.png';
+                    link.click();
+                    showMessage(globalAppMessage, 'Đã xuất biểu đồ thành công.', 'success');
+                } catch (error) { showMessage(globalAppMessage, `Lỗi khi xuất biểu đồ: ${error.message}`, 'error'); }
+            } else { showMessage(globalAppMessage, 'Không có dữ liệu biểu đồ để xuất.', 'info'); }
+        }
+
+        function showConfirmModal(title, text, callback) {
+            confirmModalTitle.textContent = title;
+            confirmModalText.textContent = text;
+            confirmCallback = callback;
+            confirmModal.style.display = 'flex';
+        }
+
+        function closeConfirmModal() {
+            confirmModal.style.display = 'none';
+            confirmCallback = null;
+        }
+
+        function unsubscribeAllListeners() {
+            if (unsubscribeAttendance) unsubscribeAttendance();
+            if (unsubscribeAllIssues) unsubscribeAllIssues();
+            if (unsubscribeDashboard) unsubscribeDashboard();
+            if (unsubscribeLoginLog) unsubscribeLoginLog();
+>>>>>>> ed8fcad195e59ac9fc5e428a0b337476aca91d92
         }
     </script>
 </body>
 </html>
+<<<<<<< HEAD
 
+=======
+>>>>>>> ed8fcad195e59ac9fc5e428a0b337476aca91d92
