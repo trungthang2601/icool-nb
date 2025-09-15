@@ -135,6 +135,10 @@
         .notification-item { border-bottom: 1px solid var(--border-color); }
         .notification-item:last-child { border-bottom: none; }
         .notification-item.unread { background-color: #eef2ff; }
+
+        #camera-overlay {
+            text-shadow: 0 1px 3px rgba(0,0,0,0.5);
+        }
     </style>
 </head>
 <body class="min-h-screen">
@@ -224,6 +228,7 @@
                         <table class="min-w-full divide-y divide-slate-200 responsive-table">
                             <thead class="bg-slate-50">
                                 <tr>
+                                    <th class="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase">MSNV</th>
                                     <th class="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase">Tên Người Dùng</th>
                                     <th class="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase">Email</th>
                                     <th class="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase">Vai Trò</th>
@@ -274,6 +279,7 @@
                                     <th class="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase">Loại sự cố</th>
                                     <th class="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase">Ngày báo cáo</th>
                                     <th class="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase">Trạng thái</th>
+                                    <th class="px-4 py-3 text-right text-xs font-semibold text-slate-500 uppercase">Hành động</th>
                                 </tr>
                             </thead>
                             <tbody id="issueHistoryTableBody" class="bg-white divide-y divide-slate-200"></tbody>
@@ -319,14 +325,35 @@
                 </div>
             </div>
         </div>
+        
+        <div id="editIssueModal" class="modal">
+            <div class="modal-content">
+                <div class="flex justify-between items-center mb-4"><h3 class="text-xl font-bold">Cập Nhật Báo Cáo</h3><span id="closeEditIssueModalBtn" class="cursor-pointer text-2xl">&times;</span></div>
+                <input type="hidden" id="editIssueId">
+                <div><label class="block mb-2">Trạng thái:</label><select id="editIssueStatus" class="select-field"><option value="Mới tạo">Mới tạo</option><option value="Đang xử lý">Đang xử lý</option><option value="Đã giải quyết">Đã giải quyết</option></select></div>
+                <div id="editIssueMessage" class="hidden mt-4 p-3 rounded-lg text-sm"></div>
+                <div class="flex justify-end space-x-4 mt-6"><button id="cancelEditIssueBtn" class="btn-secondary">Hủy</button><button id="saveIssueDetailsBtn" class="btn-primary">Lưu</button></div>
+            </div>
+        </div>
 
         <div id="cameraModal" class="modal">
             <div class="modal-content max-w-lg">
                 <div class="flex justify-between items-center mb-4"><h3 id="cameraModalTitle" class="text-xl font-bold text-slate-800">Điểm Danh</h3><span id="closeCameraModalBtn" class="cursor-pointer text-2xl">&times;</span></div>
-                <div class="relative w-full aspect-video bg-slate-200 rounded-lg overflow-hidden">
+                <div class="relative w-full aspect-video bg-slate-800 rounded-lg overflow-hidden">
                     <video id="cameraFeed" class="w-full h-full object-cover" autoplay playsinline></video>
                     <canvas id="photoCanvas" class="hidden"></canvas>
                     <img id="photoPreview" src="" class="hidden absolute top-0 left-0 w-full h-full object-cover"/>
+                    <div id="camera-overlay" class="absolute bottom-0 left-0 w-full p-4 bg-gradient-to-t from-black/60 to-transparent text-white">
+                        <div class="flex items-end">
+                            <p id="camera-time" class="text-5xl font-bold leading-none">00:00</p>
+                            <div class="ml-4 text-sm">
+                                <p id="camera-date">Ngày 1, Tháng 1, 2000</p>
+                                <p id="camera-day">Thứ Hai</p>
+                            </div>
+                        </div>
+                        <p id="camera-address" class="text-xs mt-2 truncate">Đang lấy vị trí...</p>
+                        <p id="camera-user" class="text-sm font-semibold mt-1">Họ tên: </p>
+                    </div>
                 </div>
                 <div id="cameraMessage" class="hidden mt-4 p-3 rounded-lg text-sm"></div>
                 <div class="flex justify-center space-x-4 mt-4">
@@ -373,7 +400,8 @@
         let currentUserProfile = null;
         let unsubscribeListeners = [];
         let issueTypeChart = null;
-        let cameraModal, currentCameraStream, capturedPhotoBlob, currentAttendanceAction;
+        let cameraModal, currentCameraStream, capturedPhotoBlob, currentAttendanceAction, timeInterval, capturedLocationInfo;
+        let editIssueModal;
 
         let skeletonLoader, authSection, appContainer, mainContentContainer, viewsContainer, sidebarNav;
         let authEmailInput, authPasswordInput, loginBtn, authMessage;
@@ -577,8 +605,8 @@
             return query(q, orderBy('reportDate', 'desc'));
         }
 
-        // --- VIEW SETUP FUNCTIONS ---
         window.setup_attendanceView = function() {
+            if (!currentUserProfile) return;
             mainContentContainer.querySelector('#employeeName').value = currentUserProfile.displayName;
             mainContentContainer.querySelector('#checkInBtn').addEventListener('click', () => handleAttendance('Check-In'));
             mainContentContainer.querySelector('#checkOutBtn').addEventListener('click', () => handleAttendance('Check-Out'));
@@ -586,11 +614,13 @@
         };
 
         window.setup_manageAccountsView = function() {
+            if (!currentUserProfile) return;
             mainContentContainer.querySelector('#createAccountBtn').addEventListener('click', handleCreateAccount);
             renderRegisteredAccountsTable();
         };
 
         window.setup_dashboardView = function() {
+            if (!currentUserProfile) return;
             const q = getScopedIssuesQuery();
             const unsubscribe = onSnapshot(q, (snapshot) => {
                 const reports = snapshot.docs.map(doc => doc.data());
@@ -600,6 +630,7 @@
         };
         
         window.setup_issueReportView = function() {
+            if (!currentUserProfile) return;
             mainContentContainer.querySelector('#reporterName').value = currentUserProfile.displayName;
             const branchSelect = mainContentContainer.querySelector('#issueBranch');
             branchSelect.innerHTML = ALL_BRANCHES.map(b => `<option value="${b}">${b}</option>`).join('');
@@ -607,9 +638,10 @@
         };
 
         window.setup_issueHistoryView = function() {
+            if (!currentUserProfile) return;
             const tableBody = mainContentContainer.querySelector('#issueHistoryTableBody');
             if (!tableBody) return;
-            tableBody.innerHTML = `<tr><td colspan="5" class="text-center p-4">Đang tải...</td></tr>`;
+            tableBody.innerHTML = `<tr><td colspan="6" class="text-center p-4">Đang tải...</td></tr>`;
             
             const q = getScopedIssuesQuery();
             const unsubscribe = onSnapshot(q, (snapshot) => {
@@ -620,6 +652,7 @@
         };
         
         window.setup_activityLogView = function() {
+            if (!currentUserProfile) return;
             const tableBody = mainContentContainer.querySelector('#activityLogTableBody');
             if (!tableBody) return;
             tableBody.innerHTML = `<tr><td colspan="4" class="text-center p-4">Đang tải...</td></tr>`;
@@ -632,7 +665,6 @@
             unsubscribeListeners.push(unsubscribe);
         };
         
-        // --- RENDER FUNCTIONS ---
         function renderActivityLogTable(logs) {
             const tableBody = mainContentContainer.querySelector('#activityLogTableBody');
             if (!tableBody) return;
@@ -702,14 +734,21 @@
                     <td data-label="Loại sự cố" class="px-4 py-3">${report.issueType}</td>
                     <td data-label="Ngày báo cáo" class="px-4 py-3">${new Date(report.reportDate).toLocaleString('vi-VN')}</td>
                     <td data-label="Trạng thái" class="px-4 py-3">${report.status}</td>
+                    <td data-label="Hành động" class="px-4 py-3 text-right">
+                        ${currentUserProfile.role === 'Admin' ? `<button class="edit-issue-btn btn-secondary !text-sm !py-1 !px-2" data-id="${report.id}">Sửa</button>` : ''}
+                    </td>
                 </tr>
-             `).join('') : `<tr><td colspan="5" class="text-center p-4">Không có báo cáo nào.</td></tr>`;
+             `).join('') : `<tr><td colspan="6" class="text-center p-4">Không có báo cáo nào.</td></tr>`;
+
+             tableBody.querySelectorAll('.edit-issue-btn').forEach(btn => {
+                 btn.addEventListener('click', () => openEditIssueModal(btn.dataset.id));
+             });
         }
         
         async function renderRegisteredAccountsTable() {
             const tableBody = mainContentContainer.querySelector('#accountsTableBody');
             if (!tableBody) return;
-            tableBody.innerHTML = `<tr><td colspan="4" class="text-center p-4">Đang tải...</td></tr>`;
+            tableBody.innerHTML = `<tr><td colspan="5" class="text-center p-4">Đang tải...</td></tr>`;
 
             try {
                 const usersSnapshot = await getDocs(collection(db, `/artifacts/${canvasAppId}/users`));
@@ -717,6 +756,7 @@
                 
                 tableBody.innerHTML = users.map(user => `
                     <tr class="hover:bg-gray-50">
+                        <td data-label="MSNV" class="px-4 py-3">${user.employeeId || 'N/A'}</td>
                         <td data-label="Tên Người Dùng" class="px-4 py-3">${user.displayName}</td>
                         <td data-label="Email" class="px-4 py-3">${user.email}</td>
                         <td data-label="Vai Trò" class="px-4 py-3">${user.role}</td>
@@ -734,10 +774,50 @@
                 });
             } catch (error) {
                 console.error("Error rendering accounts table:", error);
-                tableBody.innerHTML = `<tr><td colspan="4" class="text-center p-4 text-red-500">Lỗi tải danh sách người dùng. Kiểm tra lại quy tắc bảo mật.</td></tr>`;
+                tableBody.innerHTML = `<tr><td colspan="5" class="text-center p-4 text-red-500">Lỗi tải danh sách người dùng. Kiểm tra lại quy tắc bảo mật.</td></tr>`;
             }
         }
         
+        async function openEditIssueModal(issueId) {
+            const docRef = doc(db, `/artifacts/${canvasAppId}/public/data/issueReports`, issueId);
+            const docSnap = await getDoc(docRef);
+            if (docSnap.exists()) {
+                const report = docSnap.data();
+                editIssueModal.querySelector('#editIssueId').value = issueId;
+                editIssueModal.querySelector('#editIssueStatus').value = report.status;
+                editIssueModal.style.display = 'flex';
+            } else {
+                alert("Không tìm thấy báo cáo!");
+            }
+        }
+
+        async function handleUpdateIssueDetails() {
+            const issueId = editIssueModal.querySelector('#editIssueId').value;
+            const newStatus = editIssueModal.querySelector('#editIssueStatus').value;
+            const messageEl = editIssueModal.querySelector('#editIssueMessage');
+            const saveBtn = editIssueModal.querySelector('#saveIssueDetailsBtn');
+
+            saveBtn.disabled = true;
+            try {
+                const docRef = doc(db, `/artifacts/${canvasAppId}/public/data/issueReports`, issueId);
+                await updateDoc(docRef, { status: newStatus });
+                logActivity("Update Issue Status", { issueId, newStatus });
+                messageEl.textContent = 'Cập nhật thành công!';
+                messageEl.className = 'p-3 rounded-lg text-sm text-center alert-success';
+                messageEl.classList.remove('hidden');
+                setTimeout(() => {
+                    editIssueModal.style.display = 'none';
+                    messageEl.classList.add('hidden');
+                }, 1500);
+            } catch (error) {
+                messageEl.textContent = `Lỗi: ${error.message}`;
+                messageEl.className = 'p-3 rounded-lg text-sm text-center alert-error';
+                messageEl.classList.remove('hidden');
+            } finally {
+                saveBtn.disabled = false;
+            }
+        }
+
         function populateEditAccountModal(userData) {
             editAccountModal.querySelector('#editAccountUid').value = userData.uid;
             editAccountModal.querySelector('#editAccountEmail').value = userData.email;
@@ -907,12 +987,64 @@
             }
         }
 
-        // --- ATTENDANCE FUNCTIONS ---
         function handleAttendance(action) {
             currentAttendanceAction = action;
             cameraModal.style.display = 'flex';
             cameraModal.querySelector('#cameraModalTitle').textContent = `${action} - Chụp Ảnh Xác Thực`;
             startCameraStream();
+            updateLiveInfo();
+        }
+
+        function updateLiveInfo() {
+            const timeEl = document.getElementById('camera-time');
+            const dateEl = document.getElementById('camera-date');
+            const dayEl = document.getElementById('camera-day');
+            const userEl = document.getElementById('camera-user');
+            
+            userEl.textContent = `Họ tên: ${currentUserProfile.displayName}`;
+            
+            if (timeInterval) clearInterval(timeInterval);
+
+            timeInterval = setInterval(() => {
+                const now = new Date();
+                const timeString = now.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', hour12: false });
+                const dateString = now.toLocaleDateString('vi-VN', { day: 'numeric', month: 'long', year: 'numeric' });
+                const dayString = now.toLocaleDateString('vi-VN', { weekday: 'long' });
+
+                timeEl.textContent = timeString;
+                dateEl.textContent = dateString;
+                dayEl.textContent = dayString;
+            }, 1000);
+
+            getLocationAndAddress();
+        }
+
+        async function getLocationAndAddress() {
+            const addressEl = document.getElementById('camera-address');
+            addressEl.textContent = 'Đang lấy vị trí...';
+            capturedLocationInfo = null;
+
+            try {
+                const position = await new Promise((resolve, reject) => {
+                    navigator.geolocation.getCurrentPosition(resolve, reject, { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 });
+                });
+                const { latitude, longitude } = position.coords;
+                
+                const response = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}`);
+                if (!response.ok) throw new Error('Không thể chuyển đổi vị trí.');
+                const data = await response.json();
+
+                capturedLocationInfo = {
+                    latitude,
+                    longitude,
+                    address: data.display_name || 'Không tìm thấy địa chỉ'
+                };
+                addressEl.textContent = capturedLocationInfo.address;
+            } catch (error) {
+                console.error("Location Error:", error);
+                addressEl.textContent = 'Không thể lấy vị trí. Vui lòng kiểm tra quyền truy cập.';
+                 capturedLocationInfo = { error: error.message };
+            }
         }
 
         async function startCameraStream() {
@@ -982,7 +1114,8 @@
             confirmBtn.innerHTML = `<i class="fas fa-spinner fa-spin"></i>`;
             
             try {
-                 const storageRef = ref(storage, `attendance_photos/${currentUser.uid}/${Date.now()}.jpg`);
+                 const today = new Date().toISOString().split('T')[0];
+                 const storageRef = ref(storage, `attendance_photos/${currentUser.uid}/${today}/${Date.now()}.jpg`);
                  const snapshot = await uploadBytes(storageRef, capturedPhotoBlob);
                  const photoUrl = await getDownloadURL(snapshot.ref);
 
@@ -990,9 +1123,11 @@
                      action: currentAttendanceAction,
                      timestamp: serverTimestamp(),
                      photoUrl: photoUrl,
+                     location: capturedLocationInfo || { error: 'No location captured' }
                  });
                  
-                 messageEl.textContent = `${currentAttendanceAction} thành công!`;
+                 const successTime = new Date().toLocaleString('vi-VN');
+                 messageEl.textContent = `${currentAttendanceAction} thành công lúc ${successTime}!`;
                  messageEl.className = 'p-3 rounded-lg text-sm text-center alert-success';
                  messageEl.classList.remove('hidden');
                  closeCameraModal();
@@ -1009,6 +1144,7 @@
         
         function closeCameraModal() {
             stopCameraStream();
+            if (timeInterval) clearInterval(timeInterval);
             cameraModal.style.display = 'none';
         }
 
@@ -1027,9 +1163,7 @@
             });
             unsubscribeListeners.push(unsubscribe);
         }
-
         
-        // --- UTILITY FUNCTIONS ---
         function bindShellDOMElements() {
             skeletonLoader = document.getElementById('skeletonLoader');
             authSection = document.getElementById('authSection');
@@ -1049,6 +1183,7 @@
             notificationMenu = document.getElementById('notificationMenu');
             notificationList = document.getElementById('notificationList');
             editAccountModal = document.getElementById('editAccountModal');
+            editIssueModal = document.getElementById('editIssueModal');
             cameraModal = document.getElementById('cameraModal');
             sidebar = document.getElementById('sidebar');
             mobileMenuToggle = document.getElementById('mobileMenuToggle');
@@ -1071,10 +1206,15 @@
             });
 
             editAccountModal.querySelector('#saveAccountDetailsBtn').addEventListener('click', handleUpdateAccountDetails);
-            const closeEditModal = () => editAccountModal.style.display = 'none';
-            editAccountModal.querySelector('#cancelEditAccountBtn').addEventListener('click', closeEditModal);
-            editAccountModal.querySelector('#closeEditAccountModalBtn').addEventListener('click', closeEditModal);
+            const closeEditAccountModal = () => editAccountModal.style.display = 'none';
+            editAccountModal.querySelector('#cancelEditAccountBtn').addEventListener('click', closeEditAccountModal);
+            editAccountModal.querySelector('#closeEditAccountModalBtn').addEventListener('click', closeEditAccountModal);
             
+            editIssueModal.querySelector('#saveIssueDetailsBtn').addEventListener('click', handleUpdateIssueDetails);
+            const closeEditIssueModal = () => editIssueModal.style.display = 'none';
+            editIssueModal.querySelector('#cancelEditIssueBtn').addEventListener('click', closeEditIssueModal);
+            editIssueModal.querySelector('#closeEditIssueModalBtn').addEventListener('click', closeEditIssueModal);
+
             cameraModal.querySelector('#closeCameraModalBtn').addEventListener('click', closeCameraModal);
             cameraModal.querySelector('#captureBtn').addEventListener('click', capturePhoto);
             cameraModal.querySelector('#recaptureBtn').addEventListener('click', startCameraStream);
@@ -1088,4 +1228,5 @@
     </script>
 </body>
 </html>
+
 
