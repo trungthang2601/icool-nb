@@ -475,9 +475,12 @@
         </div>
 
         <div id="cameraModal" class="modal">
-            <div class="modal-content w-[95%] max-w-xl">
-                <div class="flex justify-between items-center mb-4"><h3 id="cameraModalTitle" class="text-xl font-bold text-slate-800">Điểm Danh</h3><span id="closeCameraModalBtn" class="cursor-pointer text-2xl">&times;</span></div>
-                <div class="relative w-full aspect-video bg-slate-800 rounded-lg overflow-hidden">
+            <div class="modal-content w-[95%] max-w-xl h-2/3 flex flex-col">
+                <div class="flex justify-between items-center mb-4 flex-shrink-0">
+                    <h3 id="cameraModalTitle" class="text-xl font-bold text-slate-800">Điểm Danh</h3>
+                    <span id="closeCameraModalBtn" class="cursor-pointer text-2xl">&times;</span>
+                </div>
+                <div class="relative w-full bg-slate-800 rounded-lg overflow-hidden flex-grow">
                     <video id="cameraFeed" class="w-full h-full object-cover" autoplay playsinline></video>
                     <canvas id="photoCanvas" class="hidden"></canvas>
                     <img id="photoPreview" src="" class="hidden absolute top-0 left-0 w-full h-full object-cover"/>
@@ -493,8 +496,8 @@
                         <p id="camera-user" class="text-sm font-semibold mt-1">Họ tên: </p>
                     </div>
                 </div>
-                <div id="cameraMessage" class="hidden mt-4 p-3 rounded-lg text-sm"></div>
-                <div class="flex justify-center space-x-4 mt-4">
+                <div id="cameraMessage" class="hidden mt-4 p-3 rounded-lg text-sm flex-shrink-0"></div>
+                <div class="flex justify-center space-x-4 mt-4 flex-shrink-0">
                     <button id="captureBtn" class="btn-primary px-8 py-3 rounded-full"><i class="fas fa-camera"></i></button>
                     <button id="recaptureBtn" class="btn-secondary hidden">Chụp Lại</button>
                     <button id="confirmAttendanceBtn" class="btn-primary hidden">Xác Nhận</button>
