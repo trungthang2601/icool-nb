@@ -63,6 +63,10 @@
         .btn-danger {
             background-color: var(--danger-color);
             color: white;
+            padding: 0.625rem 1.25rem;
+            border-radius: 0.5rem;
+            font-weight: 500;
+            transition: all 0.2s ease-in-out;
         }
         .btn-danger:hover {
             background-color: #b91c1c; /* red-700 */
@@ -143,11 +147,13 @@
 </head>
 <body class="min-h-screen">
 
+    <!-- Skeleton Loader for initial page load -->
     <div id="skeletonLoader" class="w-full h-full flex flex-col items-center">
         <header class="w-full bg-white border-b border-slate-200"><div class="container mx-auto flex justify-between items-center p-4"><div class="h-6 bg-slate-200 rounded w-1/4 animate-pulse"></div><div class="h-10 w-10 bg-slate-200 rounded-full animate-pulse"></div></div></header>
         <main class="w-full flex-grow container mx-auto p-4 sm:p-6 mt-4"><div class="card p-6"><div class="h-8 bg-slate-200 rounded w-1/3 mb-6 animate-pulse"></div><div class="space-y-4"><div class="h-4 bg-slate-200 rounded w-full animate-pulse"></div><div class="h-4 bg-slate-200 rounded w-5/6 animate-pulse"></div><div class="h-12 bg-slate-200 rounded w-full mt-6 animate-pulse"></div></div></div></main>
     </div>
 
+    <!-- Authentication Section -->
     <div id="authSection" class="min-h-screen flex items-center justify-center p-4 hidden">
         <div class="w-full max-w-md card p-8 space-y-6">
             <div class="text-center"><h2 class="mt-4 text-3xl font-bold text-slate-900">Đăng nhập hệ thống</h2></div>
@@ -158,18 +164,23 @@
         </div>
     </div>
 
+    <!-- Main Application Container -->
     <div id="appContainer" class="hidden">
+        <!-- Sidebar -->
         <aside id="sidebar" class="bg-white w-64 min-h-screen fixed top-0 left-0 z-40 lg:translate-x-0 -translate-x-full transition-transform duration-300 ease-in-out border-r border-slate-200 flex flex-col">
             <div class="p-4 border-b border-slate-200"><button id="homeBtn" class="font-bold text-lg text-slate-800 focus:outline-none w-full text-left">Hệ Thống Vận Hành</button></div>
             <nav id="sidebarNav" class="p-4 space-y-2 flex-grow"></nav>
         </aside>
 
+        <!-- Main Content Area -->
         <div id="mainContent" class="lg:ml-64 transition-all duration-300 ease-in-out">
+            <!-- Header -->
             <header class="bg-white/80 backdrop-blur-lg sticky top-0 z-30 border-b border-slate-200">
                 <div class="mx-auto flex justify-between items-center p-4">
                     <button id="mobileMenuToggle" class="lg:hidden text-xl text-slate-600"><i class="fas fa-bars"></i></button>
                     <div class="flex-1"></div>
                     <div class="flex items-center space-x-4">
+                        <!-- Notifications Dropdown -->
                         <div class="relative">
                             <button id="notificationToggle" class="text-xl text-slate-600 hover:text-indigo-600 transition-colors notification-badge-container">
                                 <i class="fas fa-bell"></i>
@@ -180,6 +191,7 @@
                                 <div id="notificationList"></div>
                             </div>
                         </div>
+                        <!-- User Profile Dropdown -->
                         <div class="relative">
                             <button id="userDropdownToggle" class="flex items-center space-x-2"><i class="fas fa-user-circle text-2xl text-slate-600"></i><span id="loggedInUserDisplay" class="font-medium text-slate-700 hidden sm:block"></span><i class="fas fa-chevron-down text-xs text-slate-500"></i></button>
                             <div id="userDropdownMenu" class="dropdown-menu">
@@ -190,147 +202,169 @@
                     </div>
                 </div>
             </header>
+            <!-- Page Content -->
             <main class="p-4 sm:p-6 space-y-6"></main>
         </div>
         
+        <!-- View Templates (Hidden) -->
         <div id="viewsContainer" class="hidden">
             <div id="attendanceView">
                  <div class="card p-6 lg:p-8">
-                    <h2 class="text-3xl font-bold text-slate-800 mb-6 flex items-center"><i class="fas fa-user-clock mr-3 text-indigo-600"></i>Điểm Danh Chấm Công</h2>
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
-                        <div>
+                     <h2 class="text-3xl font-bold text-slate-800 mb-6 flex items-center"><i class="fas fa-user-clock mr-3 text-indigo-600"></i>Điểm Danh Chấm Công</h2>
+                     <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                         <div>
                              <div class="mb-4"><label class="block text-slate-600 mb-2">Tên nhân viên:</label><input type="text" id="employeeName" class="input-field bg-slate-100" disabled></div>
                              <div class="flex space-x-4"><button id="checkInBtn" class="btn-primary flex-1 py-3"><i class="fas fa-sign-in-alt mr-2"></i>Check In</button><button id="checkOutBtn" class="btn-secondary flex-1 py-3"><i class="fas fa-sign-out-alt mr-2"></i>Check Out</button></div>
                              <div id="attendanceMessage" class="hidden mt-4 p-3 rounded-lg text-sm"></div>
-                        </div>
-                        <div>
-                            <h3 class="text-lg font-semibold text-slate-800 mb-3">Lịch Sử Gần Đây</h3>
-                            <ul id="attendanceHistory" class="space-y-2 text-slate-600 max-h-48 overflow-y-auto pr-2"></ul>
-                        </div>
-                    </div>
-                </div>
+                         </div>
+                         <div>
+                             <h3 class="text-lg font-semibold text-slate-800 mb-3">Lịch Sử Gần Đây</h3>
+                             <ul id="attendanceHistory" class="space-y-2 text-slate-600 max-h-48 overflow-y-auto pr-2"></ul>
+                         </div>
+                     </div>
+                 </div>
             </div>
             <div id="manageAccountsView">
-                <div class="card p-6 mb-6">
-                    <h3 class="text-xl font-bold text-slate-800 mb-4">Tạo Tài Khoản Mới</h3>
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div><label class="font-medium text-sm">Email:</label><input type="email" id="createAccountEmail" class="input-field"></div>
-                        <div><label class="font-medium text-sm">Mật khẩu (tối thiểu 6 ký tự):</label><input type="password" id="createAccountPassword" class="input-field"></div>
-                        <div><label class="font-medium text-sm">Tên người dùng:</label><input type="text" id="createAccountUsername" class="input-field"></div>
-                        <div><label class="font-medium text-sm">Mã nhân viên (MSNV):</label><input type="text" id="createAccountEmployeeId" class="input-field"></div>
-                    </div>
-                    <button id="createAccountBtn" class="btn-primary mt-4">Tạo Tài Khoản</button>
-                    <div id="createAccountMessage" class="hidden mt-4 p-3 rounded-lg text-sm"></div>
-                </div>
-                <div class="card p-6">
-                    <h3 class="text-xl font-bold text-slate-800 mb-4">Danh Sách Tài Khoản</h3>
-                    <div class="overflow-x-auto">
-                        <table class="min-w-full divide-y divide-slate-200 responsive-table">
-                            <thead class="bg-slate-50">
-                                <tr>
-                                    <th class="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase">MSNV</th>
-                                    <th class="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase">Tên Người Dùng</th>
-                                    <th class="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase">Email</th>
-                                    <th class="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase">Vai Trò</th>
-                                    <th class="px-4 py-3 text-right text-xs font-semibold text-slate-500 uppercase">Hành Động</th>
-                                </tr>
-                            </thead>
-                            <tbody id="accountsTableBody" class="bg-white divide-y divide-slate-200"></tbody>
-                        </table>
-                    </div>
-                </div>
+                 <div class="card p-6 mb-6">
+                     <h3 class="text-xl font-bold text-slate-800 mb-4">Tạo Tài Khoản Mới</h3>
+                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                         <div><label class="font-medium text-sm">Email:</label><input type="email" id="createAccountEmail" class="input-field"></div>
+                         <div><label class="font-medium text-sm">Mật khẩu (tối thiểu 6 ký tự):</label><input type="password" id="createAccountPassword" class="input-field"></div>
+                         <div><label class="font-medium text-sm">Tên người dùng:</label><input type="text" id="createAccountUsername" class="input-field"></div>
+                         <div><label class="font-medium text-sm">Mã nhân viên (MSNV):</label><input type="text" id="createAccountEmployeeId" class="input-field"></div>
+                     </div>
+                     <button id="createAccountBtn" class="btn-primary mt-4">Tạo Tài Khoản</button>
+                     <div id="createAccountMessage" class="hidden mt-4 p-3 rounded-lg text-sm"></div>
+                 </div>
+                 <div class="card p-6">
+                     <h3 class="text-xl font-bold text-slate-800 mb-4">Danh Sách Tài Khoản</h3>
+                     <div class="overflow-x-auto">
+                         <table class="min-w-full divide-y divide-slate-200 responsive-table">
+                             <thead class="bg-slate-50">
+                                 <tr>
+                                     <th class="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase">MSNV</th>
+                                     <th class="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase">Tên Người Dùng</th>
+                                     <th class="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase">Email</th>
+                                     <th class="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase">Vai Trò</th>
+                                     <th class="px-4 py-3 text-right text-xs font-semibold text-slate-500 uppercase">Hành Động</th>
+                                 </tr>
+                             </thead>
+                             <tbody id="accountsTableBody" class="bg-white divide-y divide-slate-200"></tbody>
+                         </table>
+                     </div>
+                 </div>
             </div>
             <div id="dashboardView">
-                <h2 class="text-3xl font-bold text-slate-800">Dashboard</h2>
-                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-4">
-                    <div class="card p-5"><p class="text-sm text-slate-500">Lỗi Phát Sinh Hôm Nay</p><p id="errorsToday" class="text-3xl font-bold">0</p></div>
-                    <div class="card p-5"><p class="text-sm text-slate-500">Lỗi Trong Tuần Này</p><p id="errorsThisWeek" class="text-3xl font-bold">0</p></div>
-                    <div class="card p-5"><p class="text-sm text-slate-500">Lỗi Trong Tháng Này</p><p id="errorsThisMonth" class="text-3xl font-bold">0</p></div>
-                </div>
-                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-6">
-                    <div class="lg:col-span-1 card p-6"><h3 class="font-semibold mb-4">Phân Loại Lỗi</h3><div class="h-64"><canvas id="issueTypePieChart"></canvas></div></div>
-                    <div class="lg:col-span-2 card p-6"><h3 class="font-semibold mb-4">Trạng Thái Xử Lý</h3><div id="statusSummary" class="space-y-3"></div></div>
-                </div>
-                <div class="card p-6 mt-6">
-                    <h3 class="font-semibold text-slate-800 mb-4">Dự Báo Bảo Trì</h3>
-                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                        <div>
-                            <h4 class="font-semibold text-slate-700 mb-2">Hạng mục Rủi ro Cao nhất</h4>
-                             <div id="pdmSummaryStats" class="flex justify-around text-center mb-4 p-4 bg-slate-50 rounded-lg"></div>
-                            <div class="h-80"><canvas id="pdmRiskChart"></canvas></div>
-                        </div>
-                        <div class="lg:col-span-1">
-                             <h4 class="font-semibold text-slate-700 mb-2">Danh sách Chi tiết</h4>
-                            <div class="table-responsive max-h-96 overflow-y-auto">
-                                <table class="min-w-full responsive-table">
-                                    <thead class="bg-slate-50 sticky top-0">
-                                        <tr>
-                                            <th class="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase">Hạng mục</th>
-                                            <th class="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase">Rủi Ro</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody id="pdmTableBody" class="bg-white divide-y divide-slate-200"></tbody>
-                                </table>
-                            </div>
-                        </div>
-                    </div>
-                </div>
+                 <h2 class="text-3xl font-bold text-slate-800">Dashboard</h2>
+                 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-4">
+                     <div class="card p-5"><p class="text-sm text-slate-500">Lỗi Phát Sinh Hôm Nay</p><p id="errorsToday" class="text-3xl font-bold">0</p></div>
+                     <div class="card p-5"><p class="text-sm text-slate-500">Lỗi Trong Tuần Này</p><p id="errorsThisWeek" class="text-3xl font-bold">0</p></div>
+                     <div class="card p-5"><p class="text-sm text-slate-500">Lỗi Trong Tháng Này</p><p id="errorsThisMonth" class="text-3xl font-bold">0</p></div>
+                 </div>
+                 <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-6">
+                     <div class="lg:col-span-1 card p-6"><h3 class="font-semibold mb-4">Phân Loại Lỗi</h3><div class="h-64"><canvas id="issueTypePieChart"></canvas></div></div>
+                     <div class="lg:col-span-2 card p-6"><h3 class="font-semibold mb-4">Trạng Thái Xử Lý</h3><div id="statusSummary" class="space-y-3"></div></div>
+                 </div>
+                 <div class="card p-6 mt-6">
+                     <h3 class="font-semibold text-slate-800 mb-4">Dự Báo Bảo Trì</h3>
+                     <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                         <div>
+                             <h4 class="font-semibold text-slate-700 mb-2">Hạng mục Rủi ro Cao nhất</h4>
+                              <div id="pdmSummaryStats" class="flex justify-around text-center mb-4 p-4 bg-slate-50 rounded-lg"></div>
+                             <div class="h-80"><canvas id="pdmRiskChart"></canvas></div>
+                         </div>
+                         <div class="lg:col-span-1">
+                              <h4 class="font-semibold text-slate-700 mb-2">Danh sách Chi tiết</h4>
+                             <div class="table-responsive max-h-96 overflow-y-auto">
+                                 <table class="min-w-full responsive-table">
+                                     <thead class="bg-slate-50 sticky top-0">
+                                         <tr>
+                                             <th class="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase">Hạng mục</th>
+                                             <th class="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase">Rủi Ro</th>
+                                         </tr>
+                                     </thead>
+                                     <tbody id="pdmTableBody" class="bg-white divide-y divide-slate-200"></tbody>
+                                 </table>
+                             </div>
+                         </div>
+                     </div>
+                 </div>
             </div>
             <div id="issueReportView">
-                <div class="card p-6 lg:p-8">
-                    <h2 class="text-2xl sm:text-3xl font-bold text-slate-800 mb-6 flex items-center"><i class="fas fa-exclamation-triangle mr-3 text-red-600"></i>Báo Lỗi & Sự Cố</h2>
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
-                        <div><label for="reporterName" class="block text-slate-600 text-sm font-medium mb-2">Người báo cáo:</label><input type="text" id="reporterName" class="input-field bg-slate-100" disabled></div>
-                        <div><label for="issueType" class="block text-slate-600 text-sm font-medium mb-2">Loại sự cố:</label><select id="issueType" class="select-field"><option value="Kỹ thuật">Kỹ thuật</option><option value="Vận hành">Vận hành</option><option value="Hệ thống">Hệ thống</option><option value="Con người">Con người</option><option value="Khác">Khác</option></select></div>
-                        <div><label for="issuePriority" class="block text-slate-600 text-sm font-medium mb-2">Mức độ ưu tiên:</label><select id="issuePriority" class="select-field"><option value="Thấp">Thấp</option><option value="Trung bình">Trung bình</option><option value="Nghiêm trọng">Nghiêm trọng</option></select></div>
-                        <div><label for="issueBranch" class="block text-slate-600 text-sm font-medium mb-2">Chi nhánh:</label><select id="issueBranch" class="select-field"></select></div>
-                        <div class="md:col-span-2"><label for="issueImage" class="block text-slate-600 text-sm font-medium mb-2">Ảnh mô tả lỗi:</label><input type="file" id="issueImage" accept="image/*" class="input-field"></div>
-                        <div class="md:col-span-2"><label for="issueDescription" class="block text-slate-600 text-sm font-medium mb-2">Mô tả chi tiết:</label><textarea id="issueDescription" class="textarea-field" placeholder="Mô tả sự cố..."></textarea></div>
-                    </div>
-                    <button id="reportIssueBtn" class="btn-primary mt-6"><i class="fas fa-paper-plane mr-2"></i>Gửi Báo Cáo</button>
-                    <div id="issueMessage" class="hidden mt-4 p-3 rounded-lg text-sm"></div>
-                </div>
+                 <div class="card p-6 lg:p-8">
+                     <h2 class="text-2xl sm:text-3xl font-bold text-slate-800 mb-6 flex items-center"><i class="fas fa-exclamation-triangle mr-3 text-red-600"></i>Báo Lỗi & Sự Cố</h2>
+                     <div class="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
+                         <div><label for="reporterName" class="block text-slate-600 text-sm font-medium mb-2">Người báo cáo:</label><input type="text" id="reporterName" class="input-field bg-slate-100" disabled></div>
+                         <div><label for="issueType" class="block text-slate-600 text-sm font-medium mb-2">Loại sự cố:</label><select id="issueType" class="select-field"><option value="Kỹ thuật">Kỹ thuật</option><option value="Vận hành">Vận hành</option><option value="Hệ thống">Hệ thống</option><option value="Con người">Con người</option><option value="Khác">Khác</option></select></div>
+                         <div><label for="issuePriority" class="block text-slate-600 text-sm font-medium mb-2">Mức độ ưu tiên:</label><select id="issuePriority" class="select-field"><option value="Thấp">Thấp</option><option value="Trung bình">Trung bình</option><option value="Nghiêm trọng">Nghiêm trọng</option></select></div>
+                         <div><label for="issueBranch" class="block text-slate-600 text-sm font-medium mb-2">Chi nhánh:</label><select id="issueBranch" class="select-field"></select></div>
+                         <div class="md:col-span-2"><label for="issueImage" class="block text-slate-600 text-sm font-medium mb-2">Ảnh mô tả lỗi:</label><input type="file" id="issueImage" accept="image/*" class="input-field"></div>
+                         <div class="md:col-span-2"><label for="issueDescription" class="block text-slate-600 text-sm font-medium mb-2">Mô tả chi tiết:</label><textarea id="issueDescription" class="textarea-field" placeholder="Mô tả sự cố..."></textarea></div>
+                     </div>
+                     <button id="reportIssueBtn" class="btn-primary mt-6"><i class="fas fa-paper-plane mr-2"></i>Gửi Báo Cáo</button>
+                     <div id="issueMessage" class="hidden mt-4 p-3 rounded-lg text-sm"></div>
+                 </div>
             </div>
             <div id="issueHistoryView">
+                 <div class="card p-6">
+                     <h2 class="text-2xl font-bold text-slate-800 mb-4">Lịch Sử Báo Cáo</h2>
+                     <div class="overflow-x-auto">
+                         <table class="min-w-full divide-y divide-slate-200 responsive-table">
+                             <thead class="bg-slate-50">
+                                 <tr>
+                                     <th class="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase">Chi nhánh</th>
+                                     <th class="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase">Người gửi</th>
+                                     <th class="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase">Loại sự cố</th>
+                                     <th class="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase">Ngày báo cáo</th>
+                                     <th class="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase">Trạng thái</th>
+                                     <th class="px-4 py-3 text-right text-xs font-semibold text-slate-500 uppercase">Hành động</th>
+                                 </tr>
+                             </thead>
+                             <tbody id="issueHistoryTableBody" class="bg-white divide-y divide-slate-200"></tbody>
+                         </table>
+                     </div>
+                 </div>
+            </div>
+            <div id="myTasksView">
                 <div class="card p-6">
-                    <h2 class="text-2xl font-bold text-slate-800 mb-4">Lịch Sử Báo Cáo</h2>
+                    <h2 class="text-2xl font-bold text-slate-800 mb-4">Nhiệm Vụ Của Tôi</h2>
                     <div class="overflow-x-auto">
                         <table class="min-w-full divide-y divide-slate-200 responsive-table">
                             <thead class="bg-slate-50">
                                 <tr>
                                     <th class="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase">Chi nhánh</th>
-                                    <th class="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase">Người gửi</th>
                                     <th class="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase">Loại sự cố</th>
                                     <th class="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase">Ngày báo cáo</th>
                                     <th class="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase">Trạng thái</th>
                                     <th class="px-4 py-3 text-right text-xs font-semibold text-slate-500 uppercase">Hành động</th>
                                 </tr>
                             </thead>
-                            <tbody id="issueHistoryTableBody" class="bg-white divide-y divide-slate-200"></tbody>
+                            <tbody id="myTasksTableBody" class="bg-white divide-y divide-slate-200"></tbody>
                         </table>
                     </div>
                 </div>
             </div>
             <div id="activityLogView">
-                <div class="card p-6">
-                    <h2 class="text-2xl font-bold text-slate-800 mb-4">Nhật Ký Hoạt Động</h2>
-                    <div class="overflow-x-auto">
-                        <table class="min-w-full divide-y divide-slate-200 responsive-table">
-                             <thead class="bg-slate-50">
-                                <tr>
-                                    <th class="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase">Thời Gian</th>
-                                    <th class="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase">Người Thực Hiện</th>
-                                    <th class="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase">Hành Động</th>
-                                    <th class="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase">Chi Tiết</th>
-                                </tr>
-                            </thead>
-                            <tbody id="activityLogTableBody" class="bg-white divide-y divide-slate-200"></tbody>
-                        </table>
-                    </div>
-                </div>
+                 <div class="card p-6">
+                     <h2 class="text-2xl font-bold text-slate-800 mb-4">Nhật Ký Hoạt Động</h2>
+                     <div class="overflow-x-auto">
+                         <table class="min-w-full divide-y divide-slate-200 responsive-table">
+                              <thead class="bg-slate-50">
+                                 <tr>
+                                     <th class="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase">Thời Gian</th>
+                                     <th class="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase">Người Thực Hiện</th>
+                                     <th class="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase">Hành Động</th>
+                                     <th class="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase">Chi Tiết</th>
+                                 </tr>
+                             </thead>
+                             <tbody id="activityLogTableBody" class="bg-white divide-y divide-slate-200"></tbody>
+                         </table>
+                     </div>
+                 </div>
             </div>
         </div>
 
+        <!-- Modals -->
         <div id="editAccountModal" class="modal">
             <div class="modal-content !max-w-3xl">
                 <div class="flex justify-between items-center mb-6"><h3 class="text-2xl font-bold text-slate-800">Chỉnh Sửa Tài Khoản</h3><span id="closeEditAccountModalBtn" class="cursor-pointer text-2xl">&times;</span></div>
@@ -350,13 +384,66 @@
             </div>
         </div>
         
-        <div id="editIssueModal" class="modal">
-            <div class="modal-content">
-                <div class="flex justify-between items-center mb-4"><h3 class="text-xl font-bold">Cập Nhật Báo Cáo</h3><span id="closeEditIssueModalBtn" class="cursor-pointer text-2xl">&times;</span></div>
-                <input type="hidden" id="editIssueId">
-                <div><label class="block mb-2">Trạng thái:</label><select id="editIssueStatus" class="select-field"><option value="Mới tạo">Mới tạo</option><option value="Đang xử lý">Đang xử lý</option><option value="Đã giải quyết">Đã giải quyết</option></select></div>
-                <div id="editIssueMessage" class="hidden mt-4 p-3 rounded-lg text-sm"></div>
-                <div class="flex justify-end space-x-4 mt-6"><button id="cancelEditIssueBtn" class="btn-secondary">Hủy</button><button id="saveIssueDetailsBtn" class="btn-primary">Lưu</button></div>
+        <div id="issueDetailModal" class="modal">
+            <div class="modal-content !max-w-4xl">
+                <div class="flex justify-between items-start mb-6">
+                    <div>
+                        <h3 class="text-2xl font-bold text-slate-800">Chi Tiết Sự Cố</h3>
+                        <p id="detailIssueBranch" class="text-sm text-slate-500"></p>
+                    </div>
+                    <span id="closeIssueDetailModalBtn" class="cursor-pointer text-2xl">&times;</span>
+                </div>
+                <input type="hidden" id="detailIssueId">
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <!-- Left Column: Details & Image -->
+                    <div class="lg:col-span-2 space-y-4">
+                        <div>
+                            <h4 class="font-semibold text-slate-700">Mô tả</h4>
+                            <p id="detailIssueDescription" class="p-3 bg-slate-50 rounded-md mt-1 min-h-[6rem]"></p>
+                        </div>
+                        <div>
+                            <h4 class="font-semibold text-slate-700">Hình ảnh</h4>
+                            <div id="detailIssueImageContainer" class="mt-2"></div>
+                        </div>
+                        <div class="pt-4 border-t">
+                            <h4 class="font-semibold text-slate-700 mb-2">Thảo luận</h4>
+                            <div id="detailIssueComments" class="space-y-3 max-h-60 overflow-y-auto pr-2 mb-4 bg-slate-50 p-2 rounded-md"></div>
+                            <div class="flex space-x-2">
+                                <input type="text" id="newCommentInput" class="input-field flex-grow" placeholder="Thêm bình luận...">
+                                <button id="addCommentBtn" class="btn-primary">Gửi</button>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- Right Column: Info & Actions -->
+                    <div class="space-y-4 p-4 bg-slate-50 rounded-lg">
+                        <h4 class="font-bold text-lg text-slate-800 border-b pb-2">Thông Tin</h4>
+                        <div><strong>Người báo cáo:</strong> <span id="detailReporterName"></span></div>
+                        <div><strong>Ngày báo cáo:</strong> <span id="detailReportDate"></span></div>
+                        <div><strong>Ưu tiên:</strong> <span id="detailIssuePriority"></span></div>
+                        <div class="pt-4 border-t">
+                            <h4 class="font-bold text-lg text-slate-800 border-b pb-2 mb-2">Hành Động</h4>
+                            <div><label class="font-medium">Trạng thái:</label><select id="detailIssueStatus" class="select-field"></select></div>
+                            <div><label class="font-medium">Giao cho:</label><select id="detailIssueAssignee" class="select-field"></select></div>
+                            <button id="updateIssueBtn" class="btn-primary w-full mt-4">Cập nhật</button>
+                            <div id="detailIssueMessage" class="hidden mt-4 p-3 rounded-lg text-sm"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="deleteAccountModal" class="modal">
+            <div class="modal-content !max-w-md">
+                <div class="text-center">
+                    <i class="fas fa-exclamation-triangle text-4xl text-red-500 mb-4"></i>
+                    <h3 class="text-xl font-bold text-slate-800">Xác nhận Xóa</h3>
+                    <p class="text-slate-600 mt-2">Bạn có chắc chắn muốn xóa tài khoản <strong id="deleteAccountName"></strong> không? Hành động này không thể hoàn tác.</p>
+                    <input type="hidden" id="deleteAccountUid">
+                </div>
+                <div class="flex justify-center space-x-4 mt-6">
+                    <button id="cancelDeleteAccountBtn" class="btn-secondary">Hủy</button>
+                    <button id="confirmDeleteAccountBtn" class="btn-danger">Xóa Tài Khoản</button>
+                </div>
             </div>
         </div>
 
@@ -392,9 +479,10 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut, signInWithCustomToken, createUserWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, doc, collection, query, orderBy, onSnapshot, addDoc, updateDoc, where, getDocs, getDoc, setDoc, serverTimestamp, limit } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getFirestore, doc, collection, query, orderBy, onSnapshot, addDoc, updateDoc, where, getDocs, getDoc, setDoc, serverTimestamp, limit, deleteDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
         import { getStorage, ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-storage.js";
 
+        // --- Configuration Constants ---
         const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {
             apiKey: "AIzaSyD3FBCihM1QA1DZmMxn0ysR2khs43M-2sE",
             authDomain: "icool-ea266.firebaseapp.com",
@@ -410,39 +498,42 @@
         const ALL_BRANCHES = ["ICOOL XÔ VIẾT NGHỆ TĨNH", "ICOOL BÌNH PHÚ", "ICOOL UNG VĂN KHIÊM", "ICOOL TÔ KÝ", "ICOOL DƯƠNG BÁ TRẠC", "ICOOL TRẦN NÃO", "ICOOL THÀNH THÁI", "ICOOL MẠC ĐĨNH CHI", "ICOOL NGUYỄN SƠN", "ICOOL NGUYỄN TRÃI", "ICOOL NHỊ THIÊN ĐƯỜNG", "ICOOL CÁCH MẠNG THÁNG TÁM", "ICOOL TRẦN BÌNH TRỌNG", "ICOOL ĐỒNG ĐEN", "ICOOL PHAN CHU TRINH", "ICOOL NGUYỄN TRI PHƯƠNG", "ICOOL PHAN XÍCH LONG", "ICOOL HOÀNG DIỆU 2", "ICOOL CẦU CHỮ Y", "ICOOL LÊ VĂN VIỆT", "ICOOL SƯ VẠN HẠNH", "ICOOL ĐẠI LỘ 2", "ICOOL LÊ THỊ HÀ", "ICOOL VŨNG TÀU"];
         const ALL_VIEWS = {
             dashboardView: "Dashboard", attendanceView: "Điểm Danh", issueReportView: "Báo Lỗi",
-            issueHistoryView: "Lịch Sử Báo Cáo", manageAccountsView: "Quản Lý Tài Khoản", activityLogView: "Nhật Ký Hoạt Động",
+            issueHistoryView: "Lịch Sử Báo Cáo", myTasksView: "Nhiệm Vụ Của Tôi", manageAccountsView: "Quản Lý Tài Khoản", activityLogView: "Nhật Ký Hoạt Động",
         };
         const ROLES = ['Admin', 'Manager', 'Nhân viên'];
         const DEFAULT_VIEWS = {
             'Admin': Object.keys(ALL_VIEWS),
-            'Manager': ['dashboardView', 'attendanceView', 'issueReportView', 'issueHistoryView'],
-            'Nhân viên': ['attendanceView', 'issueReportView', 'issueHistoryView']
+            'Manager': ['dashboardView', 'attendanceView', 'issueReportView', 'issueHistoryView', 'myTasksView'],
+            'Nhân viên': ['attendanceView', 'issueReportView', 'issueHistoryView', 'myTasksView']
         };
+        const ISSUE_STATUSES = ['Mới tạo', 'Đang xử lý', 'Đã giải quyết'];
 
+        // --- Global State Variables ---
         let app, auth, db, storage;
-        let currentUser = null;
-        let currentUserProfile = null;
-        let unsubscribeListeners = [];
+        let currentUser = null, currentUserProfile = null;
+        let unsubscribeListeners = [], issueCommentsUnsubscribe = null;
         let issueTypeChart = null, pdmRiskChart = null;
-        let cameraModal, currentCameraStream, capturedPhotoBlob, currentAttendanceAction, timeInterval, capturedLocationInfo;
-        let editIssueModal;
+        let currentCameraStream, capturedPhotoBlob, currentAttendanceAction, timeInterval, capturedLocationInfo;
 
+        // --- DOM Element References ---
         let skeletonLoader, authSection, appContainer, mainContentContainer, viewsContainer, sidebarNav;
         let authEmailInput, authPasswordInput, loginBtn, authMessage;
         let loggedInUserDisplay, dropdownUserName, dropdownUserRole;
         let notificationToggle, notificationBadge, notificationMenu, notificationList;
-        let editAccountModal;
+        let editAccountModal, issueDetailModal, cameraModal, deleteAccountModal;
         let sidebar, mobileMenuToggle;
 
+        // --- App Initialization ---
         document.addEventListener('DOMContentLoaded', async () => {
+            // Bind DOM elements first to ensure they are available for the catch block
+            bindShellDOMElements();
+            bindShellEventListeners();
+            
             try {
                 app = initializeApp(firebaseConfig);
                 auth = getAuth(app);
                 db = getFirestore(app);
                 storage = getStorage(app);
-
-                bindShellDOMElements();
-                bindShellEventListeners();
                 
                 onAuthStateChanged(auth, handleAuthStateChange);
 
@@ -452,11 +543,13 @@
 
             } catch (error) {
                 console.error("Firebase Init Error:", error);
+                // Now skeletonLoader and authSection are defined, so this won't throw a TypeError
                 skeletonLoader.classList.add('hidden');
                 authSection.classList.remove('hidden');
             }
         });
 
+        // --- Core Auth & UI Functions ---
         async function handleAuthStateChange(user) {
             unsubscribeAll();
             currentUser = user;
@@ -543,7 +636,7 @@
                     const button = document.createElement('button');
                     button.className = 'sidebar-nav-link w-full text-left p-3 rounded-md';
                     button.dataset.view = viewId;
-                    const icons = { dashboardView: 'fa-chart-line', attendanceView: 'fa-user-clock', issueReportView: 'fa-exclamation-triangle', issueHistoryView: 'fa-history', manageAccountsView: 'fa-users-cog', activityLogView: 'fa-clipboard-list' };
+                    const icons = { dashboardView: 'fa-chart-line', attendanceView: 'fa-user-clock', issueReportView: 'fa-exclamation-triangle', issueHistoryView: 'fa-history', myTasksView: 'fa-tasks', manageAccountsView: 'fa-users-cog', activityLogView: 'fa-clipboard-list' };
                     button.innerHTML = `<i class="fas ${icons[viewId]} fa-fw mr-3"></i>${ALL_VIEWS[viewId]}`;
                     button.addEventListener('click', () => showView(viewId));
                     sidebarNav.appendChild(button);
@@ -580,6 +673,7 @@
             }
         }
         
+        // --- Notifications & Logging ---
         function listenToNotifications() {
             const q = query(collection(db, `/artifacts/${canvasAppId}/users/${currentUser.uid}/notifications`), orderBy('timestamp', 'desc'), limit(20));
             const unsubscribe = onSnapshot(q, snapshot => {
@@ -601,6 +695,20 @@
                 }).join('');
         }
         
+        async function sendNotification(userId, message) {
+            if (!userId) return;
+            try {
+                const notificationsCol = collection(db, `/artifacts/${canvasAppId}/users/${userId}/notifications`);
+                await addDoc(notificationsCol, {
+                    message: message,
+                    read: false,
+                    timestamp: serverTimestamp()
+                });
+            } catch (error) {
+                console.error("Error sending notification:", error);
+            }
+        }
+
         async function logActivity(action, details = {}) {
             try {
                 if (!currentUserProfile) return;
@@ -614,6 +722,7 @@
             }
         }
 
+        // --- Data Queries ---
         function getScopedIssuesQuery() {
             let q = collection(db, `/artifacts/${canvasAppId}/public/data/issueReports`);
             if (currentUserProfile.role === 'Manager') {
@@ -621,14 +730,15 @@
                 if (managedBranches.length > 0) {
                     q = query(q, where('issueBranch', 'in', managedBranches));
                 } else {
-                    return query(q, where('issueBranch', '==', '__NO_BRANCH_ASSIGNED__'));
+                    return query(q, where('issueBranch', '==', '__NO_BRANCH_ASSIGNED__')); // Effectively returns no results
                 }
             } else if (currentUserProfile.role === 'Nhân viên') {
                 q = query(q, where('reporterId', '==', currentUser.uid));
             }
-            return query(q, orderBy('reportDate', 'desc'));
+            return q;
         }
 
+        // --- View Setup Functions ---
         window.setup_attendanceView = function() {
             if (!currentUserProfile) return;
             mainContentContainer.querySelector('#employeeName').value = currentUserProfile.displayName;
@@ -671,8 +781,28 @@
             const q = getScopedIssuesQuery();
             const unsubscribe = onSnapshot(q, (snapshot) => {
                 const reports = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                reports.sort((a, b) => new Date(b.reportDate) - new Date(a.reportDate));
                 renderIssueHistoryTable(reports);
             }, (error) => console.error("Issue history listener failed:", error));
+            unsubscribeListeners.push(unsubscribe);
+        };
+        
+        window.setup_myTasksView = function() {
+            if (!currentUser || !currentUserProfile) return;
+            const tableBody = mainContentContainer.querySelector('#myTasksTableBody');
+            if (!tableBody) return;
+            tableBody.innerHTML = `<tr><td colspan="5" class="text-center p-4">Đang tải...</td></tr>`;
+            
+            const q = query(
+                collection(db, `/artifacts/${canvasAppId}/public/data/issueReports`), 
+                where('assigneeId', '==', currentUser.uid)
+            );
+
+            const unsubscribe = onSnapshot(q, (snapshot) => {
+                const reports = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                reports.sort((a, b) => new Date(b.reportDate) - new Date(a.reportDate));
+                renderMyTasksTable(reports);
+            }, (error) => console.error("My Tasks listener failed:", error));
             unsubscribeListeners.push(unsubscribe);
         };
         
@@ -690,6 +820,7 @@
             unsubscribeListeners.push(unsubscribe);
         };
         
+        // --- Table Rendering ---
         function renderActivityLogTable(logs) {
             const tableBody = mainContentContainer.querySelector('#activityLogTableBody');
             if (!tableBody) return;
@@ -703,56 +834,10 @@
             `).join('') : `<tr><td colspan="4" class="text-center p-4">Không có hoạt động nào.</td></tr>`;
         }
 
-        function updateDashboardUI(reports) {
-            const dashboardView = mainContentContainer.querySelector('#dashboardView');
-            if (!dashboardView) return;
-            
-            const now = new Date();
-            const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-            const weekStart = new Date(todayStart);
-            weekStart.setDate(weekStart.getDate() - weekStart.getDay());
-            const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-
-            dashboardView.querySelector('#errorsToday').textContent = reports.filter(r => new Date(r.reportDate) >= todayStart).length;
-            dashboardView.querySelector('#errorsThisWeek').textContent = reports.filter(r => new Date(r.reportDate) >= weekStart).length;
-            dashboardView.querySelector('#errorsThisMonth').textContent = reports.filter(r => new Date(r.reportDate) >= monthStart).length;
-            
-            const typeCounts = reports.reduce((acc, report) => { acc[report.issueType] = (acc[report.issueType] || 0) + 1; return acc; }, {});
-            renderIssueTypePieChart(typeCounts);
-
-            const statusCounts = reports.reduce((acc, report) => { acc[report.status] = (acc[report.status] || 0) + 1; return acc; }, {});
-            renderStatusSummary(statusCounts, reports.length);
-        }
-
-        function renderIssueTypePieChart(data) {
-            const canvas = mainContentContainer.querySelector('#issueTypePieChart');
-            if (!canvas) return;
-            if (issueTypeChart) issueTypeChart.destroy();
-            issueTypeChart = new Chart(canvas.getContext('2d'), {
-                type: 'pie',
-                data: {
-                    labels: Object.keys(data),
-                    datasets: [{ data: Object.values(data), backgroundColor: ['#3B82F6', '#10B981', '#F59E0B', '#8B5CF6', '#EF4444'] }]
-                },
-                options: { responsive: true, maintainAspectRatio: false }
-            });
-        }
-
-        function renderStatusSummary(data, total) {
-            const container = mainContentContainer.querySelector('#statusSummary');
-            if (!container) return;
-            const statuses = { 'Mới tạo': 'bg-blue-500', 'Đang xử lý': 'bg-yellow-500', 'Đã giải quyết': 'bg-green-500' };
-            container.innerHTML = Object.entries(statuses).map(([status, color]) => {
-                const count = data[status] || 0;
-                const percentage = total > 0 ? ((count / total) * 100).toFixed(0) : 0;
-                return `<div><div class="flex justify-between mb-1"><span class="text-sm font-medium">${status} (${count})</span><span class="text-sm">${percentage}%</span></div><div class="w-full bg-slate-200 rounded-full h-2"><div class="${color} h-2 rounded-full" style="width: ${percentage}%"></div></div></div>`;
-            }).join('');
-        }
-
         function renderIssueHistoryTable(reports) {
-             const tableBody = mainContentContainer.querySelector('#issueHistoryTableBody');
-             if (!tableBody) return;
-             tableBody.innerHTML = reports.length > 0 ? reports.map(report => `
+            const tableBody = mainContentContainer.querySelector('#issueHistoryTableBody');
+            if (!tableBody) return;
+            tableBody.innerHTML = reports.length > 0 ? reports.map(report => `
                 <tr class="hover:bg-gray-50">
                     <td data-label="Chi nhánh" class="px-4 py-3">${report.issueBranch}</td>
                     <td data-label="Người gửi" class="px-4 py-3">${report.reporterName}</td>
@@ -760,14 +845,34 @@
                     <td data-label="Ngày báo cáo" class="px-4 py-3">${new Date(report.reportDate).toLocaleString('vi-VN')}</td>
                     <td data-label="Trạng thái" class="px-4 py-3">${report.status}</td>
                     <td data-label="Hành động" class="px-4 py-3 text-right">
-                        ${currentUserProfile.role === 'Admin' ? `<button class="edit-issue-btn btn-secondary !text-sm !py-1 !px-2" data-id="${report.id}">Sửa</button>` : ''}
+                        ${(currentUserProfile.role === 'Admin' || currentUserProfile.role === 'Manager') ? `<button class="detail-issue-btn btn-secondary !text-sm !py-1 !px-2" data-id="${report.id}">Chi tiết</button>` : ''}
                     </td>
                 </tr>
-             `).join('') : `<tr><td colspan="6" class="text-center p-4">Không có báo cáo nào.</td></tr>`;
+            `).join('') : `<tr><td colspan="6" class="text-center p-4">Không có báo cáo nào.</td></tr>`;
 
-             tableBody.querySelectorAll('.edit-issue-btn').forEach(btn => {
-                 btn.addEventListener('click', () => openEditIssueModal(btn.dataset.id));
-             });
+            tableBody.querySelectorAll('.detail-issue-btn').forEach(btn => {
+                btn.addEventListener('click', () => openIssueDetailModal(btn.dataset.id));
+            });
+        }
+
+        function renderMyTasksTable(reports) {
+            const tableBody = mainContentContainer.querySelector('#myTasksTableBody');
+            if (!tableBody) return;
+            tableBody.innerHTML = reports.length > 0 ? reports.map(report => `
+                <tr class="hover:bg-gray-50">
+                    <td data-label="Chi nhánh" class="px-4 py-3">${report.issueBranch}</td>
+                    <td data-label="Loại sự cố" class="px-4 py-3">${report.issueType}</td>
+                    <td data-label="Ngày báo cáo" class="px-4 py-3">${new Date(report.reportDate).toLocaleString('vi-VN')}</td>
+                    <td data-label="Trạng thái" class="px-4 py-3">${report.status}</td>
+                    <td data-label="Hành động" class="px-4 py-3 text-right">
+                        <button class="detail-issue-btn btn-secondary !text-sm !py-1 !px-2" data-id="${report.id}">Chi tiết</button>
+                    </td>
+                </tr>
+            `).join('') : `<tr><td colspan="5" class="text-center p-4">Bạn không có nhiệm vụ nào được giao.</td></tr>`;
+
+            tableBody.querySelectorAll('.detail-issue-btn').forEach(btn => {
+                btn.addEventListener('click', () => openIssueDetailModal(btn.dataset.id));
+            });
         }
         
         async function renderRegisteredAccountsTable() {
@@ -785,8 +890,9 @@
                         <td data-label="Tên Người Dùng" class="px-4 py-3">${user.displayName}</td>
                         <td data-label="Email" class="px-4 py-3">${user.email}</td>
                         <td data-label="Vai Trò" class="px-4 py-3">${user.role}</td>
-                        <td data-label="Hành Động" class="px-4 py-3 text-right">
-                            <button class="edit-user-btn btn-secondary !text-sm !py-1 !px-2" data-uid="${user.uid}">Sửa</button>
+                        <td data-label="Hành động" class="px-4 py-3 text-right">
+                            <button class="edit-user-btn btn-secondary !text-sm !py-1 !px-2 mr-2" data-uid="${user.uid}">Sửa</button>
+                            ${user.uid !== currentUser.uid ? `<button class="delete-user-btn btn-danger !text-sm !py-1 !px-2" data-uid="${user.uid}" data-name="${user.displayName}">Xóa</button>` : ''}
                         </td>
                     </tr>
                 `).join('');
@@ -797,49 +903,305 @@
                         if (userToEdit) populateEditAccountModal(userToEdit);
                     });
                 });
+                
+                tableBody.querySelectorAll('.delete-user-btn').forEach(btn => {
+                    btn.addEventListener('click', () => {
+                        openDeleteAccountModal(btn.dataset.uid, btn.dataset.name);
+                    });
+                });
             } catch (error) {
                 console.error("Error rendering accounts table:", error);
                 tableBody.innerHTML = `<tr><td colspan="5" class="text-center p-4 text-red-500">Lỗi tải danh sách người dùng. Kiểm tra lại quy tắc bảo mật.</td></tr>`;
             }
         }
         
-        async function openEditIssueModal(issueId) {
+        // --- Dashboard & Analytics ---
+        function updateDashboardUI(reports) {
+            // This function might be called when the view isn't active.
+            const errorsTodayEl = document.getElementById('errorsToday');
+            if (!errorsTodayEl) return;
+            
+            const now = new Date();
+            const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+            const weekStart = new Date(todayStart);
+            weekStart.setDate(weekStart.getDate() - weekStart.getDay());
+            const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+
+            document.getElementById('errorsToday').textContent = reports.filter(r => new Date(r.reportDate) >= todayStart).length;
+            document.getElementById('errorsThisWeek').textContent = reports.filter(r => new Date(r.reportDate) >= weekStart).length;
+            document.getElementById('errorsThisMonth').textContent = reports.filter(r => new Date(r.reportDate) >= monthStart).length;
+            
+            const typeCounts = reports.reduce((acc, report) => { acc[report.issueType] = (acc[report.issueType] || 0) + 1; return acc; }, {});
+            renderIssueTypePieChart(typeCounts);
+
+            const statusCounts = reports.reduce((acc, report) => { acc[report.status] = (acc[report.status] || 0) + 1; return acc; }, {});
+            renderStatusSummary(statusCounts, reports.length);
+        }
+
+        function renderIssueTypePieChart(data) {
+            const canvas = document.getElementById('issueTypePieChart');
+            if (!canvas) return;
+            if (issueTypeChart) issueTypeChart.destroy();
+            issueTypeChart = new Chart(canvas.getContext('2d'), {
+                type: 'pie',
+                data: {
+                    labels: Object.keys(data),
+                    datasets: [{ data: Object.values(data), backgroundColor: ['#3B82F6', '#10B981', '#F59E0B', '#8B5CF6', '#EF4444'] }]
+                },
+                options: { responsive: true, maintainAspectRatio: false }
+            });
+        }
+
+        function renderStatusSummary(data, total) {
+            const container = document.getElementById('statusSummary');
+            if (!container) return;
+            const statuses = { 'Mới tạo': 'bg-blue-500', 'Đang xử lý': 'bg-yellow-500', 'Đã giải quyết': 'bg-green-500' };
+            container.innerHTML = Object.entries(statuses).map(([status, color]) => {
+                const count = data[status] || 0;
+                const percentage = total > 0 ? ((count / total) * 100).toFixed(0) : 0;
+                return `<div><div class="flex justify-between mb-1"><span class="text-sm font-medium">${status} (${count})</span><span class="text-sm">${percentage}%</span></div><div class="w-full bg-slate-200 rounded-full h-2"><div class="${color} h-2 rounded-full" style="width: ${percentage}%"></div></div></div>`;
+            }).join('');
+        }
+        
+        function runPredictiveAnalysis(reports) {
+            const pdmContainer = document.getElementById('pdmTableBody');
+            if (!pdmContainer) return;
+
+            if (reports.length === 0) {
+                pdmContainer.innerHTML = `<tr><td colspan="2" class="text-center py-4 text-slate-500">Chưa có đủ dữ liệu.</td></tr>`;
+                return;
+            }
+
+            const groupedData = reports.reduce((acc, report) => {
+                const key = `${report.issueBranch}|${report.issueType}`;
+                if (!acc[key]) acc[key] = [];
+                acc[key].push(report);
+                return acc;
+            }, {});
+
+            const priorityMap = { 'Nghiêm trọng': 3, 'Trung bình': 2, 'Thấp': 1 };
+            
+            let analysisResults = Object.entries(groupedData).map(([key, reports]) => {
+                const [branch, type] = key.split('|');
+                const sortedReports = reports.sort((a, b) => new Date(b.reportDate) - new Date(a.reportDate));
+                const lastFailureDate = new Date(sortedReports[0].reportDate);
+                const daysSinceLastFailure = (new Date() - lastFailureDate) / (1000 * 60 * 60 * 24);
+                
+                const failureCount = reports.length;
+                const totalPriorityScore = reports.reduce((sum, r) => sum + (priorityMap[r.priority] || 1), 0);
+                const avgPriorityScore = totalPriorityScore / failureCount;
+                const recencyScore = Math.exp(-0.1 * daysSinceLastFailure);
+                const frequencyScore = Math.log1p(failureCount);
+                const severityScore = avgPriorityScore / 3;
+                const riskScore = (0.5 * recencyScore + 0.3 * frequencyScore + 0.2 * severityScore) * 100;
+
+                return { branch, type, riskScore: Math.min(riskScore, 100) };
+            });
+
+            analysisResults.sort((a, b) => b.riskScore - a.riskScore);
+            
+            renderPdmSummaryStats(analysisResults);
+            renderPdmChart(analysisResults);
+            renderPdmTable(analysisResults);
+        }
+
+        function renderPdmSummaryStats(analysisResults) {
+            const container = document.getElementById('pdmSummaryStats');
+            if (!container) return;
+            const highRiskCount = analysisResults.filter(r => r.riskScore > 75).length;
+            const mediumRiskCount = analysisResults.filter(r => r.riskScore > 50 && r.riskScore <= 75).length;
+            const lowRiskCount = analysisResults.filter(r => r.riskScore <= 50).length;
+
+            container.innerHTML = `
+                <div class="px-2"><p class="text-2xl font-bold text-red-500">${highRiskCount}</p><p class="text-xs text-slate-500">Rủi ro Cao</p></div>
+                <div class="px-2"><p class="text-2xl font-bold text-yellow-500">${mediumRiskCount}</p><p class="text-xs text-slate-500">Rủi ro TB</p></div>
+                <div class="px-2"><p class="text-2xl font-bold text-green-500">${lowRiskCount}</p><p class="text-xs text-slate-500">Rủi ro Thấp</p></div>
+            `;
+        }
+
+        function renderPdmChart(analysisResults) {
+            const canvas = document.getElementById('pdmRiskChart');
+            if (!canvas) return;
+            if (pdmRiskChart) pdmRiskChart.destroy();
+
+            const top5Data = analysisResults.slice(0, 5);
+            const labels = top5Data.map(item => `${item.branch.replace('ICOOL ','')} - ${item.type}`);
+            const data = top5Data.map(item => item.riskScore);
+            const backgroundColors = data.map(score => score > 75 ? 'rgba(239, 68, 68, 0.7)' : score > 50 ? 'rgba(245, 158, 11, 0.7)' : 'rgba(34, 197, 94, 0.7)');
+
+            pdmRiskChart = new Chart(canvas.getContext('2d'), {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Điểm Rủi Ro', data: data, backgroundColor: backgroundColors,
+                        borderColor: backgroundColors.map(c => c.replace('0.7', '1')), borderWidth: 1
+                    }]
+                },
+                options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
+            });
+        }
+
+        function renderPdmTable(analysisResults) {
+            const tableBody = document.getElementById('pdmTableBody');
+            if (!tableBody) return;
+            const getRiskColor = (score) => score > 75 ? 'text-red-600' : score > 50 ? 'text-yellow-600' : 'text-green-600';
+            tableBody.innerHTML = analysisResults.map(item => `
+                <tr class="hover:bg-slate-50">
+                    <td data-label="Hạng mục" class="px-4 py-3 text-sm"><p class="font-semibold text-slate-800">${item.type}</p><p class="text-xs text-slate-500">${item.branch}</p></td>
+                    <td data-label="Rủi Ro" class="px-4 py-3 text-sm font-bold ${getRiskColor(item.riskScore)}">${item.riskScore.toFixed(0)} / 100</td>
+                </tr>
+            `).join('');
+        }
+        
+        // --- Modal Handlers: Account & Issue Management ---
+        async function openIssueDetailModal(issueId) {
+            const modal = document.getElementById('issueDetailModal');
+            if (!modal) return;
+            
+            modal.style.display = 'flex';
+            
+            // Clear previous data and state
+            modal.querySelector('#detailIssueId').value = '';
+            modal.querySelector('#detailIssueDescription').textContent = 'Đang tải...';
+            modal.querySelector('#detailIssueImageContainer').innerHTML = '';
+            modal.querySelector('#detailIssueComments').innerHTML = '';
+            
             const docRef = doc(db, `/artifacts/${canvasAppId}/public/data/issueReports`, issueId);
             const docSnap = await getDoc(docRef);
-            if (docSnap.exists()) {
-                const report = docSnap.data();
-                editIssueModal.querySelector('#editIssueId').value = issueId;
-                editIssueModal.querySelector('#editIssueStatus').value = report.status;
-                editIssueModal.style.display = 'flex';
-            } else {
-                alert("Không tìm thấy báo cáo!");
+
+            if (!docSnap.exists()) {
+                modal.querySelector('#detailIssueDescription').textContent = 'Không tìm thấy sự cố.';
+                return;
             }
+            const report = docSnap.data();
+
+            // Populate static info
+            modal.querySelector('#detailIssueId').value = issueId;
+            modal.querySelector('#detailIssueBranch').textContent = report.issueBranch;
+            modal.querySelector('#detailIssueDescription').textContent = report.issueDescription;
+            modal.querySelector('#detailReporterName').textContent = report.reporterName;
+            modal.querySelector('#detailReportDate').textContent = new Date(report.reportDate).toLocaleString('vi-VN');
+            modal.querySelector('#detailIssuePriority').textContent = report.priority;
+            if (report.issueImageUrl) {
+                modal.querySelector('#detailIssueImageContainer').innerHTML = `<a href="${report.issueImageUrl}" target="_blank"><img src="${report.issueImageUrl}" class="max-w-xs rounded-lg shadow-md"></a>`;
+            }
+
+            const canManage = currentUserProfile.role === 'Admin' || currentUserProfile.role === 'Manager';
+            
+            // Populate Status dropdown
+            const statusSelect = modal.querySelector('#detailIssueStatus');
+            statusSelect.innerHTML = ISSUE_STATUSES.map(s => `<option value="${s}" ${report.status === s ? 'selected' : ''}>${s}</option>`).join('');
+            statusSelect.disabled = !canManage;
+
+            // Populate Assignee dropdown
+            const assigneeSelect = modal.querySelector('#detailIssueAssignee');
+            assigneeSelect.disabled = true; // Disable until loaded
+            if (canManage) {
+                const usersSnapshot = await getDocs(collection(db, `/artifacts/${canvasAppId}/users`));
+                const users = usersSnapshot.docs.map(doc => ({ uid: doc.id, ...doc.data() }));
+                assigneeSelect.innerHTML = `<option value="">Chưa giao</option>` + users.map(u => `<option value="${u.uid}" ${report.assigneeId === u.uid ? 'selected' : ''}>${u.displayName}</option>`).join('');
+                assigneeSelect.disabled = false;
+            } else {
+                assigneeSelect.innerHTML = `<option value="">${report.assigneeName || 'Chưa giao'}</option>`;
+            }
+
+            modal.querySelector('#updateIssueBtn').classList.toggle('hidden', !canManage);
+            
+            listenToIssueComments(issueId);
         }
 
         async function handleUpdateIssueDetails() {
-            const issueId = editIssueModal.querySelector('#editIssueId').value;
-            const newStatus = editIssueModal.querySelector('#editIssueStatus').value;
-            const messageEl = editIssueModal.querySelector('#editIssueMessage');
-            const saveBtn = editIssueModal.querySelector('#saveIssueDetailsBtn');
+            const modal = document.getElementById('issueDetailModal');
+            const issueId = modal.querySelector('#detailIssueId').value;
+            const newStatus = modal.querySelector('#detailIssueStatus').value;
+            const newAssigneeId = modal.querySelector('#detailIssueAssignee').value;
+            const assigneeSelect = modal.querySelector('#detailIssueAssignee');
+            const newAssigneeName = newAssigneeId ? assigneeSelect.options[assigneeSelect.selectedIndex].text : '';
+            
+            const messageEl = modal.querySelector('#detailIssueMessage');
+            const saveBtn = modal.querySelector('#updateIssueBtn');
 
             saveBtn.disabled = true;
+            saveBtn.innerHTML = `<i class="fas fa-spinner fa-spin mr-2"></i>Đang lưu...`;
+
             try {
                 const docRef = doc(db, `/artifacts/${canvasAppId}/public/data/issueReports`, issueId);
-                await updateDoc(docRef, { status: newStatus });
-                logActivity("Update Issue Status", { issueId, newStatus });
+                const originalDoc = await getDoc(docRef);
+                const originalData = originalDoc.data();
+
+                await updateDoc(docRef, { 
+                    status: newStatus, 
+                    assigneeId: newAssigneeId || null,
+                    assigneeName: newAssigneeName || null 
+                });
+                
+                logActivity("Update Issue", { issueId, newStatus, newAssigneeName });
+                
+                if (newAssigneeId && originalData.assigneeId !== newAssigneeId) {
+                    sendNotification(newAssigneeId, `Bạn được giao một nhiệm vụ mới: ${originalData.issueType} tại ${originalData.issueBranch}`);
+                }
+                
                 messageEl.textContent = 'Cập nhật thành công!';
                 messageEl.className = 'p-3 rounded-lg text-sm text-center alert-success';
                 messageEl.classList.remove('hidden');
-                setTimeout(() => {
-                    editIssueModal.style.display = 'none';
-                    messageEl.classList.add('hidden');
-                }, 1500);
+                setTimeout(() => messageEl.classList.add('hidden'), 2000);
+
             } catch (error) {
                 messageEl.textContent = `Lỗi: ${error.message}`;
                 messageEl.className = 'p-3 rounded-lg text-sm text-center alert-error';
                 messageEl.classList.remove('hidden');
             } finally {
                 saveBtn.disabled = false;
+                saveBtn.innerHTML = `Cập nhật`;
+            }
+        }
+        
+        function listenToIssueComments(issueId) {
+            if (issueCommentsUnsubscribe) issueCommentsUnsubscribe();
+            
+            const commentsContainer = document.getElementById('detailIssueComments');
+            const q = query(collection(db, `/artifacts/${canvasAppId}/public/data/issueReports/${issueId}/comments`), orderBy('timestamp', 'asc'));
+            
+            issueCommentsUnsubscribe = onSnapshot(q, snapshot => {
+                if (snapshot.empty) {
+                    commentsContainer.innerHTML = `<p class="text-sm text-slate-500 italic">Chưa có bình luận nào.</p>`;
+                    return;
+                }
+                commentsContainer.innerHTML = snapshot.docs.map(doc => {
+                    const comment = doc.data();
+                    const timestamp = comment.timestamp ? new Date(comment.timestamp.toDate()).toLocaleString('vi-VN') : '';
+                    return `
+                        <div class="text-sm">
+                            <p><strong>${comment.authorName}:</strong> ${comment.text}</p>
+                            <p class="text-xs text-slate-400">${timestamp}</p>
+                        </div>
+                    `;
+                }).join('');
+                commentsContainer.scrollTop = commentsContainer.scrollHeight;
+            });
+        }
+        
+        async function handleAddComment() {
+            const modal = document.getElementById('issueDetailModal');
+            const issueId = modal.querySelector('#detailIssueId').value;
+            const commentInput = modal.querySelector('#newCommentInput');
+            const commentText = commentInput.value.trim();
+
+            if (!issueId || !commentText) return;
+
+            try {
+                const commentsCol = collection(db, `/artifacts/${canvasAppId}/public/data/issueReports/${issueId}/comments`);
+                await addDoc(commentsCol, {
+                    text: commentText,
+                    authorId: currentUser.uid,
+                    authorName: currentUserProfile.displayName,
+                    timestamp: serverTimestamp()
+                });
+                commentInput.value = '';
+                logActivity("Add Comment", { issueId, commentText });
+            } catch(error) {
+                console.error("Error adding comment:", error);
             }
         }
 
@@ -853,7 +1215,7 @@
             roleSelect.innerHTML = ROLES.map(r => `<option value="${r}" ${userData.role === r ? 'selected' : ''}>${r}</option>`).join('');
 
             const branchesContainer = editAccountModal.querySelector('#managedBranchesCheckboxes');
-            branchesContainer.innerHTML = ALL_BRANCHES.map(b => `<label class="flex items-center space-x-2 cursor-pointer"><input type="checkbox" value="${b}" class="form-checkbox h-4 w-4 text-indigo-600 rounded" ${userData.managedBranches?.includes(b) ? 'checked' : ''}><span class="text-sm">${b.replace('Chi nhánh ICOOL ','')}</span></label>`).join('');
+            branchesContainer.innerHTML = ALL_BRANCHES.map(b => `<label class="flex items-center space-x-2 cursor-pointer"><input type="checkbox" value="${b}" class="form-checkbox h-4 w-4 text-indigo-600 rounded" ${userData.managedBranches?.includes(b) ? 'checked' : ''}><span class="text-sm">${b.replace('ICOOL ','')}</span></label>`).join('');
             
             const viewsContainer = editAccountModal.querySelector('#allowedViewsCheckboxes');
             viewsContainer.innerHTML = Object.entries(ALL_VIEWS).map(([id, name]) => `<label class="flex items-center space-x-2 cursor-pointer"><input type="checkbox" value="${id}" class="form-checkbox h-4 w-4 text-indigo-600 rounded" ${userData.allowedViews?.includes(id) ? 'checked' : ''}><span class="text-sm">${name}</span></label>`).join('');
@@ -948,12 +1310,44 @@
                 messageEl.classList.remove('hidden');
                 renderRegisteredAccountsTable();
             } catch (error) {
-                 messageEl.textContent = `Lỗi tạo tài khoản: ${error.message}`;
-                 messageEl.className = 'p-3 rounded-lg text-sm text-center alert-error';
-                 messageEl.classList.remove('hidden');
+                messageEl.textContent = `Lỗi tạo tài khoản: ${error.message}`;
+                messageEl.className = 'p-3 rounded-lg text-sm text-center alert-error';
+                messageEl.classList.remove('hidden');
+            }
+        }
+
+        function openDeleteAccountModal(uid, name) {
+            const modal = document.getElementById('deleteAccountModal');
+            modal.querySelector('#deleteAccountUid').value = uid;
+            modal.querySelector('#deleteAccountName').textContent = name;
+            modal.style.display = 'flex';
+        }
+
+        async function handleConfirmDeleteAccount() {
+            const modal = document.getElementById('deleteAccountModal');
+            const uid = modal.querySelector('#deleteAccountUid').value;
+            if (!uid) return;
+
+            try {
+                // Delete user document from Firestore
+                await deleteDoc(doc(db, `/artifacts/${canvasAppId}/users/${uid}`));
+                
+                // Note: This does NOT delete the user from Firebase Authentication.
+                // That requires admin privileges not available in the client SDK.
+                // The user will no longer appear in the app but can still technically log in
+                // until their auth record is deleted from the Firebase Console.
+                
+                await logActivity("Delete User Document", { deletedUid: uid });
+                
+                modal.style.display = 'none';
+                renderRegisteredAccountsTable(); // Refresh the table
+            } catch (error) {
+                console.error("Error deleting user document:", error);
+                alert("Đã xảy ra lỗi khi xóa tài khoản.");
             }
         }
         
+        // --- Feature Handlers: Issue Report, Attendance ---
         async function handleReportIssue() {
             const reporterName = mainContentContainer.querySelector('#reporterName').value;
             const issueType = mainContentContainer.querySelector('#issueType').value;
@@ -965,10 +1359,10 @@
             const button = mainContentContainer.querySelector('#reportIssueBtn');
 
             if (!issueBranch || !issueDescription) {
-                 messageEl.textContent = 'Vui lòng điền đầy đủ thông tin.';
-                 messageEl.className = 'p-3 rounded-lg text-sm text-center alert-error';
-                 messageEl.classList.remove('hidden');
-                 return;
+                messageEl.textContent = 'Vui lòng điền đầy đủ thông tin.';
+                messageEl.className = 'p-3 rounded-lg text-sm text-center alert-error';
+                messageEl.classList.remove('hidden');
+                return;
             }
             
             button.disabled = true;
@@ -992,6 +1386,8 @@
                     issueImageUrl: imageUrl,
                     reportDate: new Date().toISOString(),
                     status: 'Mới tạo',
+                    assigneeId: null,
+                    assigneeName: null
                 };
                 
                 await addDoc(collection(db, `/artifacts/${canvasAppId}/public/data/issueReports`), reportData);
@@ -999,16 +1395,16 @@
                 messageEl.textContent = 'Báo cáo sự cố thành công!';
                 messageEl.className = 'p-3 rounded-lg text-sm text-center alert-success';
                 messageEl.classList.remove('hidden');
-                 mainContentContainer.querySelector('#issueDescription').value = '';
-                 mainContentContainer.querySelector('#issueImage').value = '';
+                mainContentContainer.querySelector('#issueDescription').value = '';
+                mainContentContainer.querySelector('#issueImage').value = '';
 
             } catch (error) {
-                 messageEl.textContent = `Lỗi: ${error.message}`;
-                 messageEl.className = 'p-3 rounded-lg text-sm text-center alert-error';
-                 messageEl.classList.remove('hidden');
+                messageEl.textContent = `Lỗi: ${error.message}`;
+                messageEl.className = 'p-3 rounded-lg text-sm text-center alert-error';
+                messageEl.classList.remove('hidden');
             } finally {
-                 button.disabled = false;
-                 button.innerHTML = `<i class="fas fa-paper-plane mr-2"></i>Gửi Báo Cáo`;
+                button.disabled = false;
+                button.innerHTML = `<i class="fas fa-paper-plane mr-2"></i>Gửi Báo Cáo`;
             }
         }
 
@@ -1060,15 +1456,14 @@
                 const data = await response.json();
 
                 capturedLocationInfo = {
-                    latitude,
-                    longitude,
+                    latitude, longitude,
                     address: data.display_name || 'Không tìm thấy địa chỉ'
                 };
                 addressEl.textContent = capturedLocationInfo.address;
             } catch (error) {
                 console.error("Location Error:", error);
                 addressEl.textContent = 'Không thể lấy vị trí. Vui lòng kiểm tra quyền truy cập.';
-                 capturedLocationInfo = { error: error.message };
+                capturedLocationInfo = { error: error.message };
             }
         }
 
@@ -1139,31 +1534,31 @@
             confirmBtn.innerHTML = `<i class="fas fa-spinner fa-spin"></i>`;
             
             try {
-                 const today = new Date().toISOString().split('T')[0];
-                 const storageRef = ref(storage, `attendance_photos/${currentUser.uid}/${today}/${Date.now()}.jpg`);
-                 const snapshot = await uploadBytes(storageRef, capturedPhotoBlob);
-                 const photoUrl = await getDownloadURL(snapshot.ref);
+                const today = new Date().toISOString().split('T')[0];
+                const storageRef = ref(storage, `attendance_photos/${currentUser.uid}/${today}/${Date.now()}.jpg`);
+                const snapshot = await uploadBytes(storageRef, capturedPhotoBlob);
+                const photoUrl = await getDownloadURL(snapshot.ref);
 
-                 await addDoc(collection(db, `/artifacts/${canvasAppId}/users/${currentUser.uid}/attendance`), {
-                     action: currentAttendanceAction,
-                     timestamp: serverTimestamp(),
-                     photoUrl: photoUrl,
-                     location: capturedLocationInfo || { error: 'No location captured' }
-                 });
-                 
-                 const successTime = new Date().toLocaleString('vi-VN');
-                 messageEl.textContent = `${currentAttendanceAction} thành công lúc ${successTime}!`;
-                 messageEl.className = 'p-3 rounded-lg text-sm text-center alert-success';
-                 messageEl.classList.remove('hidden');
-                 closeCameraModal();
+                await addDoc(collection(db, `/artifacts/${canvasAppId}/users/${currentUser.uid}/attendance`), {
+                    action: currentAttendanceAction,
+                    timestamp: serverTimestamp(),
+                    photoUrl: photoUrl,
+                    location: capturedLocationInfo || { error: 'No location captured' }
+                });
+                
+                const successTime = new Date().toLocaleString('vi-VN');
+                messageEl.textContent = `${currentAttendanceAction} thành công lúc ${successTime}!`;
+                messageEl.className = 'p-3 rounded-lg text-sm text-center alert-success';
+                messageEl.classList.remove('hidden');
+                closeCameraModal();
 
             } catch (error) {
-                 modalMessageEl.textContent = `Lỗi: ${error.message}`;
-                 modalMessageEl.className = 'p-3 rounded-lg text-sm text-center alert-error';
-                 modalMessageEl.classList.remove('hidden');
+                modalMessageEl.textContent = `Lỗi: ${error.message}`;
+                modalMessageEl.className = 'p-3 rounded-lg text-sm text-center alert-error';
+                modalMessageEl.classList.remove('hidden');
             } finally {
-                 confirmBtn.disabled = false;
-                 confirmBtn.textContent = 'Xác Nhận';
+                confirmBtn.disabled = false;
+                confirmBtn.textContent = 'Xác Nhận';
             }
         }
         
@@ -1189,99 +1584,7 @@
             unsubscribeListeners.push(unsubscribe);
         }
 
-        function runPredictiveAnalysis(reports) {
-            const pdmContainer = mainContentContainer.querySelector('#pdmTableBody');
-            if (!pdmContainer) return;
-
-            if (reports.length === 0) {
-                pdmContainer.innerHTML = `<tr><td colspan="2" class="text-center py-4 text-slate-500">Chưa có đủ dữ liệu.</td></tr>`;
-                return;
-            }
-
-            const groupedData = reports.reduce((acc, report) => {
-                const key = `${report.issueBranch}|${report.issueType}`;
-                if (!acc[key]) {
-                    acc[key] = [];
-                }
-                acc[key].push(report);
-                return acc;
-            }, {});
-
-            const priorityMap = { 'Nghiêm trọng': 3, 'Trung bình': 2, 'Thấp': 1 };
-            
-            let analysisResults = Object.entries(groupedData).map(([key, reports]) => {
-                const [branch, type] = key.split('|');
-                const sortedReports = reports.sort((a, b) => new Date(b.reportDate) - new Date(a.reportDate));
-                const lastFailureDate = new Date(sortedReports[0].reportDate);
-                const daysSinceLastFailure = (new Date() - lastFailureDate) / (1000 * 60 * 60 * 24);
-                
-                const failureCount = reports.length;
-                const totalPriorityScore = reports.reduce((sum, r) => sum + (priorityMap[r.priority] || 1), 0);
-                const avgPriorityScore = totalPriorityScore / failureCount;
-                const recencyScore = Math.exp(-0.1 * daysSinceLastFailure);
-                const frequencyScore = Math.log1p(failureCount);
-                const severityScore = avgPriorityScore / 3;
-                const riskScore = (0.5 * recencyScore + 0.3 * frequencyScore + 0.2 * severityScore) * 100;
-
-                return { branch, type, riskScore: Math.min(riskScore, 100) };
-            });
-
-            analysisResults.sort((a, b) => b.riskScore - a.riskScore);
-            
-            renderPdmSummaryStats(analysisResults);
-            renderPdmChart(analysisResults);
-            renderPdmTable(analysisResults);
-        }
-
-        function renderPdmSummaryStats(analysisResults) {
-            const container = mainContentContainer.querySelector('#pdmSummaryStats');
-            if (!container) return;
-            const highRiskCount = analysisResults.filter(r => r.riskScore > 75).length;
-            const mediumRiskCount = analysisResults.filter(r => r.riskScore > 50 && r.riskScore <= 75).length;
-            const lowRiskCount = analysisResults.filter(r => r.riskScore <= 50).length;
-
-            container.innerHTML = `
-                <div class="px-2"><p class="text-2xl font-bold text-red-500">${highRiskCount}</p><p class="text-xs text-slate-500">Rủi ro Cao</p></div>
-                <div class="px-2"><p class="text-2xl font-bold text-yellow-500">${mediumRiskCount}</p><p class="text-xs text-slate-500">Rủi ro TB</p></div>
-                <div class="px-2"><p class="text-2xl font-bold text-green-500">${lowRiskCount}</p><p class="text-xs text-slate-500">Rủi ro Thấp</p></div>
-            `;
-        }
-
-        function renderPdmChart(analysisResults) {
-            const canvas = mainContentContainer.querySelector('#pdmRiskChart');
-            if (!canvas) return;
-            if (pdmRiskChart) pdmRiskChart.destroy();
-
-            const top5Data = analysisResults.slice(0, 5);
-            const labels = top5Data.map(item => `${item.branch.replace('Chi nhánh ICOOL ','')} - ${item.type}`);
-            const data = top5Data.map(item => item.riskScore);
-            const backgroundColors = data.map(score => score > 75 ? 'rgba(239, 68, 68, 0.7)' : score > 50 ? 'rgba(245, 158, 11, 0.7)' : 'rgba(34, 197, 94, 0.7)');
-
-            pdmRiskChart = new Chart(canvas.getContext('2d'), {
-                type: 'bar',
-                data: {
-                    labels: labels,
-                    datasets: [{
-                        label: 'Điểm Rủi Ro', data: data, backgroundColor: backgroundColors,
-                        borderColor: backgroundColors.map(c => c.replace('0.7', '1')), borderWidth: 1
-                    }]
-                },
-                options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
-            });
-        }
-
-        function renderPdmTable(analysisResults) {
-            const tableBody = mainContentContainer.querySelector('#pdmTableBody');
-            if (!tableBody) return;
-            const getRiskColor = (score) => score > 75 ? 'text-red-600' : score > 50 ? 'text-yellow-600' : 'text-green-600';
-            tableBody.innerHTML = analysisResults.map(item => `
-                <tr class="hover:bg-slate-50">
-                    <td data-label="Hạng mục" class="px-4 py-3 text-sm"><p class="font-semibold text-slate-800">${item.type}</p><p class="text-xs text-slate-500">${item.branch}</p></td>
-                    <td data-label="Rủi Ro" class="px-4 py-3 text-sm font-bold ${getRiskColor(item.riskScore)}">${item.riskScore.toFixed(0)} / 100</td>
-                </tr>
-            `).join('');
-        }
-        
+        // --- DOM Binding & Event Listeners ---
         function bindShellDOMElements() {
             skeletonLoader = document.getElementById('skeletonLoader');
             authSection = document.getElementById('authSection');
@@ -1301,7 +1604,8 @@
             notificationMenu = document.getElementById('notificationMenu');
             notificationList = document.getElementById('notificationList');
             editAccountModal = document.getElementById('editAccountModal');
-            editIssueModal = document.getElementById('editIssueModal');
+            issueDetailModal = document.getElementById('issueDetailModal');
+            deleteAccountModal = document.getElementById('deleteAccountModal');
             cameraModal = document.getElementById('cameraModal');
             sidebar = document.getElementById('sidebar');
             mobileMenuToggle = document.getElementById('mobileMenuToggle');
@@ -1323,25 +1627,44 @@
                 }
             });
 
+            // Account Modal Listeners
             editAccountModal.querySelector('#saveAccountDetailsBtn').addEventListener('click', handleUpdateAccountDetails);
             const closeEditAccountModal = () => editAccountModal.style.display = 'none';
             editAccountModal.querySelector('#cancelEditAccountBtn').addEventListener('click', closeEditAccountModal);
             editAccountModal.querySelector('#closeEditAccountModalBtn').addEventListener('click', closeEditAccountModal);
             
-            editIssueModal.querySelector('#saveIssueDetailsBtn').addEventListener('click', handleUpdateIssueDetails);
-            const closeEditIssueModal = () => editIssueModal.style.display = 'none';
-            editIssueModal.querySelector('#cancelEditIssueBtn').addEventListener('click', closeEditIssueModal);
-            editIssueModal.querySelector('#closeEditIssueModalBtn').addEventListener('click', closeEditIssueModal);
+            // Issue Detail Modal Listeners
+            const closeIssueDetailModal = () => {
+                issueDetailModal.style.display = 'none';
+                if (issueCommentsUnsubscribe) {
+                    issueCommentsUnsubscribe();
+                    issueCommentsUnsubscribe = null;
+                }
+            };
+            issueDetailModal.querySelector('#closeIssueDetailModalBtn').addEventListener('click', closeIssueDetailModal);
+            issueDetailModal.querySelector('#updateIssueBtn').addEventListener('click', handleUpdateIssueDetails);
+            issueDetailModal.querySelector('#addCommentBtn').addEventListener('click', handleAddComment);
 
+            // Delete Account Modal Listeners
+            deleteAccountModal.querySelector('#confirmDeleteAccountBtn').addEventListener('click', handleConfirmDeleteAccount);
+            const closeDeleteAccountModal = () => deleteAccountModal.style.display = 'none';
+            deleteAccountModal.querySelector('#cancelDeleteAccountBtn').addEventListener('click', closeDeleteAccountModal);
+
+            // Camera Modal Listeners
             cameraModal.querySelector('#closeCameraModalBtn').addEventListener('click', closeCameraModal);
             cameraModal.querySelector('#captureBtn').addEventListener('click', capturePhoto);
             cameraModal.querySelector('#recaptureBtn').addEventListener('click', startCameraStream);
             cameraModal.querySelector('#confirmAttendanceBtn').addEventListener('click', confirmAttendance);
         }
         
+        // --- Utility Functions ---
         function unsubscribeAll() {
             unsubscribeListeners.forEach(unsub => unsub());
             unsubscribeListeners = [];
+            if (issueCommentsUnsubscribe) {
+                issueCommentsUnsubscribe();
+                issueCommentsUnsubscribe = null;
+            }
         }
     </script>
 </body>
