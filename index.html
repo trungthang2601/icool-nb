@@ -433,16 +433,25 @@
         </div>
 
         <div id="deleteAccountModal" class="modal">
-            <div class="modal-content !max-w-md">
-                <div class="text-center">
-                    <i class="fas fa-exclamation-triangle text-4xl text-red-500 mb-4"></i>
-                    <h3 class="text-xl font-bold text-slate-800">Xác nhận Xóa</h3>
-                    <p class="text-slate-600 mt-2">Bạn có chắc chắn muốn xóa tài khoản <strong id="deleteAccountName"></strong> không? Hành động này không thể hoàn tác.</p>
-                    <input type="hidden" id="deleteAccountUid">
+            <div class="modal-content !max-w-lg">
+                <div class="flex justify-between items-start mb-4">
+                    <h3 class="text-xl font-bold text-slate-800">Quản lý Xóa Tài khoản</h3>
+                    <span id="closeDeleteModalBtn" class="cursor-pointer text-2xl">&times;</span>
                 </div>
-                <div class="flex justify-center space-x-4 mt-6">
-                    <button id="cancelDeleteAccountBtn" class="btn-secondary">Hủy</button>
-                    <button id="confirmDeleteAccountBtn" class="btn-danger">Xóa Tài Khoản</button>
+                <p class="text-slate-600 mb-6">Chọn một hành động cho tài khoản <strong id="deleteAccountName"></strong>. Các hành động này không thể hoàn tác.</p>
+                <input type="hidden" id="deleteAccountUid">
+                
+                <div class="space-y-4">
+                    <div class="p-4 border rounded-lg">
+                        <h4 class="font-semibold text-slate-800">1. Xóa Tài khoản</h4>
+                        <p class="text-sm text-slate-500 mt-1 mb-3">Chỉ xóa hồ sơ người dùng khỏi hệ thống. Dữ liệu họ tạo ra (như báo cáo sự cố) sẽ được giữ lại và ẩn danh.</p>
+                        <button id="confirmDeleteProfileOnlyBtn" class="btn-secondary w-full">Thực hiện Xóa Tài khoản</button>
+                    </div>
+                    <div class="p-4 border border-red-300 rounded-lg bg-red-50">
+                        <h4 class="font-semibold text-red-800">2. Xóa Tài khoản và Dữ liệu Chấm công</h4>
+                        <p class="text-sm text-red-600 mt-1 mb-3">Xóa hồ sơ người dùng VÀ tất cả lịch sử chấm công của họ. Đây là hành động phá hủy dữ liệu.</p>
+                        <button id="confirmDeleteAllDataBtn" class="btn-danger w-full">Thực hiện Xóa Toàn bộ</button>
+                    </div>
                 </div>
             </div>
         </div>
@@ -1323,27 +1332,40 @@
             modal.style.display = 'flex';
         }
 
-        async function handleConfirmDeleteAccount() {
+        async function handleDelete(uid, deleteAttendance = false) {
             const modal = document.getElementById('deleteAccountModal');
-            const uid = modal.querySelector('#deleteAccountUid').value;
-            if (!uid) return;
-
             try {
-                // Delete user document from Firestore
+                // Anonymize Issue Reports
+                const issuesQuery = query(collection(db, `/artifacts/${canvasAppId}/public/data/issueReports`), where('reporterId', '==', uid));
+                const issuesSnapshot = await getDocs(issuesQuery);
+                const issueUpdates = [];
+                issuesSnapshot.forEach(doc => {
+                    issueUpdates.push(updateDoc(doc.ref, { reporterName: "Người dùng đã bị xóa", reporterId: null }));
+                });
+                await Promise.all(issueUpdates);
+
+                if (deleteAttendance) {
+                    // Delete attendance subcollection
+                    const attendanceQuery = query(collection(db, `/artifacts/${canvasAppId}/users/${uid}/attendance`));
+                    const attendanceSnapshot = await getDocs(attendanceQuery);
+                    const attendanceDeletes = [];
+                    attendanceSnapshot.forEach(doc => {
+                        attendanceDeletes.push(deleteDoc(doc.ref));
+                    });
+                    await Promise.all(attendanceDeletes);
+                }
+
+                // Finally, delete the user document
                 await deleteDoc(doc(db, `/artifacts/${canvasAppId}/users/${uid}`));
-                
-                // Note: This does NOT delete the user from Firebase Authentication.
-                // That requires admin privileges not available in the client SDK.
-                // The user will no longer appear in the app but can still technically log in
-                // until their auth record is deleted from the Firebase Console.
-                
-                await logActivity("Delete User Document", { deletedUid: uid });
+
+                await logActivity(deleteAttendance ? "Delete User and Data" : "Delete User Profile", { deletedUid: uid });
                 
                 modal.style.display = 'none';
-                renderRegisteredAccountsTable(); // Refresh the table
+                renderRegisteredAccountsTable();
+
             } catch (error) {
-                console.error("Error deleting user document:", error);
-                alert("Đã xảy ra lỗi khi xóa tài khoản.");
+                console.error("Error during deletion:", error);
+                alert("Đã xảy ra lỗi khi thực hiện thao tác xóa.");
             }
         }
         
@@ -1613,6 +1635,12 @@
 
         function bindShellEventListeners() {
             loginBtn.addEventListener('click', handleLogin);
+             authPasswordInput.addEventListener('keydown', (event) => {
+                if (event.key === 'Enter') {
+                    event.preventDefault(); // Prevent default form submission
+                    handleLogin();
+                }
+            });
             document.getElementById('logoutDropdownBtn').addEventListener('click', handleLogout);
             document.getElementById('userDropdownToggle').addEventListener('click', (e) => { e.stopPropagation(); document.getElementById('userDropdownMenu').classList.toggle('show'); });
             notificationToggle.addEventListener('click', (e) => { e.stopPropagation(); notificationMenu.classList.toggle('show'); });
@@ -1646,9 +1674,17 @@
             issueDetailModal.querySelector('#addCommentBtn').addEventListener('click', handleAddComment);
 
             // Delete Account Modal Listeners
-            deleteAccountModal.querySelector('#confirmDeleteAccountBtn').addEventListener('click', handleConfirmDeleteAccount);
+            deleteAccountModal.querySelector('#confirmDeleteProfileOnlyBtn').addEventListener('click', () => {
+                const uid = deleteAccountModal.querySelector('#deleteAccountUid').value;
+                handleDelete(uid, false);
+            });
+            deleteAccountModal.querySelector('#confirmDeleteAllDataBtn').addEventListener('click', () => {
+                const uid = deleteAccountModal.querySelector('#deleteAccountUid').value;
+                handleDelete(uid, true);
+            });
             const closeDeleteAccountModal = () => deleteAccountModal.style.display = 'none';
-            deleteAccountModal.querySelector('#cancelDeleteAccountBtn').addEventListener('click', closeDeleteAccountModal);
+            deleteAccountModal.querySelector('#closeDeleteModalBtn').addEventListener('click', closeDeleteAccountModal);
+
 
             // Camera Modal Listeners
             cameraModal.querySelector('#closeCameraModalBtn').addEventListener('click', closeCameraModal);
