@@ -145,6 +145,55 @@
         #camera-overlay {
             text-shadow: 0 1px 3px rgba(0,0,0,0.5);
         }
+
+        /* Heatmap Styles */
+        .heatmap-container {
+            font-size: 10px;
+        }
+        .heatmap {
+            display: grid;
+            grid-template-columns: auto repeat(24, 1fr);
+            gap: 3px;
+        }
+        .heatmap-cell {
+            aspect-ratio: 1 / 1;
+            border-radius: 3px;
+            background-color: #ebedf0; /* Default light gray for 0 incidents */
+            position: relative;
+            cursor: pointer;
+        }
+        .heatmap-cell:hover .tooltip {
+            visibility: visible;
+            opacity: 1;
+        }
+        .heatmap-label {
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            font-weight: 500;
+            padding-right: 8px;
+            white-space: nowrap;
+        }
+        .heatmap-header {
+            text-align: center;
+            color: var(--text-secondary);
+        }
+        .tooltip {
+            visibility: hidden;
+            opacity: 0;
+            position: absolute;
+            bottom: 110%;
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: var(--text-primary);
+            color: white;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            white-space: nowrap;
+            z-index: 10;
+            transition: opacity 0.1s ease-in-out;
+        }
     </style>
 </head>
 <body class="min-h-screen">
@@ -231,22 +280,22 @@
             </div>
             <div id="manageAccountsView">
                  <div id="adminSettingsCard" class="card p-6 mb-6 hidden">
-                    <h3 class="text-xl font-bold text-slate-800 mb-4">Cài đặt Hệ thống (Admin)</h3>
-                    <div class="space-y-4">
-                        <div>
-                            <label for="escalationTimeInput" class="font-medium text-sm">Thời gian gửi thông báo cho sự cố chưa được xử lý (phút):</label>
-                            <input type="number" id="escalationTimeInput" class="input-field" value="60">
-                        </div>
-                        <div class="flex items-center space-x-2">
-                             <input type="checkbox" id="escalationToggle" class="form-checkbox h-4 w-4 text-indigo-600 rounded">
-                            <label for="escalationToggle" class="font-medium text-sm cursor-pointer">Bật tính năng thông báo tự động</label>
-                        </div>
-                        <div>
-                            <button id="saveSettingsBtn" class="btn-primary w-full sm:w-auto">Lưu Cài đặt</button>
-                        </div>
-                    </div>
-                    <div id="settingsMessage" class="hidden mt-4 p-3 rounded-lg text-sm"></div>
-                </div>
+                     <h3 class="text-xl font-bold text-slate-800 mb-4">Cài đặt Hệ thống (Admin)</h3>
+                     <div class="space-y-4">
+                         <div>
+                             <label for="escalationTimeInput" class="font-medium text-sm">Thời gian gửi thông báo cho sự cố chưa được xử lý (phút):</label>
+                             <input type="number" id="escalationTimeInput" class="input-field" value="60">
+                         </div>
+                         <div class="flex items-center space-x-2">
+                              <input type="checkbox" id="escalationToggle" class="form-checkbox h-4 w-4 text-indigo-600 rounded">
+                             <label for="escalationToggle" class="font-medium text-sm cursor-pointer">Bật tính năng thông báo tự động</label>
+                         </div>
+                         <div>
+                             <button id="saveSettingsBtn" class="btn-primary w-full sm:w-auto">Lưu Cài đặt</button>
+                         </div>
+                     </div>
+                     <div id="settingsMessage" class="hidden mt-4 p-3 rounded-lg text-sm"></div>
+                 </div>
                  <div class="card p-6 mb-6">
                      <h3 class="text-xl font-bold text-slate-800 mb-4">Tạo Tài Khoản Mới</h3>
                      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -259,24 +308,24 @@
                      <div id="createAccountMessage" class="hidden mt-4 p-3 rounded-lg text-sm"></div>
                  </div>
                  <div class="card p-6 mb-6">
-                    <h3 class="text-xl font-bold text-slate-800 mb-4">Tạo Hàng Loạt Từ Excel</h3>
-                    <p class="text-sm text-slate-600 mb-3">Tải lên file Excel (.xlsx, .xls) với các cột: `email`, `password`, `displayName`, `employeeId`, `role`. Nếu `email` đã tồn tại, thông tin tài khoản sẽ được cập nhật. Nếu chưa có, tài khoản mới sẽ được tạo (mật khẩu là bắt buộc cho tài khoản mới). Vai trò hợp lệ là 'Admin', 'Manager', 'Nhân viên'.</p>
-                    <input type="file" id="excelFileInput" class="input-field mb-3" accept=".xlsx, .xls">
-                    <div class="flex space-x-2">
-                        <button id="importExcelBtn" class="btn-primary">Nhập Dữ Liệu</button>
-                        <button id="downloadTemplateBtn" class="btn-secondary">Tải file mẫu</button>
-                    </div>
-                    <div id="importExcelMessage" class="hidden mt-4 p-3 rounded-lg text-sm"></div>
-                </div>
+                     <h3 class="text-xl font-bold text-slate-800 mb-4">Tạo Hàng Loạt Từ Excel</h3>
+                     <p class="text-sm text-slate-600 mb-3">Tải lên file Excel (.xlsx, .xls) với các cột: `email`, `password`, `displayName`, `employeeId`, `role`. Nếu `email` đã tồn tại, thông tin tài khoản sẽ được cập nhật. Nếu chưa có, tài khoản mới sẽ được tạo (mật khẩu là bắt buộc cho tài khoản mới). Vai trò hợp lệ là 'Admin', 'Manager', 'Nhân viên'.</p>
+                     <input type="file" id="excelFileInput" class="input-field mb-3" accept=".xlsx, .xls">
+                     <div class="flex space-x-2">
+                         <button id="importExcelBtn" class="btn-primary">Nhập Dữ Liệu</button>
+                         <button id="downloadTemplateBtn" class="btn-secondary">Tải file mẫu</button>
+                     </div>
+                     <div id="importExcelMessage" class="hidden mt-4 p-3 rounded-lg text-sm"></div>
+                 </div>
                  <div class="card p-6">
-                    <div class="flex justify-between items-center mb-4">
-                        <h3 class="text-xl font-bold text-slate-800">Danh Sách Tài Khoản</h3>
-                        <label class="flex items-center space-x-2 cursor-pointer">
-                            <input type="checkbox" id="showDisabledAccountsToggle" class="form-checkbox h-4 w-4 text-indigo-600 rounded">
-                            <span class="text-sm text-slate-600">Hiển thị tài khoản đã vô hiệu hóa</span>
-                        </label>
-                    </div>
-                     <div class="overflow-x-auto">
+                     <div class="flex justify-between items-center mb-4">
+                         <h3 class="text-xl font-bold text-slate-800">Danh Sách Tài Khoản</h3>
+                         <label class="flex items-center space-x-2 cursor-pointer">
+                             <input type="checkbox" id="showDisabledAccountsToggle" class="form-checkbox h-4 w-4 text-indigo-600 rounded">
+                             <span class="text-sm text-slate-600">Hiển thị tài khoản đã vô hiệu hóa</span>
+                         </label>
+                     </div>
+                      <div class="overflow-x-auto">
                          <table class="min-w-full divide-y divide-slate-200 responsive-table">
                              <thead class="bg-slate-50">
                                  <tr>
@@ -293,40 +342,122 @@
                  </div>
             </div>
             <div id="dashboardView">
-                 <h2 class="text-3xl font-bold text-slate-800">Dashboard</h2>
-                 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-4">
-                     <div class="card p-5"><p class="text-sm text-slate-500">Lỗi Phát Sinh Hôm Nay</p><p id="errorsToday" class="text-3xl font-bold">0</p></div>
-                     <div class="card p-5"><p class="text-sm text-slate-500">Lỗi Trong Tuần Này</p><p id="errorsThisWeek" class="text-3xl font-bold">0</p></div>
-                     <div class="card p-5"><p class="text-sm text-slate-500">Lỗi Trong Tháng Này</p><p id="errorsThisMonth" class="text-3xl font-bold">0</p></div>
-                 </div>
-                 <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-6">
-                     <div class="lg:col-span-1 card p-6"><h3 class="font-semibold mb-4">Phân Loại Lỗi</h3><div class="h-64"><canvas id="issueTypePieChart"></canvas></div></div>
-                     <div class="lg:col-span-2 card p-6"><h3 class="font-semibold mb-4">Trạng Thái Xử Lý</h3><div id="statusSummary" class="space-y-3"></div></div>
-                 </div>
-                 <div class="card p-6 mt-6">
-                     <h3 class="font-semibold text-slate-800 mb-4">Dự Báo Bảo Trì</h3>
-                     <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                         <div>
-                             <h4 class="font-semibold text-slate-700 mb-2">Hạng mục Rủi ro Cao nhất</h4>
-                              <div id="pdmSummaryStats" class="flex justify-around text-center mb-4 p-4 bg-slate-50 rounded-lg"></div>
-                             <div class="h-80"><canvas id="pdmRiskChart"></canvas></div>
-                         </div>
-                         <div class="lg:col-span-1">
-                              <h4 class="font-semibold text-slate-700 mb-2">Danh sách Chi tiết</h4>
-                             <div class="table-responsive max-h-96 overflow-y-auto">
-                                 <table class="min-w-full responsive-table">
-                                     <thead class="bg-slate-50 sticky top-0">
-                                         <tr>
-                                             <th class="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase">Hạng mục</th>
-                                             <th class="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase">Rủi Ro</th>
-                                         </tr>
-                                     </thead>
-                                     <tbody id="pdmTableBody" class="bg-white divide-y divide-slate-200"></tbody>
-                                 </table>
-                             </div>
-                         </div>
-                     </div>
-                 </div>
+                <h2 class="text-3xl font-bold text-slate-800">Dashboard</h2>
+                
+                <!-- Advanced Filters -->
+                <div class="card p-4 mt-4">
+                    <h3 class="font-semibold text-slate-800 mb-3">Bộ lọc nâng cao</h3>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-6 gap-4">
+                        <div>
+                            <label for="filterBranch" class="text-sm font-medium text-slate-600">Chi nhánh</label>
+                            <select id="filterBranch" class="select-field text-sm mt-1">
+                                <option value="">Tất cả</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label for="filterIssueType" class="text-sm font-medium text-slate-600">Loại sự cố</label>
+                            <select id="filterIssueType" class="select-field text-sm mt-1">
+                                <option value="">Tất cả</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label for="filterEmployee" class="text-sm font-medium text-slate-600">Nhân viên</label>
+                            <select id="filterEmployee" class="select-field text-sm mt-1">
+                                <option value="">Tất cả</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label for="filterStartDate" class="text-sm font-medium text-slate-600">Từ ngày</label>
+                            <input type="date" id="filterStartDate" class="input-field text-sm mt-1">
+                        </div>
+                        <div>
+                            <label for="filterEndDate" class="text-sm font-medium text-slate-600">Đến ngày</label>
+                            <input type="date" id="filterEndDate" class="input-field text-sm mt-1">
+                        </div>
+                        <div class="flex items-end space-x-2">
+                            <button id="applyFiltersBtn" class="btn-primary flex-grow">Lọc</button>
+                            <button id="resetFiltersBtn" class="btn-secondary"><i class="fas fa-undo"></i></button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Comparative Analysis -->
+                <div class="mt-6">
+                    <h3 class="text-xl font-bold text-slate-800 mb-3">Phân Tích So Sánh (Số Lượng Sự Cố)</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <div id="compareWeek" class="card p-5"></div>
+                        <div id="compareMonth" class="card p-5"></div>
+                        <div id="compareYear" class="card p-5"></div>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-6">
+                    <div class="card p-5"><p class="text-sm text-slate-500">Lỗi Phát Sinh Hôm Nay</p><p id="errorsToday" class="text-3xl font-bold">0</p></div>
+                    <div class="card p-5"><p class="text-sm text-slate-500">Lỗi Trong Tuần Này</p><p id="errorsThisWeek" class="text-3xl font-bold">0</p></div>
+                    <div class="card p-5"><p class="text-sm text-slate-500">Lỗi Trong Tháng Này</p><p id="errorsThisMonth" class="text-3xl font-bold">0</p></div>
+                </div>
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-6">
+                    <div class="lg:col-span-1 card p-6"><h3 class="font-semibold mb-4">Phân Loại Lỗi</h3><div class="h-64"><canvas id="issueTypePieChart"></canvas></div></div>
+                    <div class="lg:col-span-2 card p-6"><h3 class="font-semibold mb-4">Trạng Thái Xử Lý</h3><div id="statusSummary" class="space-y-3"></div></div>
+                </div>
+
+                <!-- Incident Trend Chart -->
+                <div class="card p-6 mt-6">
+                    <h3 class="font-semibold text-slate-800 mb-4">Xu Hướng Sự Cố Theo Thời Gian</h3>
+                    <div class="h-80"><canvas id="incidentTrendChart"></canvas></div>
+                </div>
+
+                <!-- Incident Heatmap -->
+                <div class="card p-6 mt-6">
+                    <h3 class="font-semibold text-slate-800 mb-4">Mật Độ Sự Cố (Giờ trong ngày vs Ngày trong tuần)</h3>
+                    <div id="incidentHeatmapContainer" class="heatmap-container mt-4 overflow-x-auto"></div>
+                </div>
+
+                <!-- Employee/Branch Performance Analysis -->
+                <div class="card p-6 mt-6">
+                    <div class="flex flex-wrap justify-between items-center mb-4">
+                        <h3 class="font-semibold text-slate-800">Phân Tích Hiệu Suất (Nhân Viên / Chi Nhánh)</h3>
+                        <div class="flex items-center space-x-2 bg-slate-100 p-1 rounded-lg">
+                            <button id="perfToggleEmployee" class="px-3 py-1 text-sm font-semibold rounded-md transition-colors bg-white text-indigo-600 shadow">Nhân Viên</button>
+                            <button id="perfToggleBranch" class="px-3 py-1 text-sm font-semibold rounded-md transition-colors text-slate-600">Chi Nhánh</button>
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        <div>
+                            <h4 class="font-semibold text-slate-700 text-center mb-2">Số Lượng Sự Cố Đã/Chưa Xử Lý</h4>
+                            <div class="h-80"><canvas id="performanceStatusChart"></canvas></div>
+                        </div>
+                        <div>
+                            <h4 class="font-semibold text-slate-700 text-center mb-2">Thời Gian Xử Lý Trung Bình (giờ)</h4>
+                            <div class="h-80"><canvas id="performanceTimeChart"></canvas></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card p-6 mt-6">
+                    <h3 class="font-semibold text-slate-800 mb-4">Dự Báo Bảo Trì</h3>
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        <div>
+                            <h4 class="font-semibold text-slate-700 mb-2">Hạng mục Rủi ro Cao nhất</h4>
+                             <div id="pdmSummaryStats" class="flex justify-around text-center mb-4 p-4 bg-slate-50 rounded-lg"></div>
+                            <div class="h-80"><canvas id="pdmRiskChart"></canvas></div>
+                        </div>
+                        <div class="lg:col-span-1">
+                             <h4 class="font-semibold text-slate-700 mb-2">Danh sách Chi tiết</h4>
+                            <div class="table-responsive max-h-96 overflow-y-auto">
+                                <table class="min-w-full responsive-table">
+                                    <thead class="bg-slate-50 sticky top-0">
+                                        <tr>
+                                            <th class="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase">Hạng mục</th>
+                                            <th class="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase">Rủi Ro</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="pdmTableBody" class="bg-white divide-y divide-slate-200"></tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
             <div id="issueReportView">
                  <div class="card p-6 lg:p-8">
@@ -364,23 +495,23 @@
                  </div>
             </div>
             <div id="myTasksView">
-                <div class="card p-6">
-                    <h2 class="text-2xl font-bold text-slate-800 mb-4">Nhiệm Vụ Của Tôi</h2>
-                    <div class="overflow-x-auto">
-                        <table class="min-w-full divide-y divide-slate-200 responsive-table">
-                            <thead class="bg-slate-50">
-                                <tr>
-                                    <th class="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase">Chi nhánh</th>
-                                    <th class="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase">Loại sự cố</th>
-                                    <th class="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase">Ngày báo cáo</th>
-                                    <th class="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase">Trạng thái</th>
-                                    <th class="px-4 py-3 text-right text-xs font-semibold text-slate-500 uppercase">Hành Động</th>
+                 <div class="card p-6">
+                     <h2 class="text-2xl font-bold text-slate-800 mb-4">Nhiệm Vụ Của Tôi</h2>
+                     <div class="overflow-x-auto">
+                         <table class="min-w-full divide-y divide-slate-200 responsive-table">
+                             <thead class="bg-slate-50">
+                                 <tr>
+                                     <th class="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase">Chi nhánh</th>
+                                     <th class="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase">Loại sự cố</th>
+                                     <th class="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase">Ngày báo cáo</th>
+                                     <th class="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase">Trạng thái</th>
+                                     <th class="px-4 py-3 text-right text-xs font-semibold text-slate-500 uppercase">Hành Động</th>
                                  </tr>
-                            </thead>
-                            <tbody id="myTasksTableBody" class="bg-white divide-y divide-slate-200"></tbody>
-                        </table>
-                    </div>
-                </div>
+                             </thead>
+                             <tbody id="myTasksTableBody" class="bg-white divide-y divide-slate-200"></tbody>
+                         </table>
+                     </div>
+                 </div>
             </div>
             <div id="activityLogView">
                  <div class="card p-6">
@@ -608,16 +739,18 @@
             'Nhân viên': ['attendanceView', 'issueReportView', 'issueHistoryView', 'myTasksView']
         };
         const ISSUE_STATUSES = ['Mới tạo', 'Đang xử lý', 'Đã giải quyết'];
+        const ISSUE_TYPES = ['Kỹ thuật', 'Vận hành', 'Hệ thống', 'Con người', 'Khác'];
 
         // --- Global State Variables ---
         let app, auth, db, storage;
         let currentUser = null, currentUserProfile = null;
         let unsubscribeListeners = [], issueCommentsUnsubscribe = null;
-        let issueTypeChart = null, pdmRiskChart = null;
+        let issueTypeChart = null, pdmRiskChart = null, incidentTrendChart = null, performanceStatusChart = null, performanceTimeChart = null;
         let currentCameraStream, capturedPhotoBlob, currentAttendanceAction, timeInterval, capturedLocationInfo;
         let showDisabledAccounts = false;
         let allUsersCache = [];
         let escalationInterval = null;
+        let dashboardReportsCache = [];
 
 
         // --- DOM Element References ---
@@ -1028,12 +1161,67 @@
 
         window.setup_dashboardView = function() {
             if (!currentUserProfile) return;
+
+            // Populate filter dropdowns
+            const branchFilter = mainContentContainer.querySelector('#filterBranch');
+            const issueTypeFilter = mainContentContainer.querySelector('#filterIssueType');
+            const employeeFilter = mainContentContainer.querySelector('#filterEmployee');
+
+            branchFilter.innerHTML = '<option value="">Tất cả chi nhánh</option>' + ALL_BRANCHES.map(b => `<option value="${b}">${b}</option>`).join('');
+            issueTypeFilter.innerHTML = '<option value="">Tất cả loại sự cố</option>' + ISSUE_TYPES.map(t => `<option value="${t}">${t}</option>`).join('');
+            
+            // Fetch users for employee filter
+            const usersQuery = query(collection(db, `/artifacts/${canvasAppId}/users`));
+            getDocs(usersQuery).then(snapshot => {
+                const users = snapshot.docs.map(doc => ({ uid: doc.id, ...doc.data() }));
+                employeeFilter.innerHTML = '<option value="">Tất cả nhân viên</option>' + users.map(u => `<option value="${u.uid}">${u.displayName}</option>`).join('');
+            });
+            
+            mainContentContainer.querySelector('#applyFiltersBtn').addEventListener('click', () => applyFiltersAndRender(dashboardReportsCache));
+            mainContentContainer.querySelector('#resetFiltersBtn').addEventListener('click', () => {
+                mainContentContainer.querySelector('#filterBranch').value = '';
+                mainContentContainer.querySelector('#filterIssueType').value = '';
+                mainContentContainer.querySelector('#filterEmployee').value = '';
+                mainContentContainer.querySelector('#filterStartDate').value = '';
+                mainContentContainer.querySelector('#filterEndDate').value = '';
+                applyFiltersAndRender(dashboardReportsCache);
+            });
+
+            // Performance Toggle Logic
+            const perfToggleEmployee = mainContentContainer.querySelector('#perfToggleEmployee');
+            const perfToggleBranch = mainContentContainer.querySelector('#perfToggleBranch');
+
+            const updateToggleStyles = (mode) => {
+                if (mode === 'employee') {
+                    perfToggleEmployee.classList.add('bg-white', 'text-indigo-600', 'shadow');
+                    perfToggleEmployee.classList.remove('text-slate-600');
+                    perfToggleBranch.classList.remove('bg-white', 'text-indigo-600', 'shadow');
+                    perfToggleBranch.classList.add('text-slate-600');
+                } else {
+                    perfToggleBranch.classList.add('bg-white', 'text-indigo-600', 'shadow');
+                    perfToggleBranch.classList.remove('text-slate-600');
+                    perfToggleEmployee.classList.remove('bg-white', 'text-indigo-600', 'shadow');
+                    perfToggleEmployee.classList.add('text-slate-600');
+                }
+            };
+
+            perfToggleEmployee.addEventListener('click', () => {
+                updateToggleStyles('employee');
+                applyFiltersAndRender(dashboardReportsCache);
+            });
+
+            perfToggleBranch.addEventListener('click', () => {
+                updateToggleStyles('branch');
+                applyFiltersAndRender(dashboardReportsCache);
+            });
+
+
             const q = getScopedIssuesQuery();
             const unsubscribe = onSnapshot(q, (snapshot) => {
-                const reports = snapshot.docs.map(doc => doc.data());
-                updateDashboardUI(reports);
-                runPredictiveAnalysis(reports); 
+                dashboardReportsCache = snapshot.docs.map(doc => doc.data());
+                applyFiltersAndRender(dashboardReportsCache);
             }, (error) => console.error("Dashboard listener failed:", error));
+            
             unsubscribeListeners.push(unsubscribe);
         };
         
@@ -1194,6 +1382,40 @@
         }
         
         // --- Dashboard & Analytics ---
+        function applyFiltersAndRender(allReports) {
+            const branch = mainContentContainer.querySelector('#filterBranch').value;
+            const issueType = mainContentContainer.querySelector('#filterIssueType').value;
+            const employeeId = mainContentContainer.querySelector('#filterEmployee').value;
+            const startDate = mainContentContainer.querySelector('#filterStartDate').value;
+            const endDate = mainContentContainer.querySelector('#filterEndDate').value;
+
+            const filteredReports = allReports.filter(report => {
+                const reportDate = new Date(report.reportDate);
+                const start = startDate ? new Date(startDate) : null;
+                const end = endDate ? new Date(endDate) : null;
+                if(start) start.setHours(0,0,0,0);
+                if(end) end.setHours(23,59,59,999);
+
+                const branchMatch = !branch || report.issueBranch === branch;
+                const typeMatch = !issueType || report.issueType === issueType;
+                const employeeMatch = !employeeId || report.reporterId === employeeId || report.assigneeId === employeeId;
+                const startDateMatch = !start || reportDate >= start;
+                const endDateMatch = !end || reportDate <= end;
+                
+                return branchMatch && typeMatch && employeeMatch && startDateMatch && endDateMatch;
+            });
+            
+            const perfToggleEmployee = mainContentContainer.querySelector('#perfToggleEmployee');
+            const currentPerfMode = perfToggleEmployee && perfToggleEmployee.classList.contains('bg-white') ? 'employee' : 'branch';
+            
+            updateDashboardUI(filteredReports); 
+            updateComparativeAnalysis(allReports); 
+            runPredictiveAnalysis(filteredReports);
+            renderIncidentTrendChart(filteredReports);
+            renderIncidentHeatmap(filteredReports);
+            renderPerformanceAnalysis(filteredReports, currentPerfMode);
+        }
+
         function updateDashboardUI(reports) {
             // This function might be called when the view isn't active.
             const errorsTodayEl = document.getElementById('errorsToday');
@@ -1202,7 +1424,7 @@
             const now = new Date();
             const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
             const weekStart = new Date(todayStart);
-            weekStart.setDate(weekStart.getDate() - weekStart.getDay());
+            weekStart.setDate(weekStart.getDate() - (weekStart.getDay() === 0 ? 6 : weekStart.getDay() - 1) ); // Monday as start of week
             const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
 
             document.getElementById('errorsToday').textContent = reports.filter(r => new Date(r.reportDate) >= todayStart).length;
@@ -1214,6 +1436,89 @@
 
             const statusCounts = reports.reduce((acc, report) => { acc[report.status] = (acc[report.status] || 0) + 1; return acc; }, {});
             renderStatusSummary(statusCounts, reports.length);
+        }
+
+        function updateComparativeAnalysis(allReports) {
+            const now = new Date();
+            
+            // Helper to get week range (Mon-Sun)
+            const getWeekRange = (date) => {
+                const start = new Date(date);
+                const day = start.getDay(); // 0=Sun, 1=Mon,...
+                const diff = start.getDate() - day + (day === 0 ? -6 : 1); // adjust when day is sunday
+                start.setDate(diff);
+                start.setHours(0,0,0,0);
+                
+                const end = new Date(start);
+                end.setDate(start.getDate() + 6);
+                end.setHours(23,59,59,999);
+                return { start, end };
+            };
+
+            // This Week vs Last Week
+            const thisWeekRange = getWeekRange(now);
+            const lastWeekDate = new Date(now);
+            lastWeekDate.setDate(now.getDate() - 7);
+            const lastWeekRange = getWeekRange(lastWeekDate);
+
+            // This Month vs Last Month
+            const thisMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+            const thisMonthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
+            const lastMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+            const lastMonthEnd = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59, 999);
+            
+            // This Year vs Last Year
+            const thisYearStart = new Date(now.getFullYear(), 0, 1);
+            const thisYearEnd = new Date(now.getFullYear(), 11, 31, 23, 59, 59, 999);
+            const lastYearStart = new Date(now.getFullYear() - 1, 0, 1);
+            const lastYearEnd = new Date(now.getFullYear() - 1, 11, 31, 23, 59, 59, 999);
+
+            const countInDateRange = (reports, start, end) => reports.filter(r => {
+                const d = new Date(r.reportDate);
+                return d >= start && d <= end;
+            }).length;
+
+            const thisWeekCount = countInDateRange(allReports, thisWeekRange.start, thisWeekRange.end);
+            const lastWeekCount = countInDateRange(allReports, lastWeekRange.start, lastWeekRange.end);
+            
+            const thisMonthCount = countInDateRange(allReports, thisMonthStart, thisMonthEnd);
+            const lastMonthCount = countInDateRange(allReports, lastMonthStart, lastMonthEnd);
+
+            const thisYearCount = countInDateRange(allReports, thisYearStart, thisYearEnd);
+            const lastYearCount = countInDateRange(allReports, lastYearStart, lastYearEnd);
+
+            renderComparisonCard('compareWeek', 'Tuần Này vs Tuần Trước', thisWeekCount, lastWeekCount);
+            renderComparisonCard('compareMonth', 'Tháng Này vs Tháng Trước', thisMonthCount, lastMonthCount);
+            renderComparisonCard('compareYear', 'Năm Này vs Năm Trước', thisYearCount, lastYearCount);
+        }
+        
+        function renderComparisonCard(elementId, title, current, previous) {
+            const container = document.getElementById(elementId);
+            if(!container) return;
+
+            let percentageChange = 0;
+            if (previous > 0) {
+                percentageChange = ((current - previous) / previous) * 100;
+            } else if (current > 0) {
+                percentageChange = 100; // From 0 to something is a 100% increase
+            }
+            
+            const isIncrease = percentageChange > 0;
+            const isDecrease = percentageChange < 0;
+            const colorClass = isIncrease ? 'text-red-500' : isDecrease ? 'text-green-500' : 'text-slate-500';
+            const iconClass = isIncrease ? 'fa-arrow-up' : isDecrease ? 'fa-arrow-down' : 'fa-minus';
+
+            container.innerHTML = `
+                <p class="text-sm text-slate-500 font-medium">${title}</p>
+                <div class="flex items-baseline justify-between mt-2">
+                    <p class="text-3xl font-bold">${current}</p>
+                    <div class="flex items-center text-sm font-semibold ${colorClass}">
+                        <i class="fas ${iconClass} mr-1"></i>
+                        <span>${percentageChange.toFixed(0)}%</span>
+                    </div>
+                </div>
+                <p class="text-xs text-slate-400 mt-1">Kỳ trước: ${previous}</p>
+            `;
         }
 
         function renderIssueTypePieChart(data) {
@@ -1241,12 +1546,239 @@
             }).join('');
         }
         
+        function renderIncidentTrendChart(reports) {
+            const canvas = document.getElementById('incidentTrendChart');
+            if (!canvas) return;
+            if (incidentTrendChart) incidentTrendChart.destroy();
+
+            if (reports.length === 0) {
+                const ctx = canvas.getContext('2d');
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                ctx.textAlign = 'center';
+                ctx.fillText('Không có dữ liệu để hiển thị.', canvas.width / 2, canvas.height / 2);
+                return;
+            }
+            
+            // Group data by day
+            const countsByDate = reports.reduce((acc, report) => {
+                const date = new Date(report.reportDate).toISOString().split('T')[0];
+                acc[date] = (acc[date] || 0) + 1;
+                return acc;
+            }, {});
+
+            const sortedDates = Object.keys(countsByDate).sort((a, b) => new Date(a) - new Date(b));
+            
+            const labels = sortedDates.map(date => new Date(date).toLocaleDateString('vi-VN', {day: '2-digit', month: '2-digit'}));
+            const data = sortedDates.map(date => countsByDate[date]);
+
+            incidentTrendChart = new Chart(canvas.getContext('2d'), {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Số lượng sự cố',
+                        data: data,
+                        borderColor: 'var(--primary-color)',
+                        backgroundColor: 'rgba(79, 70, 229, 0.1)',
+                        fill: true,
+                        tension: 0.3,
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                stepSize: 1
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            display: false
+                        }
+                    }
+                }
+            });
+        }
+
+        function renderIncidentHeatmap(reports) {
+            const container = document.getElementById('incidentHeatmapContainer');
+            if (!container) return;
+
+            const heatmapData = Array(7).fill(0).map(() => Array(24).fill(0));
+            let maxCount = 0;
+
+            reports.forEach(report => {
+                const date = new Date(report.reportDate);
+                const dayOfWeek = date.getDay(); // 0 = Sunday, 1 = Monday, ...
+                const hour = date.getHours();
+                heatmapData[dayOfWeek][hour]++;
+                if (heatmapData[dayOfWeek][hour] > maxCount) {
+                    maxCount = heatmapData[dayOfWeek][hour];
+                }
+            });
+
+            const days = ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7'];
+
+            let html = '<div class="heatmap">';
+            // Header Row for hours
+            html += '<div></div>'; // Empty corner
+            for (let i = 0; i < 24; i++) {
+                html += `<div class="heatmap-header">${i}</div>`;
+            }
+
+            // Data Rows (Day labels + cells)
+            days.forEach((dayLabel, dayIndex) => {
+                html += `<div class="heatmap-label">${dayLabel}</div>`;
+                for (let hour = 0; hour < 24; hour++) {
+                    const count = heatmapData[dayIndex][hour];
+                    // Non-linear scale to make smaller values more visible
+                    const opacity = maxCount > 0 ? Math.sqrt(count / maxCount) : 0;
+                    const style = `background-color: rgba(79, 70, 229, ${opacity.toFixed(2)});`;
+                    const tooltipText = `${count} sự cố`;
+                    html += `<div class="heatmap-cell" style="${style}"><span class="tooltip">${tooltipText}</span></div>`;
+                }
+            });
+            
+            html += '</div>';
+            container.innerHTML = html;
+        }
+
+        function renderPerformanceAnalysis(reports, mode = 'employee') {
+            const statusCanvas = document.getElementById('performanceStatusChart');
+            const timeCanvas = document.getElementById('performanceTimeChart');
+            if (!statusCanvas || !timeCanvas) return;
+
+            let performanceData = {};
+
+            reports.forEach(report => {
+                const key = mode === 'employee' ? report.assigneeName : report.issueBranch;
+                if (!key) return; // Skip reports that are unassigned if in employee mode
+
+                if (!performanceData[key]) {
+                    performanceData[key] = {
+                        resolved: 0,
+                        unresolved: 0,
+                        totalProcessingTime: 0,
+                        resolvedCountForTimeCalc: 0
+                    };
+                }
+
+                if (report.status === 'Đã giải quyết') {
+                    performanceData[key].resolved++;
+                    if (report.resolvedDate && report.reportDate) {
+                        const startTime = new Date(report.reportDate);
+                        const endTime = new Date(report.resolvedDate);
+                        const diffHours = (endTime - startTime) / (1000 * 60 * 60);
+                        if (diffHours >= 0) { // Ensure no negative time
+                            performanceData[key].totalProcessingTime += diffHours;
+                            performanceData[key].resolvedCountForTimeCalc++;
+                        }
+                    }
+                } else {
+                    performanceData[key].unresolved++;
+                }
+            });
+
+            // Calculate averages
+            Object.keys(performanceData).forEach(key => {
+                const item = performanceData[key];
+                item.avgProcessingTime = item.resolvedCountForTimeCalc > 0 ?
+                    (item.totalProcessingTime / item.resolvedCountForTimeCalc) : 0;
+            });
+
+            const sortedLabels = Object.keys(performanceData).sort((a, b) => {
+                const totalA = performanceData[a].resolved + performanceData[a].unresolved;
+                const totalB = performanceData[b].resolved + performanceData[b].unresolved;
+                return totalB - totalA;
+            }).slice(0, 10); // Show top 10 for clarity
+
+            const chartData = {
+                labels: sortedLabels,
+                resolvedData: sortedLabels.map(label => performanceData[label].resolved),
+                unresolvedData: sortedLabels.map(label => performanceData[label].unresolved),
+                avgTimeData: sortedLabels.map(label => parseFloat(item.avgProcessingTime.toFixed(2))),
+            };
+
+            renderPerformanceStatusChart(chartData);
+            renderPerformanceTimeChart(chartData);
+        }
+
+        function renderPerformanceStatusChart(data) {
+            const canvas = document.getElementById('performanceStatusChart');
+            if (!canvas) return;
+            if (performanceStatusChart) performanceStatusChart.destroy();
+            
+            performanceStatusChart = new Chart(canvas.getContext('2d'), {
+                type: 'bar',
+                data: {
+                    labels: data.labels,
+                    datasets: [
+                        {
+                            label: 'Đã giải quyết',
+                            data: data.resolvedData,
+                            backgroundColor: '#22c55e', // green-500
+                        },
+                        {
+                            label: 'Chưa giải quyết',
+                            data: data.unresolvedData,
+                            backgroundColor: '#f97316', // orange-500
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: { stacked: true },
+                        y: { stacked: true, beginAtZero: true, ticks: { stepSize: 1 } }
+                    },
+                    plugins: {
+                        legend: { position: 'bottom' }
+                    }
+                }
+            });
+        }
+
+        function renderPerformanceTimeChart(data) {
+            const canvas = document.getElementById('performanceTimeChart');
+            if (!canvas) return;
+            if (performanceTimeChart) performanceTimeChart.destroy();
+
+            performanceTimeChart = new Chart(canvas.getContext('2d'), {
+                type: 'bar',
+                data: {
+                    labels: data.labels,
+                    datasets: [{
+                        label: 'Thời gian xử lý TB (giờ)',
+                        data: data.avgTimeData,
+                        backgroundColor: '#6366f1', // indigo-500
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: { beginAtZero: true }
+                    },
+                    plugins: {
+                        legend: { display: false }
+                    }
+                }
+            });
+        }
+
         function runPredictiveAnalysis(reports) {
             const pdmContainer = document.getElementById('pdmTableBody');
             if (!pdmContainer) return;
 
             if (reports.length === 0) {
                 pdmContainer.innerHTML = `<tr><td colspan="2" class="text-center py-4 text-slate-500">Chưa có đủ dữ liệu.</td></tr>`;
+                 document.getElementById('pdmSummaryStats').innerHTML = '';
+                 if (pdmRiskChart) pdmRiskChart.destroy();
                 return;
             }
 
@@ -1445,6 +1977,10 @@
                     assigneeId: newAssigneeId || null,
                     assigneeName: newAssigneeName || null 
                 };
+
+                 if (newStatus === 'Đã giải quyết' && originalData.status !== 'Đã giải quyết') {
+                    updateData.resolvedDate = new Date().toISOString();
+                }
 
                 if (repairedImageFile) {
                     const storageRef = ref(storage, `repaired_images/${issueId}/${Date.now()}-${repairedImageFile.name}`);
@@ -2098,16 +2634,16 @@
         function bindShellEventListeners() {
             loginBtn.addEventListener('click', handleLogin);
              authEmailInput.addEventListener('keydown', (event) => {
-                if (event.key === 'Enter') {
-                    event.preventDefault(); // Prevent default form submission
-                    handleLogin();
-                }
+                 if (event.key === 'Enter') {
+                     event.preventDefault(); // Prevent default form submission
+                     handleLogin();
+                 }
             });
              authPasswordInput.addEventListener('keydown', (event) => {
-                if (event.key === 'Enter') {
-                    event.preventDefault(); // Prevent default form submission
-                    handleLogin();
-                }
+                 if (event.key === 'Enter') {
+                     event.preventDefault(); // Prevent default form submission
+                     handleLogin();
+                 }
             });
             document.getElementById('logoutDropdownBtn').addEventListener('click', handleLogout);
             document.getElementById('userDropdownToggle').addEventListener('click', (e) => { e.stopPropagation(); document.getElementById('userDropdownMenu').classList.toggle('show'); });
