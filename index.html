@@ -114,6 +114,11 @@
         .sidebar-nav-link.active {
             background-color: var(--primary-color); color: white;
         }
+
+        /* Make chart canvas elements clickable */
+        #issueTypePieChart:hover, #performanceStatusChart:hover, #performanceTimeChart:hover {
+            cursor: pointer;
+        }
         
         @media (max-width: 767px) {
             .responsive-table thead { display: none; }
@@ -264,271 +269,171 @@
         <div id="viewsContainer" class="hidden">
             <div id="attendanceView">
                  <div class="card p-6 lg:p-8">
-                     <h2 class="text-3xl font-bold text-slate-800 mb-6 flex items-center"><i class="fas fa-user-clock mr-3 text-indigo-600"></i>Điểm Danh Chấm Công</h2>
-                     <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
-                         <div>
-                             <div class="mb-4"><label class="block text-slate-600 mb-2">Tên nhân viên:</label><input type="text" id="employeeName" class="input-field bg-slate-100" disabled></div>
-                             <div class="flex space-x-4"><button id="checkInBtn" class="btn-primary flex-1 py-3"><i class="fas fa-sign-in-alt mr-2"></i>Check In</button><button id="checkOutBtn" class="btn-secondary flex-1 py-3"><i class="fas fa-sign-out-alt mr-2"></i>Check Out</button></div>
-                             <div id="attendanceMessage" class="hidden mt-4 p-3 rounded-lg text-sm"></div>
-                         </div>
-                         <div>
-                             <h3 class="text-lg font-semibold text-slate-800 mb-3">Lịch Sử Gần Đây</h3>
-                             <ul id="attendanceHistory" class="space-y-2 text-slate-600 max-h-48 overflow-y-auto pr-2"></ul>
-                         </div>
-                     </div>
+                    <h2 class="text-3xl font-bold text-slate-800 mb-6 flex items-center"><i class="fas fa-user-clock mr-3 text-indigo-600"></i>Điểm Danh Chấm Công</h2>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                        <div>
+                            <div class="mb-4"><label class="block text-slate-600 mb-2">Tên nhân viên:</label><input type="text" id="employeeName" class="input-field bg-slate-100" disabled></div>
+                            <div class="flex space-x-4"><button id="checkInBtn" class="btn-primary flex-1 py-3"><i class="fas fa-sign-in-alt mr-2"></i>Check In</button><button id="checkOutBtn" class="btn-secondary flex-1 py-3"><i class="fas fa-sign-out-alt mr-2"></i>Check Out</button></div>
+                            <div id="attendanceMessage" class="hidden mt-4 p-3 rounded-lg text-sm"></div>
+                        </div>
+                        <div>
+                            <h3 class="text-lg font-semibold text-slate-800 mb-3">Lịch Sử Gần Đây</h3>
+                            <ul id="attendanceHistory" class="space-y-2 text-slate-600 max-h-48 overflow-y-auto pr-2"></ul>
+                        </div>
+                    </div>
                  </div>
             </div>
             <div id="manageAccountsView">
                  <div id="adminSettingsCard" class="card p-6 mb-6 hidden">
-                     <h3 class="text-xl font-bold text-slate-800 mb-4">Cài đặt Hệ thống (Admin)</h3>
-                     <div class="space-y-4">
-                         <div>
-                             <label for="escalationTimeInput" class="font-medium text-sm">Thời gian gửi thông báo cho sự cố chưa được xử lý (phút):</label>
-                             <input type="number" id="escalationTimeInput" class="input-field" value="60">
-                         </div>
-                         <div class="flex items-center space-x-2">
-                              <input type="checkbox" id="escalationToggle" class="form-checkbox h-4 w-4 text-indigo-600 rounded">
-                             <label for="escalationToggle" class="font-medium text-sm cursor-pointer">Bật tính năng thông báo tự động</label>
-                         </div>
-                         <div>
-                             <button id="saveSettingsBtn" class="btn-primary w-full sm:w-auto">Lưu Cài đặt</button>
-                         </div>
-                     </div>
-                     <div id="settingsMessage" class="hidden mt-4 p-3 rounded-lg text-sm"></div>
+                    <h3 class="text-xl font-bold text-slate-800 mb-4">Cài đặt Hệ thống (Admin)</h3>
+                    <div class="space-y-4">
+                        <div>
+                            <label for="escalationTimeInput" class="font-medium text-sm">Thời gian gửi thông báo cho sự cố chưa được xử lý (phút):</label>
+                            <input type="number" id="escalationTimeInput" class="input-field" value="60">
+                        </div>
+                        <div class="flex items-center space-x-2">
+                             <input type="checkbox" id="escalationToggle" class="form-checkbox h-4 w-4 text-indigo-600 rounded">
+                            <label for="escalationToggle" class="font-medium text-sm cursor-pointer">Bật tính năng thông báo tự động</label>
+                        </div>
+                        <div>
+                            <button id="saveSettingsBtn" class="btn-primary w-full sm:w-auto">Lưu Cài đặt</button>
+                        </div>
+                    </div>
+                    <div id="settingsMessage" class="hidden mt-4 p-3 rounded-lg text-sm"></div>
                  </div>
                  <div class="card p-6 mb-6">
-                     <h3 class="text-xl font-bold text-slate-800 mb-4">Tạo Tài Khoản Mới</h3>
-                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                         <div><label class="font-medium text-sm">Email:</label><input type="email" id="createAccountEmail" class="input-field"></div>
-                         <div><label class="font-medium text-sm">Mật khẩu (tối thiểu 6 ký tự):</label><input type="password" id="createAccountPassword" class="input-field"></div>
-                         <div><label class="font-medium text-sm">Tên người dùng:</label><input type="text" id="createAccountUsername" class="input-field"></div>
-                         <div><label class="font-medium text-sm">Mã nhân viên (MSNV):</label><input type="text" id="createAccountEmployeeId" class="input-field"></div>
-                     </div>
-                     <button id="createAccountBtn" class="btn-primary mt-4">Tạo Tài Khoản</button>
-                     <div id="createAccountMessage" class="hidden mt-4 p-3 rounded-lg text-sm"></div>
+                    <h3 class="text-xl font-bold text-slate-800 mb-4">Tạo Tài Khoản Mới</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div><label class="font-medium text-sm">Email:</label><input type="email" id="createAccountEmail" class="input-field"></div>
+                        <div><label class="font-medium text-sm">Mật khẩu (tối thiểu 6 ký tự):</label><input type="password" id="createAccountPassword" class="input-field"></div>
+                        <div><label class="font-medium text-sm">Tên người dùng:</label><input type="text" id="createAccountUsername" class="input-field"></div>
+                        <div><label class="font-medium text-sm">Mã nhân viên (MSNV):</label><input type="text" id="createAccountEmployeeId" class="input-field"></div>
+                    </div>
+                    <button id="createAccountBtn" class="btn-primary mt-4">Tạo Tài Khoản</button>
+                    <div id="createAccountMessage" class="hidden mt-4 p-3 rounded-lg text-sm"></div>
                  </div>
                  <div class="card p-6 mb-6">
-                     <h3 class="text-xl font-bold text-slate-800 mb-4">Tạo Hàng Loạt Từ Excel</h3>
-                     <p class="text-sm text-slate-600 mb-3">Tải lên file Excel (.xlsx, .xls) với các cột: `email`, `password`, `displayName`, `employeeId`, `role`. Nếu `email` đã tồn tại, thông tin tài khoản sẽ được cập nhật. Nếu chưa có, tài khoản mới sẽ được tạo (mật khẩu là bắt buộc cho tài khoản mới). Vai trò hợp lệ là 'Admin', 'Manager', 'Nhân viên'.</p>
-                     <input type="file" id="excelFileInput" class="input-field mb-3" accept=".xlsx, .xls">
-                     <div class="flex space-x-2">
-                         <button id="importExcelBtn" class="btn-primary">Nhập Dữ Liệu</button>
-                         <button id="downloadTemplateBtn" class="btn-secondary">Tải file mẫu</button>
-                     </div>
-                     <div id="importExcelMessage" class="hidden mt-4 p-3 rounded-lg text-sm"></div>
+                    <h3 class="text-xl font-bold text-slate-800 mb-4">Tạo Hàng Loạt Từ Excel</h3>
+                    <p class="text-sm text-slate-600 mb-3">Tải lên file Excel (.xlsx, .xls) với các cột: `email`, `password`, `displayName`, `employeeId`, `role`. Nếu `email` đã tồn tại, thông tin tài khoản sẽ được cập nhật. Nếu chưa có, tài khoản mới sẽ được tạo (mật khẩu là bắt buộc cho tài khoản mới). Vai trò hợp lệ là 'Admin', 'Manager', 'Nhân viên'.</p>
+                    <input type="file" id="excelFileInput" class="input-field mb-3" accept=".xlsx, .xls">
+                    <div class="flex space-x-2">
+                        <button id="importExcelBtn" class="btn-primary">Nhập Dữ Liệu</button>
+                        <button id="downloadTemplateBtn" class="btn-secondary">Tải file mẫu</button>
+                    </div>
+                    <div id="importExcelMessage" class="hidden mt-4 p-3 rounded-lg text-sm"></div>
                  </div>
                  <div class="card p-6">
-                     <div class="flex justify-between items-center mb-4">
-                         <h3 class="text-xl font-bold text-slate-800">Danh Sách Tài Khoản</h3>
-                         <label class="flex items-center space-x-2 cursor-pointer">
+                    <div class="flex justify-between items-center mb-4">
+                        <h3 class="text-xl font-bold text-slate-800">Danh Sách Tài Khoản</h3>
+                        <label class="flex items-center space-x-2 cursor-pointer">
                              <input type="checkbox" id="showDisabledAccountsToggle" class="form-checkbox h-4 w-4 text-indigo-600 rounded">
                              <span class="text-sm text-slate-600">Hiển thị tài khoản đã vô hiệu hóa</span>
-                         </label>
-                     </div>
-                      <div class="overflow-x-auto">
-                         <table class="min-w-full divide-y divide-slate-200 responsive-table">
-                             <thead class="bg-slate-50">
-                                 <tr>
-                                     <th class="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase">MSNV</th>
-                                     <th class="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase">Tên Người Dùng</th>
-                                     <th class="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase">Email</th>
-                                     <th class="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase">Vai Trò</th>
-                                     <th class="px-4 py-3 text-right text-xs font-semibold text-slate-500 uppercase">Hành Động</th>
-                                 </tr>
-                             </thead>
-                             <tbody id="accountsTableBody" class="bg-white divide-y divide-slate-200"></tbody>
-                         </table>
-                     </div>
+                        </label>
+                    </div>
+                     <div class="overflow-x-auto">
+                        <table class="min-w-full divide-y divide-slate-200 responsive-table">
+                            <thead class="bg-slate-50">
+                                <tr>
+                                    <th class="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase">MSNV</th>
+                                    <th class="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase">Tên Người Dùng</th>
+                                    <th class="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase">Email</th>
+                                    <th class="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase">Vai Trò</th>
+                                    <th class="px-4 py-3 text-right text-xs font-semibold text-slate-500 uppercase">Hành Động</th>
+                                </tr>
+                            </thead>
+                            <tbody id="accountsTableBody" class="bg-white divide-y divide-slate-200"></tbody>
+                        </table>
+                    </div>
+                    <div id="accountsPagination" class="flex justify-between items-center mt-4"></div>
                  </div>
             </div>
             <div id="dashboardView">
-                <h2 class="text-3xl font-bold text-slate-800">Dashboard</h2>
-                
-                <!-- Advanced Filters -->
-                <div class="card p-4 mt-4">
-                    <h3 class="font-semibold text-slate-800 mb-3">Bộ lọc nâng cao</h3>
-                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-6 gap-4">
-                        <div>
-                            <label for="filterBranch" class="text-sm font-medium text-slate-600">Chi nhánh</label>
-                            <select id="filterBranch" class="select-field text-sm mt-1">
-                                <option value="">Tất cả</option>
-                            </select>
-                        </div>
-                        <div>
-                            <label for="filterIssueType" class="text-sm font-medium text-slate-600">Loại sự cố</label>
-                            <select id="filterIssueType" class="select-field text-sm mt-1">
-                                <option value="">Tất cả</option>
-                            </select>
-                        </div>
-                        <div>
-                            <label for="filterEmployee" class="text-sm font-medium text-slate-600">Nhân viên</label>
-                            <select id="filterEmployee" class="select-field text-sm mt-1">
-                                <option value="">Tất cả</option>
-                            </select>
-                        </div>
-                        <div>
-                            <label for="filterStartDate" class="text-sm font-medium text-slate-600">Từ ngày</label>
-                            <input type="date" id="filterStartDate" class="input-field text-sm mt-1">
-                        </div>
-                        <div>
-                            <label for="filterEndDate" class="text-sm font-medium text-slate-600">Đến ngày</label>
-                            <input type="date" id="filterEndDate" class="input-field text-sm mt-1">
-                        </div>
-                        <div class="flex items-end space-x-2">
-                            <button id="applyFiltersBtn" class="btn-primary flex-grow">Lọc</button>
-                            <button id="resetFiltersBtn" class="btn-secondary"><i class="fas fa-undo"></i></button>
-                        </div>
-                    </div>
+                <h2 class="text-3xl font-bold text-slate-800 mb-4">Dashboard</h2>
+
+                <!-- Dashboard Tabs -->
+                <div class="border-b border-slate-200">
+                    <nav id="dashboardTabs" class="-mb-px flex space-x-6" aria-label="Tabs">
+                        <!-- Tabs will be dynamically inserted here -->
+                    </nav>
                 </div>
 
-                <!-- Comparative Analysis -->
-                <div class="mt-6">
-                    <h3 class="text-xl font-bold text-slate-800 mb-3">Phân Tích So Sánh (Số Lượng Sự Cố)</h3>
-                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-                        <div id="compareWeek" class="card p-5"></div>
-                        <div id="compareMonth" class="card p-5"></div>
-                        <div id="compareYear" class="card p-5"></div>
-                    </div>
-                </div>
-
-                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-6">
-                    <div class="card p-5"><p class="text-sm text-slate-500">Lỗi Phát Sinh Hôm Nay</p><p id="errorsToday" class="text-3xl font-bold">0</p></div>
-                    <div class="card p-5"><p class="text-sm text-slate-500">Lỗi Trong Tuần Này</p><p id="errorsThisWeek" class="text-3xl font-bold">0</p></div>
-                    <div class="card p-5"><p class="text-sm text-slate-500">Lỗi Trong Tháng Này</p><p id="errorsThisMonth" class="text-3xl font-bold">0</p></div>
-                </div>
-                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-6">
-                    <div class="lg:col-span-1 card p-6"><h3 class="font-semibold mb-4">Phân Loại Lỗi</h3><div class="h-64"><canvas id="issueTypePieChart"></canvas></div></div>
-                    <div class="lg:col-span-2 card p-6"><h3 class="font-semibold mb-4">Trạng Thái Xử Lý</h3><div id="statusSummary" class="space-y-3"></div></div>
-                </div>
-
-                <!-- Incident Trend Chart -->
-                <div class="card p-6 mt-6">
-                    <h3 class="font-semibold text-slate-800 mb-4">Xu Hướng Sự Cố Theo Thời Gian</h3>
-                    <div class="h-80"><canvas id="incidentTrendChart"></canvas></div>
-                </div>
-
-                <!-- Incident Heatmap -->
-                <div class="card p-6 mt-6">
-                    <h3 class="font-semibold text-slate-800 mb-4">Mật Độ Sự Cố (Giờ trong ngày vs Ngày trong tuần)</h3>
-                    <div id="incidentHeatmapContainer" class="heatmap-container mt-4 overflow-x-auto"></div>
-                </div>
-
-                <!-- Employee/Branch Performance Analysis -->
-                <div class="card p-6 mt-6">
-                    <div class="flex flex-wrap justify-between items-center mb-4">
-                        <h3 class="font-semibold text-slate-800">Phân Tích Hiệu Suất (Nhân Viên / Chi Nhánh)</h3>
-                        <div class="flex items-center space-x-2 bg-slate-100 p-1 rounded-lg">
-                            <button id="perfToggleEmployee" class="px-3 py-1 text-sm font-semibold rounded-md transition-colors bg-white text-indigo-600 shadow">Nhân Viên</button>
-                            <button id="perfToggleBranch" class="px-3 py-1 text-sm font-semibold rounded-md transition-colors text-slate-600">Chi Nhánh</button>
-                        </div>
-                    </div>
-                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                        <div>
-                            <h4 class="font-semibold text-slate-700 text-center mb-2">Số Lượng Sự Cố Đã/Chưa Xử Lý</h4>
-                            <div class="h-80"><canvas id="performanceStatusChart"></canvas></div>
-                        </div>
-                        <div>
-                            <h4 class="font-semibold text-slate-700 text-center mb-2">Thời Gian Xử Lý Trung Bình (giờ)</h4>
-                            <div class="h-80"><canvas id="performanceTimeChart"></canvas></div>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="card p-6 mt-6">
-                    <h3 class="font-semibold text-slate-800 mb-4">Dự Báo Bảo Trì</h3>
-                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                        <div>
-                            <h4 class="font-semibold text-slate-700 mb-2">Hạng mục Rủi ro Cao nhất</h4>
-                             <div id="pdmSummaryStats" class="flex justify-around text-center mb-4 p-4 bg-slate-50 rounded-lg"></div>
-                            <div class="h-80"><canvas id="pdmRiskChart"></canvas></div>
-                        </div>
-                        <div class="lg:col-span-1">
-                             <h4 class="font-semibold text-slate-700 mb-2">Danh sách Chi tiết</h4>
-                            <div class="table-responsive max-h-96 overflow-y-auto">
-                                <table class="min-w-full responsive-table">
-                                    <thead class="bg-slate-50 sticky top-0">
-                                        <tr>
-                                            <th class="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase">Hạng mục</th>
-                                            <th class="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase">Rủi Ro</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody id="pdmTableBody" class="bg-white divide-y divide-slate-200"></tbody>
-                                </table>
-                            </div>
-                        </div>
-                    </div>
+                <div id="dashboardTabContent" class="mt-6">
+                    <!-- Tab Panels will be dynamically inserted here -->
                 </div>
             </div>
             <div id="issueReportView">
                  <div class="card p-6 lg:p-8">
-                     <h2 class="text-2xl sm:text-3xl font-bold text-slate-800 mb-6 flex items-center"><i class="fas fa-exclamation-triangle mr-3 text-red-600"></i>Báo Lỗi & Sự Cố</h2>
-                     <div class="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
-                         <div><label for="reporterName" class="block text-slate-600 text-sm font-medium mb-2">Người báo cáo:</label><input type="text" id="reporterName" class="input-field bg-slate-100" disabled></div>
-                         <div><label for="issueType" class="block text-slate-600 text-sm font-medium mb-2">Loại sự cố:</label><select id="issueType" class="select-field"><option value="Kỹ thuật">Kỹ thuật</option><option value="Vận hành">Vận hành</option><option value="Hệ thống">Hệ thống</option><option value="Con người">Con người</option><option value="Khác">Khác</option></select></div>
-                         <div><label for="issuePriority" class="block text-slate-600 text-sm font-medium mb-2">Mức độ ưu tiên:</label><select id="issuePriority" class="select-field"><option value="Thấp">Thấp</option><option value="Trung bình">Trung bình</option><option value="Nghiêm trọng">Nghiêm trọng</option></select></div>
-                         <div><label for="issueBranch" class="block text-slate-600 text-sm font-medium mb-2">Chi nhánh:</label><select id="issueBranch" class="select-field"></select></div>
-                         <div class="md:col-span-2"><label for="issueImage" class="block text-slate-600 text-sm font-medium mb-2">Ảnh mô tả lỗi:</label><input type="file" id="issueImage" accept="image/*" class="input-field"></div>
-                         <div class="md:col-span-2"><label for="issueDescription" class="block text-slate-600 text-sm font-medium mb-2">Mô tả chi tiết:</label><textarea id="issueDescription" class="textarea-field" placeholder="Mô tả sự cố..."></textarea></div>
-                     </div>
-                     <button id="reportIssueBtn" class="btn-primary mt-6"><i class="fas fa-paper-plane mr-2"></i>Gửi Báo Cáo</button>
-                     <div id="issueMessage" class="hidden mt-4 p-3 rounded-lg text-sm"></div>
+                    <h2 class="text-2xl sm:text-3xl font-bold text-slate-800 mb-6 flex items-center"><i class="fas fa-exclamation-triangle mr-3 text-red-600"></i>Báo Lỗi & Sự Cố</h2>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
+                        <div><label for="reporterName" class="block text-slate-600 text-sm font-medium mb-2">Người báo cáo:</label><input type="text" id="reporterName" class="input-field bg-slate-100" disabled></div>
+                        <div><label for="issueType" class="block text-slate-600 text-sm font-medium mb-2">Loại sự cố:</label><select id="issueType" class="select-field"><option value="Kỹ thuật">Kỹ thuật</option><option value="Vận hành">Vận hành</option><option value="Hệ thống">Hệ thống</option><option value="Con người">Con người</option><option value="Khác">Khác</option></select></div>
+                        <div><label for="issuePriority" class="block text-slate-600 text-sm font-medium mb-2">Mức độ ưu tiên:</label><select id="issuePriority" class="select-field"><option value="Thấp">Thấp</option><option value="Trung bình">Trung bình</option><option value="Nghiêm trọng">Nghiêm trọng</option></select></div>
+                        <div><label for="issueBranch" class="block text-slate-600 text-sm font-medium mb-2">Chi nhánh:</label><select id="issueBranch" class="select-field"></select></div>
+                        <div class="md:col-span-2"><label for="issueImage" class="block text-slate-600 text-sm font-medium mb-2">Ảnh mô tả lỗi:</label><input type="file" id="issueImage" accept="image/*" class="input-field"></div>
+                        <div class="md:col-span-2"><label for="issueDescription" class="block text-slate-600 text-sm font-medium mb-2">Mô tả chi tiết:</label><textarea id="issueDescription" class="textarea-field" placeholder="Mô tả sự cố..."></textarea></div>
+                    </div>
+                    <button id="reportIssueBtn" class="btn-primary mt-6"><i class="fas fa-paper-plane mr-2"></i>Gửi Báo Cáo</button>
+                    <div id="issueMessage" class="hidden mt-4 p-3 rounded-lg text-sm"></div>
                  </div>
             </div>
             <div id="issueHistoryView">
                  <div class="card p-6">
-                     <h2 class="text-2xl font-bold text-slate-800 mb-4">Lịch Sử Báo Cáo</h2>
-                     <div class="overflow-x-auto">
-                         <table class="min-w-full divide-y divide-slate-200 responsive-table">
-                             <thead class="bg-slate-50">
-                                 <tr>
-                                     <th class="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase">Chi nhánh</th>
-                                     <th class="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase">Người gửi</th>
-                                     <th class="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase">Loại sự cố</th>
-                                     <th class="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase">Ngày báo cáo</th>
-                                     <th class="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase">Trạng thái</th>
-                                     <th class="px-4 py-3 text-right text-xs font-semibold text-slate-500 uppercase">Hành Động</th>
-                                 </tr>
-                             </thead>
-                             <tbody id="issueHistoryTableBody" class="bg-white divide-y divide-slate-200"></tbody>
-                         </table>
-                     </div>
+                    <h2 class="text-2xl font-bold text-slate-800 mb-4">Lịch Sử Báo Cáo</h2>
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full divide-y divide-slate-200 responsive-table">
+                            <thead class="bg-slate-50">
+                                <tr>
+                                    <th class="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase">Chi nhánh</th>
+                                    <th class="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase">Người gửi</th>
+                                    <th class="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase">Loại sự cố</th>
+                                    <th class="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase">Ngày báo cáo</th>
+                                    <th class="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase">Trạng thái</th>
+                                    <th class="px-4 py-3 text-right text-xs font-semibold text-slate-500 uppercase">Hành Động</th>
+                                </tr>
+                            </thead>
+                            <tbody id="issueHistoryTableBody" class="bg-white divide-y divide-slate-200"></tbody>
+                        </table>
+                    </div>
+                    <div id="issueHistoryPagination" class="flex justify-between items-center mt-4"></div>
                  </div>
             </div>
             <div id="myTasksView">
                  <div class="card p-6">
-                     <h2 class="text-2xl font-bold text-slate-800 mb-4">Nhiệm Vụ Của Tôi</h2>
-                     <div class="overflow-x-auto">
-                         <table class="min-w-full divide-y divide-slate-200 responsive-table">
-                             <thead class="bg-slate-50">
-                                 <tr>
-                                     <th class="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase">Chi nhánh</th>
-                                     <th class="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase">Loại sự cố</th>
-                                     <th class="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase">Ngày báo cáo</th>
-                                     <th class="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase">Trạng thái</th>
-                                     <th class="px-4 py-3 text-right text-xs font-semibold text-slate-500 uppercase">Hành Động</th>
-                                 </tr>
-                             </thead>
-                             <tbody id="myTasksTableBody" class="bg-white divide-y divide-slate-200"></tbody>
-                         </table>
-                     </div>
+                    <h2 class="text-2xl font-bold text-slate-800 mb-4">Nhiệm Vụ Của Tôi</h2>
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full divide-y divide-slate-200 responsive-table">
+                            <thead class="bg-slate-50">
+                                <tr>
+                                    <th class="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase">Chi nhánh</th>
+                                    <th class="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase">Loại sự cố</th>
+                                    <th class="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase">Ngày báo cáo</th>
+                                    <th class="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase">Trạng thái</th>
+                                    <th class="px-4 py-3 text-right text-xs font-semibold text-slate-500 uppercase">Hành Động</th>
+                                </tr>
+                            </thead>
+                            <tbody id="myTasksTableBody" class="bg-white divide-y divide-slate-200"></tbody>
+                        </table>
+                    </div>
+                    <div id="myTasksPagination" class="flex justify-between items-center mt-4"></div>
                  </div>
             </div>
             <div id="activityLogView">
                  <div class="card p-6">
-                     <h2 class="text-2xl font-bold text-slate-800 mb-4">Nhật Ký Hoạt Động</h2>
-                     <div class="overflow-x-auto">
-                         <table class="min-w-full divide-y divide-slate-200 responsive-table">
-                              <thead class="bg-slate-50">
-                                  <tr>
-                                      <th class="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase">Thời Gian</th>
-                                      <th class="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase">Người Thực Hiện</th>
-                                      <th class="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase">Hành Động</th>
-                                      <th class="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase">Chi Tiết</th>
-                                  </tr>
-                             </thead>
-                             <tbody id="activityLogTableBody" class="bg-white divide-y divide-slate-200"></tbody>
-                         </table>
-                     </div>
+                    <h2 class="text-2xl font-bold text-slate-800 mb-4">Nhật Ký Hoạt Động</h2>
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full divide-y divide-slate-200 responsive-table">
+                             <thead class="bg-slate-50">
+                                 <tr>
+                                     <th class="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase">Thời Gian</th>
+                                     <th class="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase">Người Thực Hiện</th>
+                                     <th class="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase">Hành Động</th>
+                                     <th class="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase">Chi Tiết</th>
+                                 </tr>
+                            </thead>
+                            <tbody id="activityLogTableBody" class="bg-white divide-y divide-slate-200"></tbody>
+                        </table>
+                    </div>
+                    <div id="activityLogPagination" class="flex justify-between items-center mt-4"></div>
                  </div>
             </div>
         </div>
@@ -706,6 +611,21 @@
             </div>
         </div>
 
+        <div id="drillDownModal" class="modal">
+            <div class="modal-content !max-w-5xl h-5/6 flex flex-col">
+                <div class="flex justify-between items-center mb-4 flex-shrink-0">
+                    <h3 id="drillDownTitle" class="text-2xl font-bold text-slate-800">Chi tiết</h3>
+                    <span id="closeDrillDownModalBtn" class="cursor-pointer text-2xl">&times;</span>
+                </div>
+                <div id="drillDownContent" class="overflow-y-auto flex-grow">
+                    <!-- Drill-down table will be inserted here by JavaScript -->
+                </div>
+                 <div class="flex justify-end mt-6 flex-shrink-0">
+                    <button id="cancelDrillDownBtn" class="btn-secondary">Đóng</button>
+                </div>
+            </div>
+        </div>
+
     </div>
     
     <script type="module">
@@ -751,6 +671,14 @@
         let allUsersCache = [];
         let escalationInterval = null;
         let dashboardReportsCache = [];
+        let activityLogsCache = [];
+        let issueHistoryCache = [];
+        let myTasksCache = [];
+        let activityLogCurrentPage = 1;
+        let accountsCurrentPage = 1;
+        let issueHistoryCurrentPage = 1;
+        let myTasksCurrentPage = 1;
+        const ITEMS_PER_PAGE = 10;
 
 
         // --- DOM Element References ---
@@ -758,7 +686,7 @@
         let authEmailInput, authPasswordInput, loginBtn, authMessage;
         let loggedInUserDisplay, dropdownUserName, dropdownUserRole;
         let notificationToggle, notificationBadge, notificationMenu, notificationList;
-        let editAccountModal, issueDetailModal, cameraModal, deleteAccountModal, resetPasswordModal, forceChangePasswordModal;
+        let editAccountModal, issueDetailModal, cameraModal, deleteAccountModal, resetPasswordModal, forceChangePasswordModal, drillDownModal;
         let sidebar, mobileMenuToggle;
 
         // --- App Initialization ---
@@ -1124,6 +1052,7 @@
 
         window.setup_manageAccountsView = function() {
             if (!currentUserProfile) return;
+            accountsCurrentPage = 1; // Reset page
             mainContentContainer.querySelector('#createAccountBtn').addEventListener('click', handleCreateAccount);
             mainContentContainer.querySelector('#importExcelBtn').addEventListener('click', handleExcelImport);
             mainContentContainer.querySelector('#downloadTemplateBtn').addEventListener('click', handleDownloadTemplate);
@@ -1132,6 +1061,7 @@
             
             showDisabledToggle.addEventListener('change', () => {
                 showDisabledAccounts = showDisabledToggle.checked;
+                accountsCurrentPage = 1;
                 renderAccountsTable(allUsersCache); // Re-render from cache when toggling
             });
 
@@ -1161,8 +1091,100 @@
 
         window.setup_dashboardView = function() {
             if (!currentUserProfile) return;
+            
+            const tabContainer = mainContentContainer.querySelector('#dashboardTabs');
+            const tabContentContainer = mainContentContainer.querySelector('#dashboardTabContent');
 
-            // Populate filter dropdowns
+            // Define tabs and their content
+            const tabs = {
+                overview: {
+                    title: 'Tổng quan',
+                    content: `
+                        <div id="dashboardWarnings" class="space-y-4 mb-6">
+                            <div id="dailySpikeWarning" class="hidden"></div>
+                            <div id="backlogWarning" class="hidden"></div>
+                        </div>
+                        <div class="card p-4">
+                            <h3 class="font-semibold text-slate-800 mb-3">Bộ lọc nâng cao</h3>
+                            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-6 gap-4">
+                                <div><label for="filterBranch" class="text-sm font-medium text-slate-600">Chi nhánh</label><select id="filterBranch" class="select-field text-sm mt-1"><option value="">Tất cả</option></select></div>
+                                <div><label for="filterIssueType" class="text-sm font-medium text-slate-600">Loại sự cố</label><select id="filterIssueType" class="select-field text-sm mt-1"><option value="">Tất cả</option></select></div>
+                                <div><label for="filterEmployee" class="text-sm font-medium text-slate-600">Nhân viên</label><select id="filterEmployee" class="select-field text-sm mt-1"><option value="">Tất cả</option></select></div>
+                                <div><label for="filterStartDate" class="text-sm font-medium text-slate-600">Từ ngày</label><input type="date" id="filterStartDate" class="input-field text-sm mt-1"></div>
+                                <div><label for="filterEndDate" class="text-sm font-medium text-slate-600">Đến ngày</label><input type="date" id="filterEndDate" class="input-field text-sm mt-1"></div>
+                                <div class="flex items-end space-x-2"><button id="applyFiltersBtn" class="btn-primary flex-grow">Lọc</button><button id="resetFiltersBtn" class="btn-secondary"><i class="fas fa-undo"></i></button></div>
+                            </div>
+                        </div>
+                        <div class="mt-6"><h3 class="text-xl font-bold text-slate-800 mb-3">Phân Tích So Sánh (Số Lượng Sự Cố)</h3><div class="grid grid-cols-1 md:grid-cols-3 gap-6"><div id="compareWeek" class="card p-5"></div><div id="compareMonth" class="card p-5"></div><div id="compareYear" class="card p-5"></div></div></div>
+                        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-6"><div class="card p-5"><p class="text-sm text-slate-500">Lỗi Phát Sinh Hôm Nay</p><p id="errorsToday" class="text-3xl font-bold">0</p></div><div class="card p-5"><p class="text-sm text-slate-500">Lỗi Trong Tuần Này</p><p id="errorsThisWeek" class="text-3xl font-bold">0</p></div><div class="card p-5"><p class="text-sm text-slate-500">Lỗi Trong Tháng Này</p><p id="errorsThisMonth" class="text-3xl font-bold">0</p></div></div>`
+                },
+                analysis: {
+                    title: 'Phân tích Lỗi',
+                    content: `<div class="grid grid-cols-1 lg:grid-cols-3 gap-6"><div class="lg:col-span-1 card p-6"><h3 class="font-semibold mb-4">Phân Loại Lỗi</h3><div class="h-64"><canvas id="issueTypePieChart"></canvas></div></div><div class="lg:col-span-2 card p-6"><h3 class="font-semibold mb-4">Trạng Thái Xử Lý</h3><div id="statusSummary" class="space-y-3"></div></div></div>`
+                },
+                trends: {
+                    title: 'Xu hướng & Mật độ',
+                    content: `<div class="space-y-6"><div class="card p-6"><h3 class="font-semibold text-slate-800 mb-4">Xu Hướng Sự Cố Theo Thời Gian</h3><div class="h-80"><canvas id="incidentTrendChart"></canvas></div></div><div class="card p-6"><h3 class="font-semibold text-slate-800 mb-4">Mật Độ Sự Cố (Giờ trong ngày vs Ngày trong tuần)</h3><div id="incidentHeatmapContainer" class="heatmap-container mt-4 overflow-x-auto"></div></div></div>`
+                },
+                performance: {
+                    title: 'Hiệu suất',
+                    content: `<div class="card p-6"><div class="flex flex-wrap justify-between items-center mb-4"><h3 class="font-semibold text-slate-800">Phân Tích Hiệu Suất (Nhân Viên / Chi Nhánh)</h3><div class="flex items-center space-x-2 bg-slate-100 p-1 rounded-lg"><button id="perfToggleEmployee" class="px-3 py-1 text-sm font-semibold rounded-md transition-colors bg-white text-indigo-600 shadow">Nhân Viên</button><button id="perfToggleBranch" class="px-3 py-1 text-sm font-semibold rounded-md transition-colors text-slate-600">Chi Nhánh</button></div></div><div class="grid grid-cols-1 lg:grid-cols-2 gap-6"><div><h4 class="font-semibold text-slate-700 text-center mb-2">Số Lượng Sự Cố Đã/Chưa Xử Lý</h4><div class="h-80"><canvas id="performanceStatusChart"></canvas></div></div><div><h4 class="font-semibold text-slate-700 text-center mb-2">Thời Gian Xử Lý Trung Bình (giờ)</h4><div class="h-80"><canvas id="performanceTimeChart"></canvas></div></div></div></div>`
+                },
+                predictive: {
+                    title: 'Bảo trì Dự đoán',
+                    content: `<div class="card p-6"><h3 class="font-semibold text-slate-800 mb-4">Dự Báo Bảo Trì</h3><div class="grid grid-cols-1 lg:grid-cols-2 gap-6"><div><h4 class="font-semibold text-slate-700 mb-2">Hạng mục Rủi ro Cao nhất</h4><div id="pdmSummaryStats" class="flex justify-around text-center mb-4 p-4 bg-slate-50 rounded-lg"></div><div class="h-80"><canvas id="pdmRiskChart"></canvas></div></div><div class="lg:col-span-1"><h4 class="font-semibold text-slate-700 mb-2">Danh sách Chi tiết</h4><div class="table-responsive max-h-96 overflow-y-auto"><table class="min-w-full responsive-table"><thead class="bg-slate-50 sticky top-0"><tr><th class="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase">Hạng mục</th><th class="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase">Rủi Ro</th></tr></thead><tbody id="pdmTableBody" class="bg-white divide-y divide-slate-200"></tbody></table></div></div></div></div>`
+                }
+            };
+
+            // Clear existing content and build tabs
+            tabContainer.innerHTML = '';
+            tabContentContainer.innerHTML = '';
+            
+            Object.keys(tabs).forEach((key, index) => {
+                const tab = tabs[key];
+                // Create tab button
+                const button = document.createElement('button');
+                button.dataset.tabTarget = key;
+                button.className = index === 0 
+                    ? 'dashboard-tab whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm text-indigo-600 border-indigo-500'
+                    : 'dashboard-tab whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm text-slate-500 border-transparent hover:text-slate-700 hover:border-slate-300';
+                button.textContent = tab.title;
+                tabContainer.appendChild(button);
+
+                // Create tab panel
+                const panel = document.createElement('div');
+                panel.id = `tab-panel-${key}`;
+                panel.className = 'dashboard-tab-panel' + (index > 0 ? ' hidden' : '');
+                panel.innerHTML = tab.content;
+                tabContentContainer.appendChild(panel);
+            });
+            
+            // Add tab switching logic
+            const tabButtons = mainContentContainer.querySelectorAll('.dashboard-tab');
+            const tabPanels = mainContentContainer.querySelectorAll('.dashboard-tab-panel');
+            
+            tabButtons.forEach(button => {
+                button.addEventListener('click', () => {
+                    const targetPanelId = `tab-panel-${button.dataset.tabTarget}`;
+
+                    tabPanels.forEach(panel => {
+                        panel.classList.toggle('hidden', panel.id !== targetPanelId);
+                    });
+
+                    tabButtons.forEach(btn => {
+                        const isTarget = btn.dataset.tabTarget === button.dataset.tabTarget;
+                        btn.classList.toggle('text-indigo-600', isTarget);
+                        btn.classList.toggle('border-indigo-500', isTarget);
+                        btn.classList.toggle('text-slate-500', !isTarget);
+                        btn.classList.toggle('border-transparent', !isTarget);
+                        btn.classList.toggle('hover:text-slate-700', !isTarget);
+                        btn.classList.toggle('hover:border-slate-300', !isTarget);
+                    });
+                });
+            });
+
+            // Re-populate and re-bind listeners for filters and performance toggles
+            // This is necessary because we've just created them via innerHTML
             const branchFilter = mainContentContainer.querySelector('#filterBranch');
             const issueTypeFilter = mainContentContainer.querySelector('#filterIssueType');
             const employeeFilter = mainContentContainer.querySelector('#filterEmployee');
@@ -1170,7 +1192,6 @@
             branchFilter.innerHTML = '<option value="">Tất cả chi nhánh</option>' + ALL_BRANCHES.map(b => `<option value="${b}">${b}</option>`).join('');
             issueTypeFilter.innerHTML = '<option value="">Tất cả loại sự cố</option>' + ISSUE_TYPES.map(t => `<option value="${t}">${t}</option>`).join('');
             
-            // Fetch users for employee filter
             const usersQuery = query(collection(db, `/artifacts/${canvasAppId}/users`));
             getDocs(usersQuery).then(snapshot => {
                 const users = snapshot.docs.map(doc => ({ uid: doc.id, ...doc.data() }));
@@ -1187,38 +1208,35 @@
                 applyFiltersAndRender(dashboardReportsCache);
             });
 
-            // Performance Toggle Logic
             const perfToggleEmployee = mainContentContainer.querySelector('#perfToggleEmployee');
             const perfToggleBranch = mainContentContainer.querySelector('#perfToggleBranch');
-
-            const updateToggleStyles = (mode) => {
-                if (mode === 'employee') {
-                    perfToggleEmployee.classList.add('bg-white', 'text-indigo-600', 'shadow');
-                    perfToggleEmployee.classList.remove('text-slate-600');
-                    perfToggleBranch.classList.remove('bg-white', 'text-indigo-600', 'shadow');
-                    perfToggleBranch.classList.add('text-slate-600');
-                } else {
-                    perfToggleBranch.classList.add('bg-white', 'text-indigo-600', 'shadow');
-                    perfToggleBranch.classList.remove('text-slate-600');
-                    perfToggleEmployee.classList.remove('bg-white', 'text-indigo-600', 'shadow');
-                    perfToggleEmployee.classList.add('text-slate-600');
-                }
-            };
-
-            perfToggleEmployee.addEventListener('click', () => {
-                updateToggleStyles('employee');
-                applyFiltersAndRender(dashboardReportsCache);
-            });
-
-            perfToggleBranch.addEventListener('click', () => {
-                updateToggleStyles('branch');
-                applyFiltersAndRender(dashboardReportsCache);
-            });
-
+            if (perfToggleEmployee && perfToggleBranch) {
+                 const updateToggleStyles = (mode) => {
+                    if (mode === 'employee') {
+                        perfToggleEmployee.classList.add('bg-white', 'text-indigo-600', 'shadow');
+                        perfToggleEmployee.classList.remove('text-slate-600');
+                        perfToggleBranch.classList.remove('bg-white', 'text-indigo-600', 'shadow');
+                        perfToggleBranch.classList.add('text-slate-600');
+                    } else {
+                        perfToggleBranch.classList.add('bg-white', 'text-indigo-600', 'shadow');
+                        perfToggleBranch.classList.remove('text-slate-600');
+                        perfToggleEmployee.classList.remove('bg-white', 'text-indigo-600', 'shadow');
+                        perfToggleEmployee.classList.add('text-slate-600');
+                    }
+                };
+                 perfToggleEmployee.addEventListener('click', () => {
+                    updateToggleStyles('employee');
+                    applyFiltersAndRender(dashboardReportsCache);
+                });
+                 perfToggleBranch.addEventListener('click', () => {
+                    updateToggleStyles('branch');
+                    applyFiltersAndRender(dashboardReportsCache);
+                });
+            }
 
             const q = getScopedIssuesQuery();
             const unsubscribe = onSnapshot(q, (snapshot) => {
-                dashboardReportsCache = snapshot.docs.map(doc => doc.data());
+                dashboardReportsCache = snapshot.docs.map(doc => ({id: doc.id, ...doc.data()}));
                 applyFiltersAndRender(dashboardReportsCache);
             }, (error) => console.error("Dashboard listener failed:", error));
             
@@ -1235,21 +1253,23 @@
 
         window.setup_issueHistoryView = function() {
             if (!currentUserProfile) return;
+            issueHistoryCurrentPage = 1; // Reset page
             const tableBody = mainContentContainer.querySelector('#issueHistoryTableBody');
             if (!tableBody) return;
             tableBody.innerHTML = `<tr><td colspan="6" class="text-center p-4">Đang tải...</td></tr>`;
             
             const q = getScopedIssuesQuery();
             const unsubscribe = onSnapshot(q, (snapshot) => {
-                const reports = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-                reports.sort((a, b) => new Date(b.reportDate) - new Date(a.reportDate));
-                renderIssueHistoryTable(reports);
+                issueHistoryCache = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                issueHistoryCache.sort((a, b) => new Date(b.reportDate) - new Date(a.reportDate));
+                renderIssueHistoryTable(issueHistoryCache);
             }, (error) => console.error("Issue history listener failed:", error));
             unsubscribeListeners.push(unsubscribe);
         };
         
         window.setup_myTasksView = function() {
             if (!currentUser || !currentUserProfile) return;
+            myTasksCurrentPage = 1; // Reset page
             const tableBody = mainContentContainer.querySelector('#myTasksTableBody');
             if (!tableBody) return;
             tableBody.innerHTML = `<tr><td colspan="5" class="text-center p-4">Đang tải...</td></tr>`;
@@ -1260,9 +1280,9 @@
             );
 
             const unsubscribe = onSnapshot(q, (snapshot) => {
-                const reports = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-                reports.sort((a, b) => new Date(b.reportDate) - new Date(a.reportDate));
-                renderMyTasksTable(reports);
+                myTasksCache = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                myTasksCache.sort((a, b) => new Date(b.reportDate) - new Date(a.reportDate));
+                renderMyTasksTable(myTasksCache);
             }, (error) => console.error("My Tasks listener failed:", error));
             unsubscribeListeners.push(unsubscribe);
         };
@@ -1273,10 +1293,13 @@
             if (!tableBody) return;
             tableBody.innerHTML = `<tr><td colspan="4" class="text-center p-4">Đang tải...</td></tr>`;
 
-            const q = query(collection(db, `/artifacts/${canvasAppId}/public/data/activityLogs`), orderBy('timestamp', 'desc'), limit(50));
+            activityLogCurrentPage = 1; // Reset page
+
+            // No limit, get all logs for client-side pagination
+            const q = query(collection(db, `/artifacts/${canvasAppId}/public/data/activityLogs`), orderBy('timestamp', 'desc'));
             const unsubscribe = onSnapshot(q, (snapshot) => {
-                const logs = snapshot.docs.map(doc => doc.data());
-                renderActivityLogTable(logs);
+                activityLogsCache = snapshot.docs.map(doc => doc.data()); // Update cache
+                renderActivityLogTable(activityLogsCache); // Render from cache
             }, (error) => console.error("Activity log listener failed:", error));
             unsubscribeListeners.push(unsubscribe);
         };
@@ -1285,7 +1308,12 @@
         function renderActivityLogTable(logs) {
             const tableBody = mainContentContainer.querySelector('#activityLogTableBody');
             if (!tableBody) return;
-            tableBody.innerHTML = logs.length > 0 ? logs.map(log => `
+
+            const startIndex = (activityLogCurrentPage - 1) * ITEMS_PER_PAGE;
+            const endIndex = startIndex + ITEMS_PER_PAGE;
+            const paginatedLogs = logs.slice(startIndex, endIndex);
+
+            tableBody.innerHTML = paginatedLogs.length > 0 ? paginatedLogs.map(log => `
                 <tr class="hover:bg-gray-50">
                     <td data-label="Thời Gian" class="px-4 py-3">${log.timestamp ? new Date(log.timestamp.toDate()).toLocaleString('vi-VN') : ''}</td>
                     <td data-label="Người Thực Hiện" class="px-4 py-3">${log.actor.displayName || log.actor.email}</td>
@@ -1293,12 +1321,72 @@
                     <td data-label="Chi Tiết" class="px-4 py-3 text-xs font-mono">${JSON.stringify(log.details)}</td>
                 </tr>
             `).join('') : `<tr><td colspan="4" class="text-center p-4">Không có hoạt động nào.</td></tr>`;
+
+            renderActivityLogPagination(logs.length);
         }
+
+        function renderActivityLogPagination(totalLogs) {
+            const paginationContainer = mainContentContainer.querySelector('#activityLogPagination');
+            if (!paginationContainer) return;
+
+            const totalPages = Math.ceil(totalLogs / ITEMS_PER_PAGE);
+            if (totalPages <= 1) {
+                paginationContainer.innerHTML = '';
+                return;
+            }
+
+            const startItem = (activityLogCurrentPage - 1) * ITEMS_PER_PAGE + 1;
+            const endItem = Math.min(activityLogCurrentPage * ITEMS_PER_PAGE, totalLogs);
+
+            let paginationHTML = `
+                <div class="text-sm text-slate-600">
+                    Hiển thị <strong>${startItem}</strong> - <strong>${endItem}</strong> trên <strong>${totalLogs}</strong> kết quả
+                </div>
+                <div class="flex items-center space-x-2">
+                    <button id="prevLogPage" class="btn-secondary !py-1 !px-3 disabled:opacity-50 disabled:cursor-not-allowed" ${activityLogCurrentPage === 1 ? 'disabled' : ''}>
+                        <i class="fas fa-chevron-left"></i>
+                    </button>
+                    <span class="text-sm font-medium">Trang ${activityLogCurrentPage} / ${totalPages}</span>
+                    <button id="nextLogPage" class="btn-secondary !py-1 !px-3 disabled:opacity-50 disabled:cursor-not-allowed" ${activityLogCurrentPage === totalPages ? 'disabled' : ''}>
+                        <i class="fas fa-chevron-right"></i>
+                    </button>
+                </div>
+            `;
+            paginationContainer.innerHTML = paginationHTML;
+
+            // Add event listeners
+            const prevBtn = mainContentContainer.querySelector('#prevLogPage');
+            const nextBtn = mainContentContainer.querySelector('#nextLogPage');
+
+            if (prevBtn) {
+                prevBtn.addEventListener('click', () => {
+                    if (activityLogCurrentPage > 1) {
+                        activityLogCurrentPage--;
+                        renderActivityLogTable(activityLogsCache); // Re-render from cache
+                    }
+                });
+            }
+
+            if (nextBtn) {
+                nextBtn.addEventListener('click', () => {
+                    if (activityLogCurrentPage < totalPages) {
+                        activityLogCurrentPage++;
+                        renderActivityLogTable(activityLogsCache); // Re-render from cache
+                    }
+                });
+            }
+        }
+
 
         function renderIssueHistoryTable(reports) {
             const tableBody = mainContentContainer.querySelector('#issueHistoryTableBody');
             if (!tableBody) return;
-            tableBody.innerHTML = reports.length > 0 ? reports.map(report => `
+
+            const startIndex = (issueHistoryCurrentPage - 1) * ITEMS_PER_PAGE;
+            const endIndex = startIndex + ITEMS_PER_PAGE;
+            const paginatedReports = reports.slice(startIndex, endIndex);
+
+            tableBody.innerHTML = paginatedReports.length > 0 ? paginatedReports.map(report => `
                 <tr class="hover:bg-gray-50">
                     <td data-label="Chi nhánh" class="px-4 py-3">${report.issueBranch}</td>
                     <td data-label="Người gửi" class="px-4 py-3">${report.reporterName}</td>
@@ -1314,12 +1402,53 @@
             tableBody.querySelectorAll('.detail-issue-btn').forEach(btn => {
                 btn.addEventListener('click', () => openIssueDetailModal(btn.dataset.id));
             });
+            renderIssueHistoryPagination(reports.length);
+        }
+
+        function renderIssueHistoryPagination(totalItems) {
+            const paginationContainer = mainContentContainer.querySelector('#issueHistoryPagination');
+            if (!paginationContainer) return;
+
+            const totalPages = Math.ceil(totalItems / ITEMS_PER_PAGE);
+            if (totalPages <= 1) {
+                paginationContainer.innerHTML = '';
+                return;
+            }
+
+            const startItem = (issueHistoryCurrentPage - 1) * ITEMS_PER_PAGE + 1;
+            const endItem = Math.min(issueHistoryCurrentPage * ITEMS_PER_PAGE, totalItems);
+
+            paginationContainer.innerHTML = `
+                <div class="text-sm text-slate-600">Hiển thị <strong>${startItem}</strong> - <strong>${endItem}</strong> trên <strong>${totalItems}</strong> kết quả</div>
+                <div class="flex items-center space-x-2">
+                    <button id="prevIssueHistoryPage" class="btn-secondary !py-1 !px-3 disabled:opacity-50" ${issueHistoryCurrentPage === 1 ? 'disabled' : ''}><i class="fas fa-chevron-left"></i></button>
+                    <span class="text-sm font-medium">Trang ${issueHistoryCurrentPage} / ${totalPages}</span>
+                    <button id="nextIssueHistoryPage" class="btn-secondary !py-1 !px-3 disabled:opacity-50" ${issueHistoryCurrentPage === totalPages ? 'disabled' : ''}><i class="fas fa-chevron-right"></i></button>
+                </div>`;
+            
+            mainContentContainer.querySelector('#prevIssueHistoryPage').addEventListener('click', () => {
+                if (issueHistoryCurrentPage > 1) {
+                    issueHistoryCurrentPage--;
+                    renderIssueHistoryTable(issueHistoryCache);
+                }
+            });
+            mainContentContainer.querySelector('#nextIssueHistoryPage').addEventListener('click', () => {
+                if (issueHistoryCurrentPage < totalPages) {
+                    issueHistoryCurrentPage++;
+                    renderIssueHistoryTable(issueHistoryCache);
+                }
+            });
         }
 
         function renderMyTasksTable(reports) {
             const tableBody = mainContentContainer.querySelector('#myTasksTableBody');
             if (!tableBody) return;
-            tableBody.innerHTML = reports.length > 0 ? reports.map(report => `
+
+            const startIndex = (myTasksCurrentPage - 1) * ITEMS_PER_PAGE;
+            const endIndex = startIndex + ITEMS_PER_PAGE;
+            const paginatedReports = reports.slice(startIndex, endIndex);
+
+            tableBody.innerHTML = paginatedReports.length > 0 ? paginatedReports.map(report => `
                 <tr class="hover:bg-gray-50">
                     <td data-label="Chi nhánh" class="px-4 py-3">${report.issueBranch}</td>
                     <td data-label="Loại sự cố" class="px-4 py-3">${report.issueType}</td>
@@ -1334,6 +1463,42 @@
             tableBody.querySelectorAll('.detail-issue-btn').forEach(btn => {
                 btn.addEventListener('click', () => openIssueDetailModal(btn.dataset.id));
             });
+            renderMyTasksPagination(reports.length);
+        }
+        
+        function renderMyTasksPagination(totalItems) {
+            const paginationContainer = mainContentContainer.querySelector('#myTasksPagination');
+            if (!paginationContainer) return;
+
+            const totalPages = Math.ceil(totalItems / ITEMS_PER_PAGE);
+            if (totalPages <= 1) {
+                paginationContainer.innerHTML = '';
+                return;
+            }
+
+            const startItem = (myTasksCurrentPage - 1) * ITEMS_PER_PAGE + 1;
+            const endItem = Math.min(myTasksCurrentPage * ITEMS_PER_PAGE, totalItems);
+
+            paginationContainer.innerHTML = `
+                <div class="text-sm text-slate-600">Hiển thị <strong>${startItem}</strong> - <strong>${endItem}</strong> trên <strong>${totalItems}</strong> kết quả</div>
+                <div class="flex items-center space-x-2">
+                    <button id="prevMyTasksPage" class="btn-secondary !py-1 !px-3 disabled:opacity-50" ${myTasksCurrentPage === 1 ? 'disabled' : ''}><i class="fas fa-chevron-left"></i></button>
+                    <span class="text-sm font-medium">Trang ${myTasksCurrentPage} / ${totalPages}</span>
+                    <button id="nextMyTasksPage" class="btn-secondary !py-1 !px-3 disabled:opacity-50" ${myTasksCurrentPage === totalPages ? 'disabled' : ''}><i class="fas fa-chevron-right"></i></button>
+                </div>`;
+
+            mainContentContainer.querySelector('#prevMyTasksPage').addEventListener('click', () => {
+                if (myTasksCurrentPage > 1) {
+                    myTasksCurrentPage--;
+                    renderMyTasksTable(myTasksCache);
+                }
+            });
+            mainContentContainer.querySelector('#nextMyTasksPage').addEventListener('click', () => {
+                if (myTasksCurrentPage < totalPages) {
+                    myTasksCurrentPage++;
+                    renderMyTasksTable(myTasksCache);
+                }
+            });
         }
         
         function renderAccountsTable(users) {
@@ -1342,7 +1507,11 @@
 
             const filteredUsers = showDisabledAccounts ? users : users.filter(user => user.status !== 'disabled');
             
-            tableBody.innerHTML = filteredUsers.map(user => {
+            const startIndex = (accountsCurrentPage - 1) * ITEMS_PER_PAGE;
+            const endIndex = startIndex + ITEMS_PER_PAGE;
+            const paginatedUsers = filteredUsers.slice(startIndex, endIndex);
+
+            tableBody.innerHTML = paginatedUsers.map(user => {
                 const isDisabled = user.status === 'disabled';
                 return `
                     <tr class="hover:bg-gray-50 ${isDisabled ? 'opacity-60 bg-slate-50' : ''}">
@@ -1379,9 +1548,148 @@
                     handleEnableAccount(btn.dataset.uid);
                 });
             });
+
+            renderAccountsPagination(filteredUsers.length);
+        }
+
+        function renderAccountsPagination(totalItems) {
+            const paginationContainer = mainContentContainer.querySelector('#accountsPagination');
+            if (!paginationContainer) return;
+
+            const totalPages = Math.ceil(totalItems / ITEMS_PER_PAGE);
+            if (totalPages <= 1) {
+                paginationContainer.innerHTML = '';
+                return;
+            }
+
+            const startItem = (accountsCurrentPage - 1) * ITEMS_PER_PAGE + 1;
+            const endItem = Math.min(accountsCurrentPage * ITEMS_PER_PAGE, totalItems);
+
+            paginationContainer.innerHTML = `
+                <div class="text-sm text-slate-600">Hiển thị <strong>${startItem}</strong> - <strong>${endItem}</strong> trên <strong>${totalItems}</strong> kết quả</div>
+                <div class="flex items-center space-x-2">
+                    <button id="prevAccountPage" class="btn-secondary !py-1 !px-3 disabled:opacity-50" ${accountsCurrentPage === 1 ? 'disabled' : ''}><i class="fas fa-chevron-left"></i></button>
+                    <span class="text-sm font-medium">Trang ${accountsCurrentPage} / ${totalPages}</span>
+                    <button id="nextAccountPage" class="btn-secondary !py-1 !px-3 disabled:opacity-50" ${accountsCurrentPage === totalPages ? 'disabled' : ''}><i class="fas fa-chevron-right"></i></button>
+                </div>`;
+            
+            mainContentContainer.querySelector('#prevAccountPage').addEventListener('click', () => {
+                if (accountsCurrentPage > 1) {
+                    accountsCurrentPage--;
+                    renderAccountsTable(allUsersCache);
+                }
+            });
+            mainContentContainer.querySelector('#nextAccountPage').addEventListener('click', () => {
+                if (accountsCurrentPage < totalPages) {
+                    accountsCurrentPage++;
+                    renderAccountsTable(allUsersCache);
+                }
+            });
         }
         
         // --- Dashboard & Analytics ---
+        function updateDashboardWarnings(allReports) {
+            const dailySpikeEl = document.getElementById('dailySpikeWarning');
+            const backlogEl = document.getElementById('backlogWarning');
+
+            if (!dailySpikeEl || !backlogEl) return;
+
+            // --- 1. Abnormal Daily Incident Increase Logic ---
+            const now = new Date();
+            const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+            const sevenDaysAgoStart = new Date(todayStart.getTime() - 7 * 24 * 60 * 60 * 1000);
+
+            const todaysIncidentsCount = allReports.filter(r => new Date(r.reportDate) >= todayStart).length;
+
+            const last7DaysIncidents = allReports.filter(r => {
+                const reportDate = new Date(r.reportDate);
+                return reportDate >= sevenDaysAgoStart && reportDate < todayStart;
+            });
+
+            const uniqueDaysInPast = new Set(last7DaysIncidents.map(r => new Date(r.reportDate).toISOString().split('T')[0])).size;
+            const daysToAverage = uniqueDaysInPast > 0 ? uniqueDaysInPast : 1; // Avoid division by zero
+            const averageDailyIncidents = last7DaysIncidents.length / daysToAverage;
+            
+            // Define thresholds for what constitutes a spike
+            const SPIKE_PERCENTAGE_THRESHOLD = 1.5; // 50% increase
+            const SPIKE_ABSOLUTE_THRESHOLD = 3;   // At least 3 more incidents than average
+
+            if (todaysIncidentsCount > (averageDailyIncidents * SPIKE_PERCENTAGE_THRESHOLD) && todaysIncidentsCount > (averageDailyIncidents + SPIKE_ABSOLUTE_THRESHOLD)) {
+                dailySpikeEl.className = 'alert-error p-4 rounded-lg flex items-start';
+                dailySpikeEl.innerHTML = `
+                    <i class="fas fa-chart-line fa-lg mr-3 mt-1"></i>
+                    <div>
+                        <h4 class="font-bold">Cảnh báo: Số lượng sự cố tăng đột biến</h4>
+                        <p class="text-sm">Hôm nay đã ghi nhận <strong>${todaysIncidentsCount}</strong> sự cố, cao hơn đáng kể so với mức trung bình <strong>${averageDailyIncidents.toFixed(1)}</strong> sự cố/ngày trong 7 ngày qua.</p>
+                    </div>
+                `;
+                dailySpikeEl.classList.remove('hidden');
+            } else {
+                dailySpikeEl.classList.add('hidden');
+            }
+
+
+            // --- 2. Employee/Branch Backlog Warning ---
+            const EMPLOYEE_BACKLOG_THRESHOLD = 5;
+            const BRANCH_BACKLOG_THRESHOLD = 10;
+
+            const unresolvedReports = allReports.filter(r => r.status !== 'Đã giải quyết');
+            
+            const employeeBacklog = unresolvedReports.reduce((acc, report) => {
+                if (report.assigneeName) {
+                    acc[report.assigneeName] = (acc[report.assigneeName] || 0) + 1;
+                }
+                return acc;
+            }, {});
+
+            const branchBacklog = unresolvedReports.reduce((acc, report) => {
+                if (report.issueBranch) {
+                    acc[report.issueBranch] = (acc[report.issueBranch] || 0) + 1;
+                }
+                return acc;
+            }, {});
+
+            const highBacklogEmployees = Object.entries(employeeBacklog)
+                .filter(([name, count]) => count >= EMPLOYEE_BACKLOG_THRESHOLD)
+                .sort((a, b) => b[1] - a[1]); // Sort by count desc
+
+            const highBacklogBranches = Object.entries(branchBacklog)
+                .filter(([name, count]) => count >= BRANCH_BACKLOG_THRESHOLD)
+                .sort((a, b) => b[1] - a[1]);
+
+            if (highBacklogEmployees.length > 0 || highBacklogBranches.length > 0) {
+                let warningHTML = `
+                    <i class="fas fa-exclamation-circle fa-lg mr-3 mt-1"></i>
+                    <div>
+                        <h4 class="font-bold">Cảnh báo: Tồn đọng công việc</h4>`;
+
+                if (highBacklogEmployees.length > 0) {
+                    warningHTML += `<p class="text-sm mt-1">Các nhân viên sau có nhiều công việc chưa hoàn thành:</p><ul class="list-disc pl-5 text-sm">`;
+                    highBacklogEmployees.forEach(([name, count]) => {
+                        warningHTML += `<li><strong>${name}</strong>: ${count} công việc tồn đọng</li>`;
+                    });
+                    warningHTML += `</ul>`;
+                }
+
+                if (highBacklogBranches.length > 0) {
+                    warningHTML += `<p class="text-sm mt-2">Các chi nhánh sau có nhiều sự cố chưa được giải quyết:</p><ul class="list-disc pl-5 text-sm">`;
+                    highBacklogBranches.forEach(([name, count]) => {
+                        warningHTML += `<li><strong>${name}</strong>: ${count} sự cố tồn đọng</li>`;
+                    });
+                    warningHTML += `</ul>`;
+                }
+                
+                warningHTML += `</div>`;
+                
+                backlogEl.className = 'alert-info p-4 rounded-lg flex items-start';
+                backlogEl.innerHTML = warningHTML;
+                backlogEl.classList.remove('hidden');
+
+            } else {
+                backlogEl.classList.add('hidden');
+            }
+        }
+
         function applyFiltersAndRender(allReports) {
             const branch = mainContentContainer.querySelector('#filterBranch').value;
             const issueType = mainContentContainer.querySelector('#filterIssueType').value;
@@ -1407,6 +1715,9 @@
             
             const perfToggleEmployee = mainContentContainer.querySelector('#perfToggleEmployee');
             const currentPerfMode = perfToggleEmployee && perfToggleEmployee.classList.contains('bg-white') ? 'employee' : 'branch';
+
+            // We use the global `dashboardReportsCache` so warnings are not affected by filters
+            updateDashboardWarnings(dashboardReportsCache);
             
             updateDashboardUI(filteredReports); 
             updateComparativeAnalysis(allReports); 
@@ -1525,13 +1836,25 @@
             const canvas = document.getElementById('issueTypePieChart');
             if (!canvas) return;
             if (issueTypeChart) issueTypeChart.destroy();
-            issueTypeChart = new Chart(canvas.getContext('2d'), {
+            
+            const ctx = canvas.getContext('2d');
+            issueTypeChart = new Chart(ctx, {
                 type: 'pie',
                 data: {
                     labels: Object.keys(data),
                     datasets: [{ data: Object.values(data), backgroundColor: ['#3B82F6', '#10B981', '#F59E0B', '#8B5CF6', '#EF4444'] }]
                 },
-                options: { responsive: true, maintainAspectRatio: false }
+                options: { 
+                    responsive: true, 
+                    maintainAspectRatio: false,
+                    onClick: (event, elements) => {
+                        if (elements.length > 0) {
+                            const chartElement = elements[0];
+                            const label = issueTypeChart.data.labels[chartElement.index];
+                            showDrillDownModal('issueType', label, `Chi tiết Sự cố: Loại "${label}"`);
+                        }
+                    }
+                }
             });
         }
 
@@ -1700,7 +2023,8 @@
                 labels: sortedLabels,
                 resolvedData: sortedLabels.map(label => performanceData[label].resolved),
                 unresolvedData: sortedLabels.map(label => performanceData[label].unresolved),
-                avgTimeData: sortedLabels.map(label => parseFloat(item.avgProcessingTime.toFixed(2))),
+                avgTimeData: sortedLabels.map(label => parseFloat(performanceData[label].avgProcessingTime.toFixed(2))),
+                mode: mode
             };
 
             renderPerformanceStatusChart(chartData);
@@ -1738,6 +2062,16 @@
                     },
                     plugins: {
                         legend: { position: 'bottom' }
+                    },
+                    onClick: (event, elements) => {
+                        if (elements.length > 0) {
+                            const { index, datasetIndex } = elements[0];
+                            const label = performanceStatusChart.data.labels[index];
+                            const status = performanceStatusChart.data.datasets[datasetIndex].label;
+                            const filterKey = data.mode === 'employee' ? 'assigneeName' : 'issueBranch';
+                            const title = `Chi tiết: ${status} bởi "${label}"`;
+                            showDrillDownModal(filterKey, label, title, status === 'Đã giải quyết' ? 'resolved' : 'unresolved');
+                        }
                     }
                 }
             });
@@ -1766,6 +2100,15 @@
                     },
                     plugins: {
                         legend: { display: false }
+                    },
+                     onClick: (event, elements) => {
+                        if (elements.length > 0) {
+                            const { index } = elements[0];
+                            const label = performanceTimeChart.data.labels[index];
+                            const filterKey = data.mode === 'employee' ? 'assigneeName' : 'issueBranch';
+                             const title = `Chi tiết: Thời gian xử lý của "${label}"`;
+                            showDrillDownModal(filterKey, label, title, 'resolved'); // Only show resolved for time analysis
+                        }
                     }
                 }
             });
@@ -1777,8 +2120,8 @@
 
             if (reports.length === 0) {
                 pdmContainer.innerHTML = `<tr><td colspan="2" class="text-center py-4 text-slate-500">Chưa có đủ dữ liệu.</td></tr>`;
-                 document.getElementById('pdmSummaryStats').innerHTML = '';
-                 if (pdmRiskChart) pdmRiskChart.destroy();
+                document.getElementById('pdmSummaryStats').innerHTML = '';
+                if (pdmRiskChart) pdmRiskChart.destroy();
                 return;
             }
 
@@ -1978,7 +2321,7 @@
                     assigneeName: newAssigneeName || null 
                 };
 
-                 if (newStatus === 'Đã giải quyết' && originalData.status !== 'Đã giải quyết') {
+                if (newStatus === 'Đã giải quyết' && originalData.status !== 'Đã giải quyết') {
                     updateData.resolvedDate = new Date().toISOString();
                 }
 
@@ -2627,6 +2970,7 @@
             cameraModal = document.getElementById('cameraModal');
             resetPasswordModal = document.getElementById('resetPasswordModal');
             forceChangePasswordModal = document.getElementById('forceChangePasswordModal');
+            drillDownModal = document.getElementById('drillDownModal');
             sidebar = document.getElementById('sidebar');
             mobileMenuToggle = document.getElementById('mobileMenuToggle');
         }
@@ -2708,6 +3052,10 @@
             
             // Force Change Password Listener
             forceChangePasswordModal.querySelector('#confirmChangePasswordBtn').addEventListener('click', handleForcePasswordChange);
+        
+            const closeDrillDownModal = () => drillDownModal.style.display = 'none';
+            drillDownModal.querySelector('#closeDrillDownModalBtn').addEventListener('click', closeDrillDownModal);
+            drillDownModal.querySelector('#cancelDrillDownBtn').addEventListener('click', closeDrillDownModal);
         }
         
         async function handleSendResetEmail() {
@@ -2790,6 +3138,55 @@
             }
         }
 
+        function showDrillDownModal(filterKey, filterValue, title, statusFilter = null) {
+            const modal = document.getElementById('drillDownModal');
+            const titleEl = modal.querySelector('#drillDownTitle');
+            const contentEl = modal.querySelector('#drillDownContent');
+
+            titleEl.textContent = title;
+
+            let filteredReports = dashboardReportsCache.filter(report => report[filterKey] === filterValue);
+
+            if (statusFilter === 'resolved') {
+                filteredReports = filteredReports.filter(report => report.status === 'Đã giải quyết');
+            } else if (statusFilter === 'unresolved') {
+                filteredReports = filteredReports.filter(report => report.status !== 'Đã giải quyết');
+            }
+
+            if (filteredReports.length === 0) {
+                contentEl.innerHTML = `<p class="text-center text-slate-500 p-8">Không có dữ liệu chi tiết để hiển thị.</p>`;
+            } else {
+                 contentEl.innerHTML = `
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full divide-y divide-slate-200 responsive-table">
+                            <thead class="bg-slate-50">
+                                <tr>
+                                    <th class="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase">Chi Nhánh</th>
+                                    <th class="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase">Người Gửi</th>
+                                    <th class="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase">Mô Tả</th>
+                                    <th class="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase">Ngày Báo Cáo</th>
+                                    <th class="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase">Trạng Thái</th>
+                                </tr>
+                            </thead>
+                            <tbody class="bg-white divide-y divide-slate-200">
+                                ${filteredReports.map(report => `
+                                    <tr class="hover:bg-gray-50">
+                                        <td data-label="Chi Nhánh" class="px-4 py-3">${report.issueBranch}</td>
+                                        <td data-label="Người Gửi" class="px-4 py-3">${report.reporterName}</td>
+                                        <td data-label="Mô Tả" class="px-4 py-3 text-sm truncate" style="max-width: 200px;" title="${report.issueDescription}">${report.issueDescription}</td>
+                                        <td data-label="Ngày Báo Cáo" class="px-4 py-3">${new Date(report.reportDate).toLocaleString('vi-VN')}</td>
+                                        <td data-label="Trạng Thái" class="px-4 py-3">${report.status}</td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+                `;
+            }
+
+            modal.style.display = 'flex';
+        }
+
         // --- Utility Functions ---
         function unsubscribeAll() {
             unsubscribeListeners.forEach(unsub => unsub());
@@ -2802,4 +3199,5 @@
     </script>
 </body>
 </html>
+
 
