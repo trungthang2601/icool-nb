@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="vi">
 <head>
@@ -199,7 +200,6 @@
             z-index: 10;
             transition: opacity 0.1s ease-in-out;
         }
-        
     </style>
 </head>
 <body class="min-h-screen">
@@ -636,16 +636,15 @@
         import { getStorage, ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-storage.js";
 
         // --- Configuration Constants ---
-        const firebaseConfig = {
-    apiKey: "AIzaSyD3FBCihM1QA1DZmMxn0ysR2khs43M-2sE",
-    authDomain: "icool-ea266.firebaseapp.com",
-    projectId: "icool-ea266",
-    // 👇 CORRECT THIS LINE
-    storageBucket: "icool-ea266.appspot.com", 
-    messagingSenderId: "338046663113",
-    appId: "1:338046663113:web:cef72e289e7546f3271018",
-    measurementId: "G-NBGEQSDT6N"
-};
+        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {
+            apiKey: "AIzaSyD3FBCihM1QA1DZmMxn0ysR2khs43M-2sE",
+            authDomain: "icool-ea266.firebaseapp.com",
+            projectId: "icool-ea266",
+            storageBucket: "icool-ea266.firebasestorage.app",
+            messagingSenderId: "338046663113",
+            appId: "1:338046663113:web:cef72e289e7546f3271018",
+            measurementId: "G-NBGEQSDT6N"
+        };
         const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
         const canvasAppId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
         const DEFAULT_ADMIN_EMAIL = 'trungthang2601@gmail.com';
@@ -846,53 +845,33 @@
 
         // --- Core Auth & UI Functions ---
         async function handleAuthStateChange(user) {
-    // Hide the skeleton loader as the very first step.
-    if (skeletonLoader) {
-        skeletonLoader.classList.add('hidden');
-    }
-    
-    unsubscribeAll();
-    stopEscalationChecker();
-    currentUser = user;
+            unsubscribeAll();
+            stopEscalationChecker();
+            currentUser = user;
 
-    if (user) {
-        // User is authenticated, so show the app shell immediately
-        authSection.classList.add('hidden');
-        appContainer.classList.remove('hidden');
-        // Show a clear loading state inside the main content area
-        mainContentContainer.innerHTML = `<div class="text-center p-8">Đang tải dữ liệu người dùng...</div>`; 
-
-        try {
-            await fetchAndSetUserProfile(user.uid, user);
-
-            if (currentUserProfile && currentUserProfile.status !== 'disabled') {
-                if (currentUserProfile.requiresPasswordChange) {
-                    promptForcePasswordChange();
-                } else {
-                    setupUIForLoggedInUser();
-                    listenToNotifications();
-                    showInitialView();
-                    if (currentUserProfile.role === 'Admin') {
-                        startEscalationChecker();
+            if (user) {
+                await fetchAndSetUserProfile(user.uid, user);
+                if (currentUserProfile && currentUserProfile.status !== 'disabled') {
+                     if (currentUserProfile.requiresPasswordChange) {
+                        promptForcePasswordChange();
+                    } else {
+                        setupUIForLoggedInUser();
+                        listenToNotifications();
+                        showInitialView();
+                        if (currentUserProfile.role === 'Admin') {
+                            startEscalationChecker();
+                        }
                     }
+                    setTimeout(() => logActivity("User Login", { email: user.email }), 500);
+                } else {
+                    console.error("User profile not found or account is disabled. Logging out.");
+                    handleLogout();
                 }
-                setTimeout(() => logActivity("User Login", { email: user.email }), 500);
             } else {
-                // This case handles a valid login but a missing/disabled profile
-                console.error("User profile not found or account is disabled. Logging out.");
-                mainContentContainer.innerHTML = `<div class="card p-8 text-center text-red-600">Tài khoản của bạn đã bị vô hiệu hóa. Đang tự động đăng xuất...</div>`;
-                setTimeout(handleLogout, 3000); // Logout after 3 seconds
+                setupUIForLoggedOutUser();
             }
-        } catch (error) {
-            // This case handles critical errors, like Firestore connection issues
-            console.error("Failed to fetch user profile, Firestore might be unreachable:", error);
-            mainContentContainer.innerHTML = `<div class="card p-8 text-center text-red-600">Không thể tải dữ liệu hồ sơ người dùng. Vui lòng liên hệ quản trị viên.</div>`;
+            skeletonLoader.classList.add('hidden');
         }
-    } else {
-        // User is not authenticated, show login screen
-        setupUIForLoggedOutUser();
-    }
-}
 
         async function fetchAndSetUserProfile(uid, authUser) {
             const userDocRef = doc(db, `/artifacts/${canvasAppId}/users/${uid}`);
@@ -3107,11 +3086,11 @@
         }
 
         function promptForcePasswordChange() {
-    authSection.classList.add('hidden');
-    // appContainer.classList.add('hidden'); // ĐÃ XÓA DÒNG NÀY
-    skeletonLoader.classList.add('hidden');
-    forceChangePasswordModal.style.display = 'flex';
-}
+            authSection.classList.add('hidden');
+            appContainer.classList.add('hidden');
+            skeletonLoader.classList.add('hidden');
+            forceChangePasswordModal.style.display = 'flex';
+        }
 
         async function handleForcePasswordChange() {
             const newPassword = forceChangePasswordModal.querySelector('#newPassword').value;
