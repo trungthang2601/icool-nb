@@ -1,0 +1,3223 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hệ thống Vận hành Thông minh</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Font Awesome for icons -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" rel="stylesheet">
+    <!-- Inter Font -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Chart.js for dashboard charts -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- SheetJS for Excel file parsing -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <style>
+        :root {
+            --primary-color: #4f46e5; /* indigo-600 */
+            --primary-hover: #4338ca; /* indigo-700 */
+            --danger-color: #dc2626; /* red-600 */
+            --body-bg: #f8fafc; /* slate-50 */
+            --text-primary: #1e2d3b; /* slate-800 */
+            --text-secondary: #64748b; /* slate-500 */
+            --border-color: #e2e8f0; /* slate-200 */
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--body-bg);
+            color: var(--text-primary);
+        }
+        .card {
+            background-color: #ffffff;
+            border-radius: 0.75rem;
+            box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.07), 0 1px 2px -1px rgba(0, 0, 0, 0.07);
+            border: 1px solid var(--border-color);
+        }
+        .btn-primary {
+            background-color: var(--primary-color);
+            color: white;
+            padding: 0.625rem 1.25rem;
+            border-radius: 0.5rem;
+            font-weight: 500;
+            transition: all 0.2s ease-in-out;
+        }
+        .btn-primary:hover {
+            background-color: var(--primary-hover);
+            transform: translateY(-1px);
+        }
+        .btn-secondary {
+            background-color: #eef2ff; /* indigo-50 */
+            color: var(--primary-color);
+            border: 1px solid #a5b4fc; /* indigo-300 */
+            padding: 0.625rem 1.25rem;
+            border-radius: 0.5rem;
+            font-weight: 500;
+            transition: all 0.2s ease-in-out;
+        }
+        .btn-secondary:hover {
+            background-color: #e0e7ff; /* indigo-100 */
+        }
+        .btn-danger {
+            background-color: var(--danger-color);
+            color: white;
+            padding: 0.625rem 1.25rem;
+            border-radius: 0.5rem;
+            font-weight: 500;
+            transition: all 0.2s ease-in-out;
+        }
+        .btn-danger:hover {
+            background-color: #b91c1c; /* red-700 */
+        }
+        .alert-success { background-color: #dcfce7; color: #166534; border-left: 4px solid #22c55e; }
+        .alert-error { background-color: #fee2e2; color: #991b1b; border-left: 4px solid #ef4444; }
+        .alert-info { background-color: #e0f2fe; color: #0c4a6e; border-left: 4px solid #38bdf8; }
+        
+        .input-field, .textarea-field, .select-field {
+            border: 1px solid var(--border-color);
+            border-radius: 0.5rem;
+            padding: 0.625rem 0.75rem;
+            width: 100%;
+            transition: all 0.2s ease-in-out;
+            background-color: #f9fafb;
+        }
+        .input-field:focus, .textarea-field:focus, .select-field:focus {
+            outline: 2px solid transparent;
+            outline-offset: 2px;
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 2px rgba(79, 70, 229, 0.3);
+        }
+        .modal {
+            display: none; position: fixed; z-index: 100;
+            left: 0; top: 0; width: 100%; height: 100%;
+            overflow: auto; background-color: rgba(0,0,0,0.5);
+            justify-content: center; align-items: center;
+        }
+        .modal-content {
+            background-color: #fefefe; margin: auto; padding: 2rem;
+            border-radius: 1rem; width: 90%; max-width: 600px;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+        }
+        .dropdown-menu {
+            position: absolute; right: 0; background-color: white;
+            border-radius: 0.5rem; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+            border: 1px solid var(--border-color); min-width: 12rem;
+            z-index: 50; padding: 0.5rem 0; opacity: 0; visibility: hidden;
+            transform: translateY(10px);
+            transition: opacity 0.2s ease-out, transform 0.2s ease-out;
+        }
+        .dropdown-menu.show { opacity: 1; visibility: visible; transform: translateY(0); }
+        .sidebar-nav-link.active {
+            background-color: var(--primary-color); color: white;
+        }
+
+        /* Make chart canvas elements clickable */
+        #issueTypePieChart:hover, #performanceStatusChart:hover, #performanceTimeChart:hover {
+            cursor: pointer;
+        }
+        
+        @media (max-width: 767px) {
+            .responsive-table thead { display: none; }
+            .responsive-table, .responsive-table tbody, .responsive-table tr, .responsive-table td {
+                display: block; width: 100%;
+            }
+            .responsive-table tr { margin-bottom: 1.5rem; border: 1px solid var(--border-color); border-radius: 0.75rem; padding: 1rem; }
+            .responsive-table td { padding: 0.5rem 0; display: flex; justify-content: space-between; align-items: center; text-align: right; border-bottom: 1px solid var(--border-color); }
+            .responsive-table td:last-child { border-bottom: 0; }
+            .responsive-table td::before { content: attr(data-label); font-weight: 600; text-align: left; color: var(--text-primary); }
+        }
+
+        .notification-badge-container { position: relative; }
+        .notification-badge {
+            position: absolute; top: -5px; right: -8px;
+            height: 20px; width: 20px;
+            background-color: var(--danger-color); color: white;
+            border-radius: 50%; display: flex;
+            align-items: center; justify-content: center;
+            font-size: 12px; font-weight: bold;
+            border: 2px solid white;
+            transform: scale(0); transition: transform 0.2s ease-out;
+        }
+        .notification-badge.show { transform: scale(1); }
+        .notification-item { border-bottom: 1px solid var(--border-color); }
+        .notification-item:last-child { border-bottom: none; }
+        .notification-item.unread { background-color: #eef2ff; }
+
+        #camera-overlay {
+            text-shadow: 0 1px 3px rgba(0,0,0,0.5);
+        }
+
+        /* Heatmap Styles */
+        .heatmap-container {
+            font-size: 10px;
+        }
+        .heatmap {
+            display: grid;
+            grid-template-columns: auto repeat(24, 1fr);
+            gap: 3px;
+        }
+        .heatmap-cell {
+            aspect-ratio: 1 / 1;
+            border-radius: 3px;
+            background-color: #ebedf0; /* Default light gray for 0 incidents */
+            position: relative;
+            cursor: pointer;
+        }
+        .heatmap-cell:hover .tooltip {
+            visibility: visible;
+            opacity: 1;
+        }
+        .heatmap-label {
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            font-weight: 500;
+            padding-right: 8px;
+            white-space: nowrap;
+        }
+        .heatmap-header {
+            text-align: center;
+            color: var(--text-secondary);
+        }
+        .tooltip {
+            visibility: hidden;
+            opacity: 0;
+            position: absolute;
+            bottom: 110%;
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: var(--text-primary);
+            color: white;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            white-space: nowrap;
+            z-index: 10;
+            transition: opacity 0.1s ease-in-out;
+        }
+        
+    </style>
+</head>
+<body class="min-h-screen">
+
+    <!-- Skeleton Loader for initial page load -->
+    <div id="skeletonLoader" class="w-full h-full flex flex-col items-center">
+        <header class="w-full bg-white border-b border-slate-200"><div class="container mx-auto flex justify-between items-center p-4"><div class="h-6 bg-slate-200 rounded w-1/4 animate-pulse"></div><div class="h-10 w-10 bg-slate-200 rounded-full animate-pulse"></div></div></header>
+        <main class="w-full flex-grow container mx-auto p-4 sm:p-6 mt-4"><div class="card p-6"><div class="h-8 bg-slate-200 rounded w-1/3 mb-6 animate-pulse"></div><div class="space-y-4"><div class="h-4 bg-slate-200 rounded w-full animate-pulse"></div><div class="h-4 bg-slate-200 rounded w-5/6 animate-pulse"></div><div class="h-12 bg-slate-200 rounded w-full mt-6 animate-pulse"></div></div></div></main>
+    </div>
+
+    <!-- Authentication Section -->
+    <div id="authSection" class="min-h-screen flex items-center justify-center p-4 hidden">
+        <div class="w-full max-w-md card p-8 space-y-6">
+            <div class="text-center"><h2 class="mt-4 text-3xl font-bold text-slate-900">Đăng nhập hệ thống</h2></div>
+            <div><label for="authEmail" class="block text-slate-700 text-sm font-medium mb-2">Email:</label><input type="email" id="authEmail" class="input-field" placeholder="email@example.com"></div>
+            <div><label for="authPassword" class="block text-slate-700 text-sm font-medium mb-2">Mật khẩu:</label><input type="password" id="authPassword" class="input-field" placeholder="••••••••"></div>
+            <div class="text-right">
+                 <button id="forgotPasswordBtn" class="text-sm font-medium text-indigo-600 hover:text-indigo-500">Quên mật khẩu?</button>
+            </div>
+            <button id="loginBtn" class="btn-primary w-full text-base py-3">Đăng nhập</button>
+            <div id="authMessage" class="hidden mt-4 p-3 rounded-lg text-sm text-center"></div>
+        </div>
+    </div>
+
+    <!-- Main Application Container -->
+    <div id="appContainer" class="hidden">
+        <!-- Sidebar -->
+        <aside id="sidebar" class="bg-white w-64 min-h-screen fixed top-0 left-0 z-40 lg:translate-x-0 -translate-x-full transition-transform duration-300 ease-in-out border-r border-slate-200 flex flex-col">
+            <div class="p-4 border-b border-slate-200"><button id="homeBtn" class="font-bold text-lg text-slate-800 focus:outline-none w-full text-left">Hệ Thống Vận Hành</button></div>
+            <nav id="sidebarNav" class="p-4 space-y-2 flex-grow"></nav>
+        </aside>
+
+        <!-- Main Content Area -->
+        <div id="mainContent" class="lg:ml-64 transition-all duration-300 ease-in-out">
+            <!-- Header -->
+            <header class="bg-white/80 backdrop-blur-lg sticky top-0 z-30 border-b border-slate-200">
+                <div class="mx-auto flex justify-between items-center p-4">
+                    <button id="mobileMenuToggle" class="lg:hidden text-xl text-slate-600"><i class="fas fa-bars"></i></button>
+                    <div class="flex-1"></div>
+                    <div class="flex items-center space-x-4">
+                        <!-- Notifications Dropdown -->
+                        <div class="relative">
+                            <button id="notificationToggle" class="text-xl text-slate-600 hover:text-indigo-600 transition-colors notification-badge-container">
+                                <i class="fas fa-bell"></i>
+                                <div id="notificationBadge" class="notification-badge"></div>
+                            </button>
+                            <div id="notificationMenu" class="dropdown-menu !w-80 sm:!w-96 max-h-96 overflow-y-auto">
+                                <div class="p-3 font-semibold border-b border-slate-200">Thông Báo</div>
+                                <div id="notificationList"></div>
+                            </div>
+                        </div>
+                        <!-- User Profile Dropdown -->
+                        <div class="relative">
+                            <button id="userDropdownToggle" class="flex items-center space-x-2"><i class="fas fa-user-circle text-2xl text-slate-600"></i><span id="loggedInUserDisplay" class="font-medium text-slate-700 hidden sm:block"></span><i class="fas fa-chevron-down text-xs text-slate-500"></i></button>
+                            <div id="userDropdownMenu" class="dropdown-menu">
+                                <div class="p-2 border-b border-slate-100"><p id="dropdownUserName" class="truncate font-semibold"></p><p id="dropdownUserRole" class="truncate text-xs text-slate-500"></p></div>
+                                <a href="#" id="logoutDropdownBtn" class="flex items-center p-2 text-red-600 hover:bg-slate-100 rounded-b-md"><i class="fas fa-sign-out-alt fa-fw mr-2"></i>Thoát</a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </header>
+            <!-- Page Content -->
+            <main class="p-4 sm:p-6 space-y-6"></main>
+        </div>
+        
+        <!-- View Templates (Hidden) -->
+        <div id="viewsContainer" class="hidden">
+            <div id="attendanceView">
+                 <div class="card p-6 lg:p-8">
+                    <h2 class="text-3xl font-bold text-slate-800 mb-6 flex items-center"><i class="fas fa-user-clock mr-3 text-indigo-600"></i>Điểm Danh Chấm Công</h2>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                        <div>
+                            <div class="mb-4"><label class="block text-slate-600 mb-2">Tên nhân viên:</label><input type="text" id="employeeName" class="input-field bg-slate-100" disabled></div>
+                            <div class="flex space-x-4"><button id="checkInBtn" class="btn-primary flex-1 py-3"><i class="fas fa-sign-in-alt mr-2"></i>Check In</button><button id="checkOutBtn" class="btn-secondary flex-1 py-3"><i class="fas fa-sign-out-alt mr-2"></i>Check Out</button></div>
+                            <div id="attendanceMessage" class="hidden mt-4 p-3 rounded-lg text-sm"></div>
+                        </div>
+                        <div>
+                            <h3 class="text-lg font-semibold text-slate-800 mb-3">Lịch Sử Gần Đây</h3>
+                            <ul id="attendanceHistory" class="space-y-2 text-slate-600 max-h-48 overflow-y-auto pr-2"></ul>
+                        </div>
+                    </div>
+                 </div>
+            </div>
+            <div id="manageAccountsView">
+                 <div id="adminSettingsCard" class="card p-6 mb-6 hidden">
+                    <h3 class="text-xl font-bold text-slate-800 mb-4">Cài đặt Hệ thống (Admin)</h3>
+                    <div class="space-y-4">
+                        <div>
+                            <label for="escalationTimeInput" class="font-medium text-sm">Thời gian gửi thông báo cho sự cố chưa được xử lý (phút):</label>
+                            <input type="number" id="escalationTimeInput" class="input-field" value="60">
+                        </div>
+                        <div class="flex items-center space-x-2">
+                             <input type="checkbox" id="escalationToggle" class="form-checkbox h-4 w-4 text-indigo-600 rounded">
+                            <label for="escalationToggle" class="font-medium text-sm cursor-pointer">Bật tính năng thông báo tự động</label>
+                        </div>
+                        <div>
+                            <button id="saveSettingsBtn" class="btn-primary w-full sm:w-auto">Lưu Cài đặt</button>
+                        </div>
+                    </div>
+                    <div id="settingsMessage" class="hidden mt-4 p-3 rounded-lg text-sm"></div>
+                 </div>
+                 <div class="card p-6 mb-6">
+                    <h3 class="text-xl font-bold text-slate-800 mb-4">Tạo Tài Khoản Mới</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div><label class="font-medium text-sm">Email:</label><input type="email" id="createAccountEmail" class="input-field"></div>
+                        <div><label class="font-medium text-sm">Mật khẩu (tối thiểu 6 ký tự):</label><input type="password" id="createAccountPassword" class="input-field"></div>
+                        <div><label class="font-medium text-sm">Tên người dùng:</label><input type="text" id="createAccountUsername" class="input-field"></div>
+                        <div><label class="font-medium text-sm">Mã nhân viên (MSNV):</label><input type="text" id="createAccountEmployeeId" class="input-field"></div>
+                    </div>
+                    <button id="createAccountBtn" class="btn-primary mt-4">Tạo Tài Khoản</button>
+                    <div id="createAccountMessage" class="hidden mt-4 p-3 rounded-lg text-sm"></div>
+                 </div>
+                 <div class="card p-6 mb-6">
+                    <h3 class="text-xl font-bold text-slate-800 mb-4">Tạo Hàng Loạt Từ Excel</h3>
+                    <p class="text-sm text-slate-600 mb-3">Tải lên file Excel (.xlsx, .xls) với các cột: `email`, `password`, `displayName`, `employeeId`, `role`. Nếu `email` đã tồn tại, thông tin tài khoản sẽ được cập nhật. Nếu chưa có, tài khoản mới sẽ được tạo (mật khẩu là bắt buộc cho tài khoản mới). Vai trò hợp lệ là 'Admin', 'Manager', 'Nhân viên'.</p>
+                    <input type="file" id="excelFileInput" class="input-field mb-3" accept=".xlsx, .xls">
+                    <div class="flex space-x-2">
+                        <button id="importExcelBtn" class="btn-primary">Nhập Dữ Liệu</button>
+                        <button id="downloadTemplateBtn" class="btn-secondary">Tải file mẫu</button>
+                    </div>
+                    <div id="importExcelMessage" class="hidden mt-4 p-3 rounded-lg text-sm"></div>
+                 </div>
+                 <div class="card p-6">
+                    <div class="flex justify-between items-center mb-4">
+                        <h3 class="text-xl font-bold text-slate-800">Danh Sách Tài Khoản</h3>
+                        <label class="flex items-center space-x-2 cursor-pointer">
+                             <input type="checkbox" id="showDisabledAccountsToggle" class="form-checkbox h-4 w-4 text-indigo-600 rounded">
+                             <span class="text-sm text-slate-600">Hiển thị tài khoản đã vô hiệu hóa</span>
+                        </label>
+                    </div>
+                     <div class="overflow-x-auto">
+                        <table class="min-w-full divide-y divide-slate-200 responsive-table">
+                            <thead class="bg-slate-50">
+                                <tr>
+                                    <th class="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase">MSNV</th>
+                                    <th class="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase">Tên Người Dùng</th>
+                                    <th class="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase">Email</th>
+                                    <th class="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase">Vai Trò</th>
+                                    <th class="px-4 py-3 text-right text-xs font-semibold text-slate-500 uppercase">Hành Động</th>
+                                </tr>
+                            </thead>
+                            <tbody id="accountsTableBody" class="bg-white divide-y divide-slate-200"></tbody>
+                        </table>
+                    </div>
+                    <div id="accountsPagination" class="flex justify-between items-center mt-4"></div>
+                 </div>
+            </div>
+            <div id="dashboardView">
+                <h2 class="text-3xl font-bold text-slate-800 mb-4">Dashboard</h2>
+
+                <!-- Dashboard Tabs -->
+                <div class="border-b border-slate-200">
+                    <nav id="dashboardTabs" class="-mb-px flex space-x-6 overflow-x-auto pb-2" aria-label="Tabs">
+                        <!-- Tabs will be dynamically inserted here -->
+                    </nav>
+                </div>
+
+                <div id="dashboardTabContent" class="mt-6">
+                    <!-- Tab Panels will be dynamically inserted here -->
+                </div>
+            </div>
+            <div id="issueReportView">
+                 <div class="card p-6 lg:p-8">
+                    <h2 class="text-2xl sm:text-3xl font-bold text-slate-800 mb-6 flex items-center"><i class="fas fa-exclamation-triangle mr-3 text-red-600"></i>Báo Lỗi & Sự Cố</h2>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
+                        <div><label for="reporterName" class="block text-slate-600 text-sm font-medium mb-2">Người báo cáo:</label><input type="text" id="reporterName" class="input-field bg-slate-100" disabled></div>
+                        <div><label for="issueType" class="block text-slate-600 text-sm font-medium mb-2">Loại sự cố:</label><select id="issueType" class="select-field"><option value="Kỹ thuật">Kỹ thuật</option><option value="Vận hành">Vận hành</option><option value="Hệ thống">Hệ thống</option><option value="Con người">Con người</option><option value="Khác">Khác</option></select></div>
+                        <div><label for="issuePriority" class="block text-slate-600 text-sm font-medium mb-2">Mức độ ưu tiên:</label><select id="issuePriority" class="select-field"><option value="Thấp">Thấp</option><option value="Trung bình">Trung bình</option><option value="Nghiêm trọng">Nghiêm trọng</option></select></div>
+                        <div><label for="issueBranch" class="block text-slate-600 text-sm font-medium mb-2">Chi nhánh:</label><select id="issueBranch" class="select-field"></select></div>
+                        <div class="md:col-span-2"><label for="issueImage" class="block text-slate-600 text-sm font-medium mb-2">Ảnh mô tả lỗi:</label><input type="file" id="issueImage" accept="image/*" class="input-field"></div>
+                        <div class="md:col-span-2"><label for="issueDescription" class="block text-slate-600 text-sm font-medium mb-2">Mô tả chi tiết:</label><textarea id="issueDescription" class="textarea-field" placeholder="Mô tả sự cố..."></textarea></div>
+                    </div>
+                    <button id="reportIssueBtn" class="btn-primary mt-6"><i class="fas fa-paper-plane mr-2"></i>Gửi Báo Cáo</button>
+                    <div id="issueMessage" class="hidden mt-4 p-3 rounded-lg text-sm"></div>
+                 </div>
+            </div>
+            <div id="issueHistoryView">
+                 <div class="card p-6">
+                    <h2 class="text-2xl font-bold text-slate-800 mb-4">Lịch Sử Báo Cáo</h2>
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full divide-y divide-slate-200 responsive-table">
+                            <thead class="bg-slate-50">
+                                <tr>
+                                    <th class="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase">Chi nhánh</th>
+                                    <th class="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase">Người gửi</th>
+                                    <th class="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase">Loại sự cố</th>
+                                    <th class="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase">Ngày báo cáo</th>
+                                    <th class="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase">Trạng thái</th>
+                                    <th class="px-4 py-3 text-right text-xs font-semibold text-slate-500 uppercase">Hành Động</th>
+                                </tr>
+                            </thead>
+                            <tbody id="issueHistoryTableBody" class="bg-white divide-y divide-slate-200"></tbody>
+                        </table>
+                    </div>
+                    <div id="issueHistoryPagination" class="flex justify-between items-center mt-4"></div>
+                 </div>
+            </div>
+            <div id="myTasksView">
+                 <div class="card p-6">
+                    <h2 class="text-2xl font-bold text-slate-800 mb-4">Nhiệm Vụ Của Tôi</h2>
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full divide-y divide-slate-200 responsive-table">
+                            <thead class="bg-slate-50">
+                                <tr>
+                                    <th class="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase">Chi nhánh</th>
+                                    <th class="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase">Loại sự cố</th>
+                                    <th class="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase">Ngày báo cáo</th>
+                                    <th class="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase">Trạng thái</th>
+                                    <th class="px-4 py-3 text-right text-xs font-semibold text-slate-500 uppercase">Hành Động</th>
+                                </tr>
+                            </thead>
+                            <tbody id="myTasksTableBody" class="bg-white divide-y divide-slate-200"></tbody>
+                        </table>
+                    </div>
+                    <div id="myTasksPagination" class="flex justify-between items-center mt-4"></div>
+                 </div>
+            </div>
+            <div id="activityLogView">
+                 <div class="card p-6">
+                    <h2 class="text-2xl font-bold text-slate-800 mb-4">Nhật Ký Hoạt Động</h2>
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full divide-y divide-slate-200 responsive-table">
+                             <thead class="bg-slate-50">
+                                 <tr>
+                                     <th class="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase">Thời Gian</th>
+                                     <th class="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase">Người Thực Hiện</th>
+                                     <th class="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase">Hành Động</th>
+                                     <th class="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase">Chi Tiết</th>
+                                 </tr>
+                            </thead>
+                            <tbody id="activityLogTableBody" class="bg-white divide-y divide-slate-200"></tbody>
+                        </table>
+                    </div>
+                    <div id="activityLogPagination" class="flex justify-between items-center mt-4"></div>
+                 </div>
+            </div>
+        </div>
+
+        <!-- Modals -->
+        <div id="editAccountModal" class="modal">
+            <div class="modal-content !max-w-3xl">
+                <div class="flex justify-between items-center mb-6"><h3 class="text-2xl font-bold text-slate-800">Chỉnh Sửa Tài Khoản</h3><span id="closeEditAccountModalBtn" class="cursor-pointer text-2xl">&times;</span></div>
+                <div class="space-y-4">
+                    <input type="hidden" id="editAccountUid">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div><label class="font-medium">Email:</label><input type="email" id="editAccountEmail" class="input-field bg-slate-100" disabled></div>
+                        <div><label class="font-medium">Vai trò:</label><select id="editAccountRole" class="select-field"></select></div>
+                        <div><label class="font-medium">Mã nhân viên (MSNV):</label><input type="text" id="editAccountEmployeeId" class="input-field"></div>
+                        <div><label class="font-medium">Tên người dùng:</label><input type="text" id="editAccountUsername" class="input-field"></div>
+                    </div>
+                    <div id="managedBranchesContainer" class="hidden pt-4 border-t"><h4 class="font-semibold mb-2">Phân Quyền Quản Lý Chi Nhánh</h4><div id="managedBranchesCheckboxes" class="grid grid-cols-2 md:grid-cols-3 gap-2 max-h-48 overflow-y-auto"></div></div>
+                    <div id="allowedViewsContainer" class="pt-4 border-t"><h4 class="font-semibold mb-2">Phân Quyền Truy Cập Chức Năng</h4><div id="allowedViewsCheckboxes" class="grid grid-cols-2 md:grid-cols-3 gap-2"></div></div>
+                    <div id="editAccountMessage" class="hidden mt-4 p-3 rounded-lg text-sm"></div>
+                    <div class="flex justify-end space-x-4 mt-6"><button id="cancelEditAccountBtn" class="btn-secondary">Hủy</button><button id="saveAccountDetailsBtn" class="btn-primary"><i class="fas fa-save mr-2"></i>Lưu Thay Đổi</button></div>
+                </div>
+            </div>
+        </div>
+        
+        <div id="issueDetailModal" class="modal">
+            <div class="modal-content !max-w-4xl">
+                <div class="flex justify-between items-start mb-6">
+                    <div>
+                        <h3 class="text-2xl font-bold text-slate-800">Chi Tiết Sự Cố</h3>
+                        <p id="detailIssueBranch" class="text-sm text-slate-500"></p>
+                    </div>
+                    <span id="closeIssueDetailModalBtn" class="cursor-pointer text-2xl">&times;</span>
+                </div>
+                <input type="hidden" id="detailIssueId">
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <!-- Left Column: Details & Image -->
+                    <div class="lg:col-span-2 space-y-4">
+                        <div>
+                            <h4 class="font-semibold text-slate-700">Mô tả</h4>
+                            <p id="detailIssueDescription" class="p-3 bg-slate-50 rounded-md mt-1 min-h-[6rem]"></p>
+                        </div>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div>
+                                <h4 class="font-semibold text-slate-700">Hình ảnh ban đầu</h4>
+                                <div id="detailIssueImageContainer" class="mt-2"></div>
+                            </div>
+                            <div>
+                                <h4 class="font-semibold text-slate-700">Hình ảnh đã sửa chữa</h4>
+                                <div id="detailRepairedImageContainer" class="mt-2"></div>
+                            </div>
+                        </div>
+                        <div class="pt-4 border-t">
+                            <h4 class="font-semibold text-slate-700 mb-2">Thảo luận</h4>
+                            <div id="detailIssueComments" class="space-y-3 max-h-60 overflow-y-auto pr-2 mb-4 bg-slate-50 p-2 rounded-md"></div>
+                            <div class="flex space-x-2">
+                                <input type="text" id="newCommentInput" class="input-field flex-grow" placeholder="Thêm bình luận...">
+                                <button id="addCommentBtn" class="btn-primary">Gửi</button>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- Right Column: Info & Actions -->
+                    <div class="space-y-4 p-4 bg-slate-50 rounded-lg">
+                        <h4 class="font-bold text-lg text-slate-800 border-b pb-2">Thông Tin</h4>
+                        <div><strong>Người báo cáo:</strong> <span id="detailReporterName"></span></div>
+                        <div><strong>Ngày báo cáo:</strong> <span id="detailReportDate"></span></div>
+                        <div><strong>Ưu tiên:</strong> <span id="detailIssuePriority"></span></div>
+                        <div class="pt-4 border-t">
+                            <h4 class="font-bold text-lg text-slate-800 border-b pb-2 mb-2">Hành Động</h4>
+                            <div><label class="font-medium">Trạng thái:</label><select id="detailIssueStatus" class="select-field"></select></div>
+                            <div><label class="font-medium">Giao cho:</label><select id="detailIssueAssignee" class="select-field"></select></div>
+                            <div id="repairedImageUploadContainer" class="hidden mt-4">
+                                <label for="repairedImageInput" class="font-medium text-sm">Ảnh sửa chữa (bắt buộc):</label>
+                                <input type="file" id="repairedImageInput" class="input-field mt-1" accept="image/*">
+                            </div>
+                            <button id="updateIssueBtn" class="btn-primary w-full mt-4">Cập nhật</button>
+                            <div id="detailIssueMessage" class="hidden mt-4 p-3 rounded-lg text-sm"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="deleteAccountModal" class="modal">
+            <div class="modal-content !max-w-lg">
+                <div class="flex justify-between items-start mb-4">
+                    <h3 class="text-xl font-bold text-slate-800">Vô hiệu hóa Tài khoản</h3>
+                    <span id="closeDeleteModalBtn" class="cursor-pointer text-2xl">&times;</span>
+                </div>
+                <p class="text-slate-600 mb-6">Tài khoản <strong id="deleteAccountName"></strong> sẽ không thể đăng nhập. Dữ liệu của họ sẽ được xử lý theo lựa chọn bên dưới.</p>
+                <input type="hidden" id="deleteAccountUid">
+                
+                <div class="space-y-4">
+                    <div class="p-4 border rounded-lg">
+                        <h4 class="font-semibold text-slate-800">1. Vô hiệu hóa Tài khoản</h4>
+                        <p class="text-sm text-slate-500 mt-1 mb-3">Chỉ vô hiệu hóa tài khoản. Dữ liệu họ tạo ra (như báo cáo sự cố) sẽ được giữ nguyên.</p>
+                        <button id="confirmDisableProfileOnlyBtn" class="btn-secondary w-full">Thực hiện Vô hiệu hóa</button>
+                    </div>
+                    <div class="p-4 border border-red-300 rounded-lg bg-red-50">
+                        <h4 class="font-semibold text-red-800">2. Vô hiệu hóa và Ẩn danh Dữ liệu</h4>
+                        <p class="text-sm text-red-600 mt-1 mb-3">Vô hiệu hóa tài khoản và ẩn danh tất cả báo cáo sự cố do người này tạo. Dữ liệu chấm công vẫn được giữ lại.</p>
+                        <button id="confirmDisableAndAnonymizeBtn" class="btn-danger w-full">Thực hiện Vô hiệu hóa & Ẩn danh</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="cameraModal" class="modal">
+            <div class="modal-content w-[95%] max-w-xl h-2/3 flex flex-col">
+                <div class="flex justify-between items-center mb-4 flex-shrink-0">
+                    <h3 id="cameraModalTitle" class="text-xl font-bold text-slate-800">Điểm Danh</h3>
+                    <span id="closeCameraModalBtn" class="cursor-pointer text-2xl">&times;</span>
+                </div>
+                <div class="relative w-full bg-slate-800 rounded-lg overflow-hidden flex-grow">
+                    <video id="cameraFeed" class="w-full h-full object-cover" autoplay playsinline></video>
+                    <canvas id="photoCanvas" class="hidden"></canvas>
+                    <img id="photoPreview" src="" class="hidden absolute top-0 left-0 w-full h-full object-cover"/>
+                    <div id="camera-overlay" class="absolute bottom-0 left-0 w-full p-4 bg-gradient-to-t from-black/60 to-transparent text-white">
+                        <div class="flex items-end">
+                            <p id="camera-time" class="text-5xl font-bold leading-none">00:00</p>
+                            <div class="ml-4 text-sm">
+                                <p id="camera-date">Ngày 1, Tháng 1, 2000</p>
+                                <p id="camera-day">Thứ Hai</p>
+                            </div>
+                        </div>
+                        <p id="camera-address" class="text-xs mt-2 truncate">Đang lấy vị trí...</p>
+                        <p id="camera-user" class="text-sm font-semibold mt-1">Họ tên: </p>
+                    </div>
+                </div>
+                <div id="cameraMessage" class="hidden mt-4 p-3 rounded-lg text-sm flex-shrink-0"></div>
+                <div class="flex justify-center space-x-4 mt-4 flex-shrink-0">
+                    <button id="captureBtn" class="btn-primary px-8 py-3 rounded-full"><i class="fas fa-camera"></i></button>
+                    <button id="recaptureBtn" class="btn-secondary hidden">Chụp Lại</button>
+                    <button id="confirmAttendanceBtn" class="btn-primary hidden">Xác Nhận</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="resetPasswordModal" class="modal">
+            <div class="modal-content !max-w-md">
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="text-xl font-bold">Đặt Lại Mật Khẩu</h3>
+                    <span id="closeResetPasswordModalBtn" class="cursor-pointer text-2xl">&times;</span>
+                </div>
+                <p class="text-sm text-slate-600 mb-4">Vui lòng nhập email của bạn. Chúng tôi sẽ gửi một liên kết để bạn đặt lại mật khẩu.</p>
+                <div>
+                    <label for="resetEmail" class="block text-slate-700 text-sm font-medium mb-2">Email:</label>
+                    <input type="email" id="resetEmail" class="input-field" placeholder="email@example.com">
+                </div>
+                <div id="resetPasswordMessage" class="hidden mt-4 p-3 rounded-lg text-sm"></div>
+                <div class="flex justify-end space-x-4 mt-6">
+                    <button id="cancelResetBtn" class="btn-secondary">Hủy</button>
+                    <button id="sendResetEmailBtn" class="btn-primary">Gửi</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="forceChangePasswordModal" class="modal">
+            <div class="modal-content !max-w-md">
+                <h3 class="text-2xl font-bold text-slate-800 mb-4">Yêu Cầu Thay Đổi Mật Khẩu</h3>
+                <p class="text-sm text-slate-600 mb-6">Để đảm bảo an toàn cho tài khoản, bạn cần đặt một mật khẩu mới. Mật khẩu mới phải có ít nhất 6 ký tự.</p>
+                <div class="space-y-4">
+                    <div>
+                        <label for="newPassword" class="block text-slate-700 text-sm font-medium mb-2">Mật khẩu mới:</label>
+                        <input type="password" id="newPassword" class="input-field">
+                    </div>
+                    <div>
+                        <label for="confirmNewPassword" class="block text-slate-700 text-sm font-medium mb-2">Xác nhận mật khẩu mới:</label>
+                        <input type="password" id="confirmNewPassword" class="input-field">
+                    </div>
+                </div>
+                <div id="changePasswordMessage" class="hidden mt-4 p-3 rounded-lg text-sm"></div>
+                <div class="mt-6">
+                    <button id="confirmChangePasswordBtn" class="btn-primary w-full py-3">Thay Đổi Mật Khẩu</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="drillDownModal" class="modal">
+            <div class="modal-content !max-w-5xl h-5/6 flex flex-col">
+                <div class="flex justify-between items-center mb-4 flex-shrink-0">
+                    <h3 id="drillDownTitle" class="text-2xl font-bold text-slate-800">Chi tiết</h3>
+                    <span id="closeDrillDownModalBtn" class="cursor-pointer text-2xl">&times;</span>
+                </div>
+                <div id="drillDownContent" class="overflow-y-auto flex-grow">
+                    <!-- Drill-down table will be inserted here by JavaScript -->
+                </div>
+                 <div class="flex justify-end mt-6 flex-shrink-0">
+                    <button id="cancelDrillDownBtn" class="btn-secondary">Đóng</button>
+                </div>
+            </div>
+        </div>
+
+    </div>
+    
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, sendPasswordResetEmail, updatePassword, signInWithEmailAndPassword, onAuthStateChanged, signOut, signInWithCustomToken, createUserWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, collection, query, orderBy, onSnapshot, addDoc, updateDoc, where, getDocs, getDoc, setDoc, serverTimestamp, limit, deleteDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getStorage, ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-storage.js";
+
+        // --- Configuration Constants ---
+        const firebaseConfig = {
+    apiKey: "AIzaSyD3FBCihM1QA1DZmMxn0ysR2khs43M-2sE",
+    authDomain: "icool-ea266.firebaseapp.com",
+    projectId: "icool-ea266",
+    // 👇 CORRECT THIS LINE
+    storageBucket: "icool-ea266.appspot.com", 
+    messagingSenderId: "338046663113",
+    appId: "1:338046663113:web:cef72e289e7546f3271018",
+    measurementId: "G-NBGEQSDT6N"
+};
+        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+        const canvasAppId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+        const DEFAULT_ADMIN_EMAIL = 'trungthang2601@gmail.com';
+        const ALL_BRANCHES = ["ICOOL XÔ VIẾT NGHỆ TĨNH", "ICOOL BÌNH PHÚ", "ICOOL UNG VĂN KHIÊM", "ICOOL TÔ KÝ", "ICOOL DƯƠNG BÁ TRẠC", "ICOOL TRẦN NÃO", "ICOOL THÀNH THÁI", "ICOOL MẠC ĐĨNH CHI", "ICOOL NGUYỄN SƠN", "ICOOL NGUYỄN TRÃI", "ICOOL NHỊ THIÊN ĐƯỜNG", "ICOOL CÁCH MẠNG THÁNG TÁM", "ICOOL TRẦN BÌNH TRỌNG", "ICOOL ĐỒNG ĐEN", "ICOOL PHAN CHU TRINH", "ICOOL NGUYỄN TRI PHƯƠNG", "ICOOL PHAN XÍCH LONG", "ICOOL HOÀNG DIỆU 2", "ICOOL CẦU CHỮ Y", "ICOOL LÊ VĂN VIỆT", "ICOOL SƯ VẠN HẠNH", "ICOOL ĐẠI LỘ 2", "ICOOL LÊ THỊ HÀ", "ICOOL VŨNG TÀU"];
+        const ALL_VIEWS = {
+            dashboardView: "Dashboard", attendanceView: "Điểm Danh", issueReportView: "Báo Lỗi",
+            issueHistoryView: "Lịch Sử Báo Cáo", myTasksView: "Nhiệm Vụ Của Tôi", manageAccountsView: "Quản Lý Tài Khoản", activityLogView: "Nhật Ký Hoạt Động",
+        };
+        const ROLES = ['Admin', 'Manager', 'Nhân viên'];
+        const DEFAULT_VIEWS = {
+            'Admin': Object.keys(ALL_VIEWS),
+            'Manager': ['dashboardView', 'attendanceView', 'issueReportView', 'issueHistoryView', 'myTasksView', 'activityLogView'],
+            'Nhân viên': ['attendanceView', 'issueReportView', 'issueHistoryView', 'myTasksView']
+        };
+        const ISSUE_STATUSES = ['Mới tạo', 'Đang xử lý', 'Đã giải quyết'];
+        const ISSUE_TYPES = ['Kỹ thuật', 'Vận hành', 'Hệ thống', 'Con người', 'Khác'];
+
+        // --- Global State Variables ---
+        let app, auth, db, storage;
+        let currentUser = null, currentUserProfile = null;
+        let unsubscribeListeners = [], issueCommentsUnsubscribe = null;
+        let issueTypeChart = null, pdmRiskChart = null, incidentTrendChart = null, performanceStatusChart = null, performanceTimeChart = null;
+        let currentCameraStream, capturedPhotoBlob, currentAttendanceAction, timeInterval, capturedLocationInfo;
+        let showDisabledAccounts = false;
+        let allUsersCache = [];
+        let escalationInterval = null;
+        let dashboardReportsCache = [];
+        let activityLogsCache = [];
+        let issueHistoryCache = [];
+        let myTasksCache = [];
+        let activityLogCurrentPage = 1;
+        let accountsCurrentPage = 1;
+        let issueHistoryCurrentPage = 1;
+        let myTasksCurrentPage = 1;
+        const ITEMS_PER_PAGE = 10;
+
+
+        // --- DOM Element References ---
+        let skeletonLoader, authSection, appContainer, mainContentContainer, viewsContainer, sidebarNav;
+        let authEmailInput, authPasswordInput, loginBtn, authMessage;
+        let loggedInUserDisplay, dropdownUserName, dropdownUserRole;
+        let notificationToggle, notificationBadge, notificationMenu, notificationList;
+        let editAccountModal, issueDetailModal, cameraModal, deleteAccountModal, resetPasswordModal, forceChangePasswordModal, drillDownModal;
+        let sidebar, mobileMenuToggle;
+
+        // --- App Initialization ---
+        document.addEventListener('DOMContentLoaded', async () => {
+            // Bind DOM elements first to ensure they are available for the catch block
+            bindShellDOMElements();
+            bindShellEventListeners();
+            
+            try {
+                app = initializeApp(firebaseConfig);
+                auth = getAuth(app);
+                db = getFirestore(app);
+                storage = getStorage(app);
+                
+                onAuthStateChanged(auth, handleAuthStateChange);
+
+                if (initialAuthToken) {
+                    await signInWithCustomToken(auth, initialAuthToken);
+                }
+
+            } catch (error) {
+                console.error("Firebase Init Error:", error);
+                // Now skeletonLoader and authSection are defined, so this won't throw a TypeError
+                skeletonLoader.classList.add('hidden');
+                authSection.classList.remove('hidden');
+            }
+        });
+
+        // --- Escalation & Settings Functions (Admin only) ---
+        async function handleSaveSettings() {
+            const settingsMessage = mainContentContainer.querySelector('#settingsMessage');
+            const newTime = parseInt(mainContentContainer.querySelector('#escalationTimeInput').value, 10);
+            const escalationEnabled = mainContentContainer.querySelector('#escalationToggle').checked;
+
+            if (isNaN(newTime) || newTime <= 0) {
+                settingsMessage.textContent = 'Vui lòng nhập một số dương hợp lệ.';
+                settingsMessage.className = 'p-3 rounded-lg text-sm alert-error';
+                settingsMessage.classList.remove('hidden');
+                return;
+            }
+
+            try {
+                const settingsRef = doc(db, `/artifacts/${canvasAppId}/public/data/settings`, 'appSettings');
+                await setDoc(settingsRef, { 
+                    escalationTimeMinutes: newTime,
+                    escalationEnabled: escalationEnabled 
+                }, { merge: true });
+                
+                settingsMessage.textContent = 'Cài đặt đã được lưu thành công!';
+                settingsMessage.className = 'p-3 rounded-lg text-sm alert-success';
+                settingsMessage.classList.remove('hidden');
+
+                // Restart the checker with the new settings
+                stopEscalationChecker();
+                startEscalationChecker();
+
+                setTimeout(() => settingsMessage.classList.add('hidden'), 2000);
+            } catch (error) {
+                console.error("Error saving settings:", error);
+                settingsMessage.textContent = `Lỗi: ${error.message}`;
+                settingsMessage.className = 'p-3 rounded-lg text-sm alert-error';
+                settingsMessage.classList.remove('hidden');
+            }
+        }
+
+        async function fetchAndDisplaySettings() {
+            const escalationTimeInput = mainContentContainer.querySelector('#escalationTimeInput');
+            const escalationToggle = mainContentContainer.querySelector('#escalationToggle');
+            if (!escalationTimeInput || !escalationToggle) return;
+
+            try {
+                const settingsRef = doc(db, `/artifacts/${canvasAppId}/public/data/settings`, 'appSettings');
+                const docSnap = await getDoc(settingsRef);
+
+                if (docSnap.exists()) {
+                    const settings = docSnap.data();
+                    escalationTimeInput.value = settings.escalationTimeMinutes || 60;
+                    escalationToggle.checked = settings.escalationEnabled === true;
+                } else {
+                    escalationTimeInput.value = 60; // Default value
+                    escalationToggle.checked = false; // Default value
+                }
+            } catch (error) {
+                console.error("Error fetching settings:", error);
+                escalationTimeInput.value = 60; // Fallback to default
+                escalationToggle.checked = false;
+            }
+        }
+
+        function stopEscalationChecker() {
+            if (escalationInterval) {
+                clearInterval(escalationInterval);
+                escalationInterval = null;
+                console.log("Escalation checker stopped.");
+            }
+        }
+
+        async function startEscalationChecker() {
+            stopEscalationChecker(); // Ensure no multiple intervals are running
+
+            const settingsRef = doc(db, `/artifacts/${canvasAppId}/public/data/settings`, 'appSettings');
+            const settingsSnap = await getDoc(settingsRef);
+            
+            if (!settingsSnap.exists() || !settingsSnap.data().escalationEnabled) {
+                console.log("Escalation feature is disabled. Checker will not run.");
+                return;
+            }
+
+            console.log("Starting escalation checker...");
+
+            const escalationMinutes = settingsSnap.data().escalationTimeMinutes || 60;
+            const checkInterval = 5 * 60 * 1000; // Check every 5 minutes
+
+            escalationInterval = setInterval(async () => {
+                console.log(`Checking for unassigned issues older than ${escalationMinutes} minutes...`);
+                const now = new Date();
+                const escalationThreshold = new Date(now.getTime() - escalationMinutes * 60 * 1000);
+                
+                const q = query(
+                    collection(db, `/artifacts/${canvasAppId}/public/data/issueReports`),
+                    where('status', '==', 'Mới tạo'),
+                    where('assigneeId', '==', null),
+                    where('reportDate', '<', escalationThreshold.toISOString())
+                );
+                
+                const overdueIssuesSnapshot = await getDocs(q);
+                if (overdueIssuesSnapshot.empty) {
+                    console.log("No overdue issues found.");
+                    return;
+                }
+
+                const allUsersSnapshot = await getDocs(collection(db, `/artifacts/${canvasAppId}/users`));
+                const allUserIds = allUsersSnapshot.docs.map(d => d.id);
+                
+                for (const issueDoc of overdueIssuesSnapshot.docs) {
+                    const issueData = issueDoc.data();
+                    if (issueData.escalated) {
+                        continue; // Skip if already escalated
+                    }
+
+                    console.log(`Escalating issue: ${issueDoc.id}`);
+                    const message = `CẢNH BÁO: Sự cố tại '${issueData.issueBranch}' (${issueData.issueType}) đã quá hạn xử lý!`;
+                    
+                    // Send notification to all users
+                    for (const userId of allUserIds) {
+                        await sendNotification(userId, message);
+                    }
+
+                    // Mark as escalated to prevent re-notifying
+                    await updateDoc(issueDoc.ref, { escalated: true });
+                }
+
+            }, checkInterval);
+        }
+
+        // --- Core Auth & UI Functions ---
+        async function handleAuthStateChange(user) {
+    // Hide the skeleton loader as the very first step.
+    if (skeletonLoader) {
+        skeletonLoader.classList.add('hidden');
+    }
+    
+    unsubscribeAll();
+    stopEscalationChecker();
+    currentUser = user;
+
+    if (user) {
+        // User is authenticated, so show the app shell immediately
+        authSection.classList.add('hidden');
+        appContainer.classList.remove('hidden');
+        // Show a clear loading state inside the main content area
+        mainContentContainer.innerHTML = `<div class="text-center p-8">Đang tải dữ liệu người dùng...</div>`; 
+
+        try {
+            await fetchAndSetUserProfile(user.uid, user);
+
+            if (currentUserProfile && currentUserProfile.status !== 'disabled') {
+                if (currentUserProfile.requiresPasswordChange) {
+                    promptForcePasswordChange();
+                } else {
+                    setupUIForLoggedInUser();
+                    listenToNotifications();
+                    showInitialView();
+                    if (currentUserProfile.role === 'Admin') {
+                        startEscalationChecker();
+                    }
+                }
+                setTimeout(() => logActivity("User Login", { email: user.email }), 500);
+            } else {
+                // This case handles a valid login but a missing/disabled profile
+                console.error("User profile not found or account is disabled. Logging out.");
+                mainContentContainer.innerHTML = `<div class="card p-8 text-center text-red-600">Tài khoản của bạn đã bị vô hiệu hóa. Đang tự động đăng xuất...</div>`;
+                setTimeout(handleLogout, 3000); // Logout after 3 seconds
+            }
+        } catch (error) {
+            // This case handles critical errors, like Firestore connection issues
+            console.error("Failed to fetch user profile, Firestore might be unreachable:", error);
+            mainContentContainer.innerHTML = `<div class="card p-8 text-center text-red-600">Không thể tải dữ liệu hồ sơ người dùng. Vui lòng liên hệ quản trị viên.</div>`;
+        }
+    } else {
+        // User is not authenticated, show login screen
+        setupUIForLoggedOutUser();
+    }
+}
+
+        async function fetchAndSetUserProfile(uid, authUser) {
+            const userDocRef = doc(db, `/artifacts/${canvasAppId}/users/${uid}`);
+            let userDoc = await getDoc(userDocRef);
+
+            if (!userDoc.exists()) {
+                const userRole = authUser.email === DEFAULT_ADMIN_EMAIL ? 'Admin' : 'Nhân viên';
+                const defaultProfile = {
+                    email: authUser.email,
+                    displayName: authUser.displayName || ((authUser.email || '').split('@')[0] || 'Người dùng mới'),
+                    employeeId: 'N/A',
+                    role: userRole,
+                    allowedViews: DEFAULT_VIEWS[userRole],
+                    managedBranches: [],
+                    requiresPasswordChange: true // Force change for new accounts
+                };
+                await setDoc(userDocRef, defaultProfile);
+                userDoc = await getDoc(userDocRef);
+            }
+            currentUserProfile = userDoc.data();
+        }
+
+        async function handleLogin() {
+            const email = authEmailInput.value.trim();
+            const password = authPasswordInput.value;
+            if (!email || !password) {
+                authMessage.textContent = 'Vui lòng nhập email và mật khẩu.';
+                authMessage.className = 'p-3 rounded-lg text-sm text-center alert-error';
+                authMessage.classList.remove('hidden');
+                return;
+            }
+            try {
+                await signInWithEmailAndPassword(auth, email, password);
+                authMessage.classList.add('hidden');
+            } catch (error) {
+                authMessage.textContent = `Lỗi đăng nhập: ${error.code === 'auth/invalid-credential' ? 'Email hoặc mật khẩu không đúng.' : error.message}`;
+                authMessage.className = 'p-3 rounded-lg text-sm text-center alert-error';
+                authMessage.classList.remove('hidden');
+            }
+        }
+        
+        async function handleLogout() {
+            try { await signOut(auth); } catch (error) { console.error("Logout Error:", error); }
+        }
+
+        function setupUIForLoggedInUser() {
+            authSection.classList.add('hidden');
+            appContainer.classList.remove('hidden');
+            forceChangePasswordModal.style.display = 'none';
+            loggedInUserDisplay.textContent = currentUserProfile.displayName;
+            dropdownUserName.textContent = currentUserProfile.displayName;
+            dropdownUserRole.textContent = currentUserProfile.role;
+            renderSidebarNav();
+        }
+
+        function setupUIForLoggedOutUser() {
+            authSection.classList.remove('hidden');
+            appContainer.classList.add('hidden');
+            currentUserProfile = null;
+        }
+
+        function renderSidebarNav() {
+            sidebarNav.innerHTML = '';
+            currentUserProfile.allowedViews.forEach(viewId => {
+                if (ALL_VIEWS[viewId]) {
+                    const button = document.createElement('button');
+                    button.className = 'sidebar-nav-link w-full text-left p-3 rounded-md';
+                    button.dataset.view = viewId;
+                    const icons = { dashboardView: 'fa-chart-line', attendanceView: 'fa-user-clock', issueReportView: 'fa-exclamation-triangle', issueHistoryView: 'fa-history', myTasksView: 'fa-tasks', manageAccountsView: 'fa-users-cog', activityLogView: 'fa-clipboard-list' };
+                    button.innerHTML = `<i class="fas ${icons[viewId]} fa-fw mr-3"></i>${ALL_VIEWS[viewId]}`;
+                    button.addEventListener('click', () => showView(viewId));
+                    sidebarNav.appendChild(button);
+                }
+            });
+        }
+        
+        function showInitialView() {
+            const firstAllowedView = currentUserProfile.allowedViews[0] || 'attendanceView';
+            showView(firstAllowedView);
+        }
+
+        function showView(viewId) {
+            const viewTemplate = viewsContainer.querySelector(`#${viewId}`);
+            mainContentContainer.innerHTML = viewTemplate ? viewTemplate.innerHTML : `<h2>${ALL_VIEWS[viewId] || 'Trang không xác định'}</h2>`;
+            document.querySelectorAll('.sidebar-nav-link').forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.view === viewId);
+            });
+            const setupFunction = window[`setup_${viewId}`];
+            if(typeof setupFunction === 'function') {
+                setupFunction();
+            }
+
+            if (window.innerWidth < 1024) {
+                toggleMobileMenu(true);
+            }
+        }
+
+        function toggleMobileMenu(forceClose = false) {
+            if (forceClose) {
+                sidebar.classList.add('-translate-x-full');
+            } else {
+                sidebar.classList.toggle('-translate-x-full');
+            }
+        }
+        
+        // --- Notifications & Logging ---
+        function listenToNotifications() {
+            const q = query(collection(db, `/artifacts/${canvasAppId}/users/${currentUser.uid}/notifications`), orderBy('timestamp', 'desc'), limit(20));
+            const unsubscribe = onSnapshot(q, snapshot => {
+                const notifications = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                renderNotifications(notifications);
+            });
+            unsubscribeListeners.push(unsubscribe);
+        }
+
+        function renderNotifications(notifications) {
+            const unreadCount = notifications.filter(n => !n.read).length;
+            notificationBadge.textContent = unreadCount;
+            notificationBadge.classList.toggle('show', unreadCount > 0);
+            notificationList.innerHTML = notifications.length === 0 
+                ? `<div class="p-4 text-center text-sm text-slate-500">Không có thông báo mới.</div>`
+                : notifications.map(n => {
+                    const timestamp = n.timestamp ? new Date(n.timestamp.toDate()).toLocaleString('vi-VN') : 'Vừa xong';
+                    return `<div class="notification-item p-3 cursor-pointer hover:bg-slate-50 ${n.read ? '' : 'unread'}"><p class="text-sm">${n.message}</p><p class="text-xs text-slate-400 mt-1">${timestamp}</p></div>`
+                }).join('');
+        }
+        
+        async function sendNotification(userId, message) {
+            if (!userId) return;
+            try {
+                const notificationsCol = collection(db, `/artifacts/${canvasAppId}/users/${userId}/notifications`);
+                await addDoc(notificationsCol, {
+                    message: message,
+                    read: false,
+                    timestamp: serverTimestamp()
+                });
+            } catch (error) {
+                console.error("Error sending notification:", error);
+            }
+        }
+
+        async function logActivity(action, details = {}) {
+            try {
+                if (!currentUserProfile) return;
+                const logCollection = collection(db, `/artifacts/${canvasAppId}/public/data/activityLogs`);
+                await addDoc(logCollection, {
+                    action, details, timestamp: serverTimestamp(),
+                    actor: { uid: currentUser?.uid, email: currentUser?.email, displayName: currentUserProfile?.displayName }
+                });
+            } catch (error) {
+                console.warn(`Could not write to activity log (permissions issue?): ${error.message}`);
+            }
+        }
+
+        // --- Data Queries ---
+        function getScopedIssuesQuery() {
+            let q = collection(db, `/artifacts/${canvasAppId}/public/data/issueReports`);
+            if (currentUserProfile.role === 'Manager') {
+                const managedBranches = currentUserProfile.managedBranches || [];
+                if (managedBranches.length > 0) {
+                    q = query(q, where('issueBranch', 'in', managedBranches));
+                } else {
+                    return query(q, where('issueBranch', '==', '__NO_BRANCH_ASSIGNED__')); // Effectively returns no results
+                }
+            } else if (currentUserProfile.role === 'Nhân viên') {
+                q = query(q, where('reporterId', '==', currentUser.uid));
+            }
+            return q;
+        }
+
+        // --- View Setup Functions ---
+        window.setup_attendanceView = function() {
+            if (!currentUserProfile) return;
+            mainContentContainer.querySelector('#employeeName').value = currentUserProfile.displayName;
+            mainContentContainer.querySelector('#checkInBtn').addEventListener('click', () => handleAttendance('Check-In'));
+            mainContentContainer.querySelector('#checkOutBtn').addEventListener('click', () => handleAttendance('Check-Out'));
+            listenToAttendance();
+        };
+
+        window.setup_manageAccountsView = function() {
+            if (!currentUserProfile) return;
+            accountsCurrentPage = 1; // Reset page
+            mainContentContainer.querySelector('#createAccountBtn').addEventListener('click', handleCreateAccount);
+            mainContentContainer.querySelector('#importExcelBtn').addEventListener('click', handleExcelImport);
+            mainContentContainer.querySelector('#downloadTemplateBtn').addEventListener('click', handleDownloadTemplate);
+            const showDisabledToggle = mainContentContainer.querySelector('#showDisabledAccountsToggle');
+            showDisabledToggle.checked = showDisabledAccounts;
+            
+            showDisabledToggle.addEventListener('change', () => {
+                showDisabledAccounts = showDisabledToggle.checked;
+                accountsCurrentPage = 1;
+                renderAccountsTable(allUsersCache); // Re-render from cache when toggling
+            });
+
+            if (currentUserProfile.role === 'Admin') {
+                const adminSettingsCard = mainContentContainer.querySelector('#adminSettingsCard');
+                if (adminSettingsCard) {
+                    adminSettingsCard.classList.remove('hidden');
+                    mainContentContainer.querySelector('#saveSettingsBtn').addEventListener('click', handleSaveSettings);
+                    fetchAndDisplaySettings();
+                }
+            }
+
+            const q = query(collection(db, `/artifacts/${canvasAppId}/users`));
+            const unsubscribe = onSnapshot(q, (snapshot) => {
+                allUsersCache = snapshot.docs.map(doc => ({ uid: doc.id, ...doc.data() }));
+                renderAccountsTable(allUsersCache); // This is the main render call with fresh data
+            }, (error) => {
+                console.error("Error listening for account changes:", error);
+                const tableBody = mainContentContainer.querySelector('#accountsTableBody');
+                if (tableBody) {
+                    tableBody.innerHTML = `<tr><td colspan="5" class="text-center p-4 text-red-500">Lỗi tải danh sách người dùng.</td></tr>`;
+                }
+            });
+
+            unsubscribeListeners.push(unsubscribe);
+        };
+
+        window.setup_dashboardView = function() {
+            if (!currentUserProfile) return;
+            
+            const tabContainer = mainContentContainer.querySelector('#dashboardTabs');
+            const tabContentContainer = mainContentContainer.querySelector('#dashboardTabContent');
+
+            // Define tabs and their content
+            const tabs = {
+                overview: {
+                    title: 'Tổng quan',
+                    content: `
+                        <div id="dashboardWarnings" class="space-y-4 mb-6">
+                            <div id="dailySpikeWarning" class="hidden"></div>
+                            <div id="backlogWarning" class="hidden"></div>
+                        </div>
+                        <div class="card p-4">
+                            <h3 class="font-semibold text-slate-800 mb-3">Bộ lọc nâng cao</h3>
+                            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-6 gap-4">
+                                <div><label for="filterBranch" class="text-sm font-medium text-slate-600">Chi nhánh</label><select id="filterBranch" class="select-field text-sm mt-1"><option value="">Tất cả</option></select></div>
+                                <div><label for="filterIssueType" class="text-sm font-medium text-slate-600">Loại sự cố</label><select id="filterIssueType" class="select-field text-sm mt-1"><option value="">Tất cả</option></select></div>
+                                <div><label for="filterEmployee" class="text-sm font-medium text-slate-600">Nhân viên</label><select id="filterEmployee" class="select-field text-sm mt-1"><option value="">Tất cả</option></select></div>
+                                <div><label for="filterStartDate" class="text-sm font-medium text-slate-600">Từ ngày</label><input type="date" id="filterStartDate" class="input-field text-sm mt-1"></div>
+                                <div><label for="filterEndDate" class="text-sm font-medium text-slate-600">Đến ngày</label><input type="date" id="filterEndDate" class="input-field text-sm mt-1"></div>
+                                <div class="flex items-end space-x-2"><button id="applyFiltersBtn" class="btn-primary flex-grow">Lọc</button><button id="resetFiltersBtn" class="btn-secondary"><i class="fas fa-undo"></i></button></div>
+                            </div>
+                        </div>
+                        <div class="mt-6"><h3 class="text-xl font-bold text-slate-800 mb-3">Phân Tích So Sánh (Số Lượng Sự Cố)</h3><div class="grid grid-cols-1 md:grid-cols-3 gap-6"><div id="compareWeek" class="card p-5"></div><div id="compareMonth" class="card p-5"></div><div id="compareYear" class="card p-5"></div></div></div>
+                        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-6"><div class="card p-5"><p class="text-sm text-slate-500">Lỗi Phát Sinh Hôm Nay</p><p id="errorsToday" class="text-3xl font-bold">0</p></div><div class="card p-5"><p class="text-sm text-slate-500">Lỗi Trong Tuần Này</p><p id="errorsThisWeek" class="text-3xl font-bold">0</p></div><div class="card p-5"><p class="text-sm text-slate-500">Lỗi Trong Tháng Này</p><p id="errorsThisMonth" class="text-3xl font-bold">0</p></div></div>`
+                },
+                analysis: {
+                    title: 'Phân tích Lỗi',
+                    content: `<div class="grid grid-cols-1 lg:grid-cols-3 gap-6"><div class="lg:col-span-1 card p-6"><h3 class="font-semibold mb-4">Phân Loại Lỗi</h3><div class="h-64"><canvas id="issueTypePieChart"></canvas></div></div><div class="lg:col-span-2 card p-6"><h3 class="font-semibold mb-4">Trạng Thái Xử Lý</h3><div id="statusSummary" class="space-y-3"></div></div></div>`
+                },
+                trends: {
+                    title: 'Xu hướng & Mật độ',
+                    content: `<div class="space-y-6"><div class="card p-6"><h3 class="font-semibold text-slate-800 mb-4">Xu Hướng Sự Cố Theo Thời Gian</h3><div class="h-80"><canvas id="incidentTrendChart"></canvas></div></div><div class="card p-6"><h3 class="font-semibold text-slate-800 mb-4">Mật Độ Sự Cố (Giờ trong ngày vs Ngày trong tuần)</h3><div id="incidentHeatmapContainer" class="heatmap-container mt-4 overflow-x-auto"></div></div></div>`
+                },
+                performance: {
+                    title: 'Hiệu suất',
+                    content: `<div class="card p-6"><div class="flex flex-wrap justify-between items-center mb-4"><h3 class="font-semibold text-slate-800">Phân Tích Hiệu Suất (Nhân Viên / Chi Nhánh)</h3><div class="flex items-center space-x-2 bg-slate-100 p-1 rounded-lg"><button id="perfToggleEmployee" class="px-3 py-1 text-sm font-semibold rounded-md transition-colors bg-white text-indigo-600 shadow">Nhân Viên</button><button id="perfToggleBranch" class="px-3 py-1 text-sm font-semibold rounded-md transition-colors text-slate-600">Chi Nhánh</button></div></div><div class="grid grid-cols-1 lg:grid-cols-2 gap-6"><div><h4 class="font-semibold text-slate-700 text-center mb-2">Số Lượng Sự Cố Đã/Chưa Xử Lý</h4><div class="h-80"><canvas id="performanceStatusChart"></canvas></div></div><div><h4 class="font-semibold text-slate-700 text-center mb-2">Thời Gian Xử Lý Trung Bình (giờ)</h4><div class="h-80"><canvas id="performanceTimeChart"></canvas></div></div></div></div>`
+                },
+                predictive: {
+                    title: 'Bảo trì Dự đoán',
+                    content: `<div class="card p-6"><h3 class="font-semibold text-slate-800 mb-4">Dự Báo Bảo Trì</h3><div class="grid grid-cols-1 lg:grid-cols-2 gap-6"><div><h4 class="font-semibold text-slate-700 mb-2">Hạng mục Rủi ro Cao nhất</h4><div id="pdmSummaryStats" class="flex justify-around text-center mb-4 p-4 bg-slate-50 rounded-lg"></div><div class="h-80"><canvas id="pdmRiskChart"></canvas></div></div><div class="lg:col-span-1"><h4 class="font-semibold text-slate-700 mb-2">Danh sách Chi tiết</h4><div class="table-responsive max-h-96 overflow-y-auto"><table class="min-w-full responsive-table"><thead class="bg-slate-50 sticky top-0"><tr><th class="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase">Hạng mục</th><th class="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase">Rủi Ro</th></tr></thead><tbody id="pdmTableBody" class="bg-white divide-y divide-slate-200"></tbody></table></div></div></div></div>`
+                }
+            };
+
+            // Clear existing content and build tabs
+            tabContainer.innerHTML = '';
+            tabContentContainer.innerHTML = '';
+            
+            Object.keys(tabs).forEach((key, index) => {
+                const tab = tabs[key];
+                // Create tab button
+                const button = document.createElement('button');
+                button.dataset.tabTarget = key;
+                button.className = index === 0 
+                    ? 'dashboard-tab whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm text-indigo-600 border-indigo-500'
+                    : 'dashboard-tab whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm text-slate-500 border-transparent hover:text-slate-700 hover:border-slate-300';
+                button.textContent = tab.title;
+                tabContainer.appendChild(button);
+
+                // Create tab panel
+                const panel = document.createElement('div');
+                panel.id = `tab-panel-${key}`;
+                panel.className = 'dashboard-tab-panel' + (index > 0 ? ' hidden' : '');
+                panel.innerHTML = tab.content;
+                tabContentContainer.appendChild(panel);
+            });
+            
+            // Add tab switching logic
+            const tabButtons = mainContentContainer.querySelectorAll('.dashboard-tab');
+            const tabPanels = mainContentContainer.querySelectorAll('.dashboard-tab-panel');
+            
+            tabButtons.forEach(button => {
+                button.addEventListener('click', () => {
+                    const targetPanelId = `tab-panel-${button.dataset.tabTarget}`;
+
+                    tabPanels.forEach(panel => {
+                        panel.classList.toggle('hidden', panel.id !== targetPanelId);
+                    });
+
+                    tabButtons.forEach(btn => {
+                        const isTarget = btn.dataset.tabTarget === button.dataset.tabTarget;
+                        btn.classList.toggle('text-indigo-600', isTarget);
+                        btn.classList.toggle('border-indigo-500', isTarget);
+                        btn.classList.toggle('text-slate-500', !isTarget);
+                        btn.classList.toggle('border-transparent', !isTarget);
+                        btn.classList.toggle('hover:text-slate-700', !isTarget);
+                        btn.classList.toggle('hover:border-slate-300', !isTarget);
+                    });
+                });
+            });
+
+            // Re-populate and re-bind listeners for filters and performance toggles
+            // This is necessary because we've just created them via innerHTML
+            const branchFilter = mainContentContainer.querySelector('#filterBranch');
+            const issueTypeFilter = mainContentContainer.querySelector('#filterIssueType');
+            const employeeFilter = mainContentContainer.querySelector('#filterEmployee');
+
+            branchFilter.innerHTML = '<option value="">Tất cả chi nhánh</option>' + ALL_BRANCHES.map(b => `<option value="${b}">${b}</option>`).join('');
+            issueTypeFilter.innerHTML = '<option value="">Tất cả loại sự cố</option>' + ISSUE_TYPES.map(t => `<option value="${t}">${t}</option>`).join('');
+            
+            const usersQuery = query(collection(db, `/artifacts/${canvasAppId}/users`));
+            getDocs(usersQuery).then(snapshot => {
+                const users = snapshot.docs.map(doc => ({ uid: doc.id, ...doc.data() }));
+                employeeFilter.innerHTML = '<option value="">Tất cả nhân viên</option>' + users.map(u => `<option value="${u.uid}">${u.displayName}</option>`).join('');
+            });
+            
+            mainContentContainer.querySelector('#applyFiltersBtn').addEventListener('click', () => applyFiltersAndRender(dashboardReportsCache));
+            mainContentContainer.querySelector('#resetFiltersBtn').addEventListener('click', () => {
+                mainContentContainer.querySelector('#filterBranch').value = '';
+                mainContentContainer.querySelector('#filterIssueType').value = '';
+                mainContentContainer.querySelector('#filterEmployee').value = '';
+                mainContentContainer.querySelector('#filterStartDate').value = '';
+                mainContentContainer.querySelector('#filterEndDate').value = '';
+                applyFiltersAndRender(dashboardReportsCache);
+            });
+
+            const perfToggleEmployee = mainContentContainer.querySelector('#perfToggleEmployee');
+            const perfToggleBranch = mainContentContainer.querySelector('#perfToggleBranch');
+            if (perfToggleEmployee && perfToggleBranch) {
+                 const updateToggleStyles = (mode) => {
+                    if (mode === 'employee') {
+                        perfToggleEmployee.classList.add('bg-white', 'text-indigo-600', 'shadow');
+                        perfToggleEmployee.classList.remove('text-slate-600');
+                        perfToggleBranch.classList.remove('bg-white', 'text-indigo-600', 'shadow');
+                        perfToggleBranch.classList.add('text-slate-600');
+                    } else {
+                        perfToggleBranch.classList.add('bg-white', 'text-indigo-600', 'shadow');
+                        perfToggleBranch.classList.remove('text-slate-600');
+                        perfToggleEmployee.classList.remove('bg-white', 'text-indigo-600', 'shadow');
+                        perfToggleEmployee.classList.add('text-slate-600');
+                    }
+                };
+                 perfToggleEmployee.addEventListener('click', () => {
+                    updateToggleStyles('employee');
+                    applyFiltersAndRender(dashboardReportsCache);
+                });
+                 perfToggleBranch.addEventListener('click', () => {
+                    updateToggleStyles('branch');
+                    applyFiltersAndRender(dashboardReportsCache);
+                });
+            }
+
+            const q = getScopedIssuesQuery();
+            const unsubscribe = onSnapshot(q, (snapshot) => {
+                dashboardReportsCache = snapshot.docs.map(doc => ({id: doc.id, ...doc.data()}));
+                applyFiltersAndRender(dashboardReportsCache);
+            }, (error) => console.error("Dashboard listener failed:", error));
+            
+            unsubscribeListeners.push(unsubscribe);
+        };
+        
+        window.setup_issueReportView = function() {
+            if (!currentUserProfile) return;
+            mainContentContainer.querySelector('#reporterName').value = currentUserProfile.displayName;
+            const branchSelect = mainContentContainer.querySelector('#issueBranch');
+            branchSelect.innerHTML = ALL_BRANCHES.map(b => `<option value="${b}">${b}</option>`).join('');
+            mainContentContainer.querySelector('#reportIssueBtn').addEventListener('click', handleReportIssue);
+        };
+
+        window.setup_issueHistoryView = function() {
+            if (!currentUserProfile) return;
+            issueHistoryCurrentPage = 1; // Reset page
+            const tableBody = mainContentContainer.querySelector('#issueHistoryTableBody');
+            if (!tableBody) return;
+            tableBody.innerHTML = `<tr><td colspan="6" class="text-center p-4">Đang tải...</td></tr>`;
+            
+            const q = getScopedIssuesQuery();
+            const unsubscribe = onSnapshot(q, (snapshot) => {
+                issueHistoryCache = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                issueHistoryCache.sort((a, b) => new Date(b.reportDate) - new Date(a.reportDate));
+                renderIssueHistoryTable(issueHistoryCache);
+            }, (error) => console.error("Issue history listener failed:", error));
+            unsubscribeListeners.push(unsubscribe);
+        };
+        
+        window.setup_myTasksView = function() {
+            if (!currentUser || !currentUserProfile) return;
+            myTasksCurrentPage = 1; // Reset page
+            const tableBody = mainContentContainer.querySelector('#myTasksTableBody');
+            if (!tableBody) return;
+            tableBody.innerHTML = `<tr><td colspan="5" class="text-center p-4">Đang tải...</td></tr>`;
+            
+            const q = query(
+                collection(db, `/artifacts/${canvasAppId}/public/data/issueReports`), 
+                where('assigneeId', '==', currentUser.uid)
+            );
+
+            const unsubscribe = onSnapshot(q, (snapshot) => {
+                myTasksCache = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                myTasksCache.sort((a, b) => new Date(b.reportDate) - new Date(a.reportDate));
+                renderMyTasksTable(myTasksCache);
+            }, (error) => console.error("My Tasks listener failed:", error));
+            unsubscribeListeners.push(unsubscribe);
+        };
+        
+        window.setup_activityLogView = function() {
+            if (!currentUserProfile) return;
+            const tableBody = mainContentContainer.querySelector('#activityLogTableBody');
+            if (!tableBody) return;
+            tableBody.innerHTML = `<tr><td colspan="4" class="text-center p-4">Đang tải...</td></tr>`;
+
+            activityLogCurrentPage = 1; // Reset page
+
+            // No limit, get all logs for client-side pagination
+            const q = query(collection(db, `/artifacts/${canvasAppId}/public/data/activityLogs`), orderBy('timestamp', 'desc'));
+            const unsubscribe = onSnapshot(q, (snapshot) => {
+                activityLogsCache = snapshot.docs.map(doc => doc.data()); // Update cache
+                renderActivityLogTable(activityLogsCache); // Render from cache
+            }, (error) => console.error("Activity log listener failed:", error));
+            unsubscribeListeners.push(unsubscribe);
+        };
+        
+        // --- Table Rendering ---
+        function renderActivityLogTable(logs) {
+            const tableBody = mainContentContainer.querySelector('#activityLogTableBody');
+            if (!tableBody) return;
+
+            const startIndex = (activityLogCurrentPage - 1) * ITEMS_PER_PAGE;
+            const endIndex = startIndex + ITEMS_PER_PAGE;
+            const paginatedLogs = logs.slice(startIndex, endIndex);
+
+            tableBody.innerHTML = paginatedLogs.length > 0 ? paginatedLogs.map(log => `
+                <tr class="hover:bg-gray-50">
+                    <td data-label="Thời Gian" class="px-4 py-3">${log.timestamp ? new Date(log.timestamp.toDate()).toLocaleString('vi-VN') : ''}</td>
+                    <td data-label="Người Thực Hiện" class="px-4 py-3">${log.actor.displayName || log.actor.email}</td>
+                    <td data-label="Hành Động" class="px-4 py-3">${log.action}</td>
+                    <td data-label="Chi Tiết" class="px-4 py-3 text-xs font-mono">${JSON.stringify(log.details)}</td>
+                </tr>
+            `).join('') : `<tr><td colspan="4" class="text-center p-4">Không có hoạt động nào.</td></tr>`;
+
+            renderActivityLogPagination(logs.length);
+        }
+
+        function renderActivityLogPagination(totalLogs) {
+            const paginationContainer = mainContentContainer.querySelector('#activityLogPagination');
+            if (!paginationContainer) return;
+
+            const totalPages = Math.ceil(totalLogs / ITEMS_PER_PAGE);
+            if (totalPages <= 1) {
+                paginationContainer.innerHTML = '';
+                return;
+            }
+
+            const startItem = (activityLogCurrentPage - 1) * ITEMS_PER_PAGE + 1;
+            const endItem = Math.min(activityLogCurrentPage * ITEMS_PER_PAGE, totalLogs);
+
+            let paginationHTML = `
+                <div class="text-sm text-slate-600">
+                    Hiển thị <strong>${startItem}</strong> - <strong>${endItem}</strong> trên <strong>${totalLogs}</strong> kết quả
+                </div>
+                <div class="flex items-center space-x-2">
+                    <button id="prevLogPage" class="btn-secondary !py-1 !px-3 disabled:opacity-50 disabled:cursor-not-allowed" ${activityLogCurrentPage === 1 ? 'disabled' : ''}>
+                        <i class="fas fa-chevron-left"></i>
+                    </button>
+                    <span class="text-sm font-medium">Trang ${activityLogCurrentPage} / ${totalPages}</span>
+                    <button id="nextLogPage" class="btn-secondary !py-1 !px-3 disabled:opacity-50 disabled:cursor-not-allowed" ${activityLogCurrentPage === totalPages ? 'disabled' : ''}>
+                        <i class="fas fa-chevron-right"></i>
+                    </button>
+                </div>
+            `;
+            paginationContainer.innerHTML = paginationHTML;
+
+            // Add event listeners
+            const prevBtn = mainContentContainer.querySelector('#prevLogPage');
+            const nextBtn = mainContentContainer.querySelector('#nextLogPage');
+
+            if (prevBtn) {
+                prevBtn.addEventListener('click', () => {
+                    if (activityLogCurrentPage > 1) {
+                        activityLogCurrentPage--;
+                        renderActivityLogTable(activityLogsCache); // Re-render from cache
+                    }
+                });
+            }
+
+            if (nextBtn) {
+                nextBtn.addEventListener('click', () => {
+                    if (activityLogCurrentPage < totalPages) {
+                        activityLogCurrentPage++;
+                        renderActivityLogTable(activityLogsCache); // Re-render from cache
+                    }
+                });
+            }
+        }
+
+
+        function renderIssueHistoryTable(reports) {
+            const tableBody = mainContentContainer.querySelector('#issueHistoryTableBody');
+            if (!tableBody) return;
+
+            const startIndex = (issueHistoryCurrentPage - 1) * ITEMS_PER_PAGE;
+            const endIndex = startIndex + ITEMS_PER_PAGE;
+            const paginatedReports = reports.slice(startIndex, endIndex);
+
+            tableBody.innerHTML = paginatedReports.length > 0 ? paginatedReports.map(report => `
+                <tr class="hover:bg-gray-50">
+                    <td data-label="Chi nhánh" class="px-4 py-3">${report.issueBranch}</td>
+                    <td data-label="Người gửi" class="px-4 py-3">${report.reporterName}</td>
+                    <td data-label="Loại sự cố" class="px-4 py-3">${report.issueType}</td>
+                    <td data-label="Ngày báo cáo" class="px-4 py-3">${new Date(report.reportDate).toLocaleString('vi-VN')}</td>
+                    <td data-label="Trạng thái" class="px-4 py-3">${report.status}</td>
+                    <td data-label="Hành động" class="px-4 py-3 text-right">
+                        ${(currentUserProfile.role === 'Admin' || currentUserProfile.role === 'Manager') ? `<button class="detail-issue-btn btn-secondary !text-sm !py-1 !px-2" data-id="${report.id}">Chi tiết</button>` : ''}
+                    </td>
+                </tr>
+            `).join('') : `<tr><td colspan="6" class="text-center p-4">Không có báo cáo nào.</td></tr>`;
+
+            tableBody.querySelectorAll('.detail-issue-btn').forEach(btn => {
+                btn.addEventListener('click', () => openIssueDetailModal(btn.dataset.id));
+            });
+            renderIssueHistoryPagination(reports.length);
+        }
+
+        function renderIssueHistoryPagination(totalItems) {
+            const paginationContainer = mainContentContainer.querySelector('#issueHistoryPagination');
+            if (!paginationContainer) return;
+
+            const totalPages = Math.ceil(totalItems / ITEMS_PER_PAGE);
+            if (totalPages <= 1) {
+                paginationContainer.innerHTML = '';
+                return;
+            }
+
+            const startItem = (issueHistoryCurrentPage - 1) * ITEMS_PER_PAGE + 1;
+            const endItem = Math.min(issueHistoryCurrentPage * ITEMS_PER_PAGE, totalItems);
+
+            paginationContainer.innerHTML = `
+                <div class="text-sm text-slate-600">Hiển thị <strong>${startItem}</strong> - <strong>${endItem}</strong> trên <strong>${totalItems}</strong> kết quả</div>
+                <div class="flex items-center space-x-2">
+                    <button id="prevIssueHistoryPage" class="btn-secondary !py-1 !px-3 disabled:opacity-50" ${issueHistoryCurrentPage === 1 ? 'disabled' : ''}><i class="fas fa-chevron-left"></i></button>
+                    <span class="text-sm font-medium">Trang ${issueHistoryCurrentPage} / ${totalPages}</span>
+                    <button id="nextIssueHistoryPage" class="btn-secondary !py-1 !px-3 disabled:opacity-50" ${issueHistoryCurrentPage === totalPages ? 'disabled' : ''}><i class="fas fa-chevron-right"></i></button>
+                </div>`;
+            
+            mainContentContainer.querySelector('#prevIssueHistoryPage').addEventListener('click', () => {
+                if (issueHistoryCurrentPage > 1) {
+                    issueHistoryCurrentPage--;
+                    renderIssueHistoryTable(issueHistoryCache);
+                }
+            });
+            mainContentContainer.querySelector('#nextIssueHistoryPage').addEventListener('click', () => {
+                if (issueHistoryCurrentPage < totalPages) {
+                    issueHistoryCurrentPage++;
+                    renderIssueHistoryTable(issueHistoryCache);
+                }
+            });
+        }
+
+        function renderMyTasksTable(reports) {
+            const tableBody = mainContentContainer.querySelector('#myTasksTableBody');
+            if (!tableBody) return;
+
+            const startIndex = (myTasksCurrentPage - 1) * ITEMS_PER_PAGE;
+            const endIndex = startIndex + ITEMS_PER_PAGE;
+            const paginatedReports = reports.slice(startIndex, endIndex);
+
+            tableBody.innerHTML = paginatedReports.length > 0 ? paginatedReports.map(report => `
+                <tr class="hover:bg-gray-50">
+                    <td data-label="Chi nhánh" class="px-4 py-3">${report.issueBranch}</td>
+                    <td data-label="Loại sự cố" class="px-4 py-3">${report.issueType}</td>
+                    <td data-label="Ngày báo cáo" class="px-4 py-3">${new Date(report.reportDate).toLocaleString('vi-VN')}</td>
+                    <td data-label="Trạng thái" class="px-4 py-3">${report.status}</td>
+                    <td data-label="Hành động" class="px-4 py-3 text-right">
+                        <button class="detail-issue-btn btn-secondary !text-sm !py-1 !px-2" data-id="${report.id}">Chi tiết</button>
+                    </td>
+                </tr>
+            `).join('') : `<tr><td colspan="5" class="text-center p-4">Bạn không có nhiệm vụ nào được giao.</td></tr>`;
+
+            tableBody.querySelectorAll('.detail-issue-btn').forEach(btn => {
+                btn.addEventListener('click', () => openIssueDetailModal(btn.dataset.id));
+            });
+            renderMyTasksPagination(reports.length);
+        }
+        
+        function renderMyTasksPagination(totalItems) {
+            const paginationContainer = mainContentContainer.querySelector('#myTasksPagination');
+            if (!paginationContainer) return;
+
+            const totalPages = Math.ceil(totalItems / ITEMS_PER_PAGE);
+            if (totalPages <= 1) {
+                paginationContainer.innerHTML = '';
+                return;
+            }
+
+            const startItem = (myTasksCurrentPage - 1) * ITEMS_PER_PAGE + 1;
+            const endItem = Math.min(myTasksCurrentPage * ITEMS_PER_PAGE, totalItems);
+
+            paginationContainer.innerHTML = `
+                <div class="text-sm text-slate-600">Hiển thị <strong>${startItem}</strong> - <strong>${endItem}</strong> trên <strong>${totalItems}</strong> kết quả</div>
+                <div class="flex items-center space-x-2">
+                    <button id="prevMyTasksPage" class="btn-secondary !py-1 !px-3 disabled:opacity-50" ${myTasksCurrentPage === 1 ? 'disabled' : ''}><i class="fas fa-chevron-left"></i></button>
+                    <span class="text-sm font-medium">Trang ${myTasksCurrentPage} / ${totalPages}</span>
+                    <button id="nextMyTasksPage" class="btn-secondary !py-1 !px-3 disabled:opacity-50" ${myTasksCurrentPage === totalPages ? 'disabled' : ''}><i class="fas fa-chevron-right"></i></button>
+                </div>`;
+
+            mainContentContainer.querySelector('#prevMyTasksPage').addEventListener('click', () => {
+                if (myTasksCurrentPage > 1) {
+                    myTasksCurrentPage--;
+                    renderMyTasksTable(myTasksCache);
+                }
+            });
+            mainContentContainer.querySelector('#nextMyTasksPage').addEventListener('click', () => {
+                if (myTasksCurrentPage < totalPages) {
+                    myTasksCurrentPage++;
+                    renderMyTasksTable(myTasksCache);
+                }
+            });
+        }
+        
+        function renderAccountsTable(users) {
+            const tableBody = mainContentContainer.querySelector('#accountsTableBody');
+            if (!tableBody) return;
+
+            const filteredUsers = showDisabledAccounts ? users : users.filter(user => user.status !== 'disabled');
+            
+            const startIndex = (accountsCurrentPage - 1) * ITEMS_PER_PAGE;
+            const endIndex = startIndex + ITEMS_PER_PAGE;
+            const paginatedUsers = filteredUsers.slice(startIndex, endIndex);
+
+            tableBody.innerHTML = paginatedUsers.map(user => {
+                const isDisabled = user.status === 'disabled';
+                return `
+                    <tr class="hover:bg-gray-50 ${isDisabled ? 'opacity-60 bg-slate-50' : ''}">
+                        <td data-label="MSNV" class="px-4 py-3">${user.employeeId || 'N/A'}</td>
+                        <td data-label="Tên Người Dùng" class="px-4 py-3">${user.displayName} ${isDisabled ? '<span class="text-xs text-red-500 font-semibold">(Đã vô hiệu hóa)</span>' : ''}</td>
+                        <td data-label="Email" class="px-4 py-3">${user.email}</td>
+                        <td data-label="Vai Trò" class="px-4 py-3">${user.role}</td>
+                        <td data-label="Hành động" class="px-4 py-3 text-right">
+                            <button class="edit-user-btn btn-secondary !text-sm !py-1 !px-2 mr-2" data-uid="${user.uid}" ${isDisabled ? 'disabled' : ''}>Sửa</button>
+                            ${user.uid !== currentUser.uid ? 
+                                (isDisabled ? 
+                                    `<button class="enable-user-btn btn-primary !text-sm !py-1 !px-2" data-uid="${user.uid}">Kích hoạt</button>` :
+                                    `<button class="delete-user-btn btn-danger !text-sm !py-1 !px-2" data-uid="${user.uid}" data-name="${user.displayName}">Vô hiệu hóa</button>`)
+                                : ''}
+                        </td>
+                    </tr>
+                `}).join('') || `<tr><td colspan="5" class="text-center p-4">Không có tài khoản nào.</td></tr>`;
+
+            tableBody.querySelectorAll('.edit-user-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const userToEdit = users.find(u => u.uid === btn.dataset.uid);
+                    if (userToEdit) populateEditAccountModal(userToEdit);
+                });
+            });
+            
+            tableBody.querySelectorAll('.delete-user-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    openDeleteAccountModal(btn.dataset.uid, btn.dataset.name);
+                });
+            });
+
+            tableBody.querySelectorAll('.enable-user-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    handleEnableAccount(btn.dataset.uid);
+                });
+            });
+
+            renderAccountsPagination(filteredUsers.length);
+        }
+
+        function renderAccountsPagination(totalItems) {
+            const paginationContainer = mainContentContainer.querySelector('#accountsPagination');
+            if (!paginationContainer) return;
+
+            const totalPages = Math.ceil(totalItems / ITEMS_PER_PAGE);
+            if (totalPages <= 1) {
+                paginationContainer.innerHTML = '';
+                return;
+            }
+
+            const startItem = (accountsCurrentPage - 1) * ITEMS_PER_PAGE + 1;
+            const endItem = Math.min(accountsCurrentPage * ITEMS_PER_PAGE, totalItems);
+
+            paginationContainer.innerHTML = `
+                <div class="text-sm text-slate-600">Hiển thị <strong>${startItem}</strong> - <strong>${endItem}</strong> trên <strong>${totalItems}</strong> kết quả</div>
+                <div class="flex items-center space-x-2">
+                    <button id="prevAccountPage" class="btn-secondary !py-1 !px-3 disabled:opacity-50" ${accountsCurrentPage === 1 ? 'disabled' : ''}><i class="fas fa-chevron-left"></i></button>
+                    <span class="text-sm font-medium">Trang ${accountsCurrentPage} / ${totalPages}</span>
+                    <button id="nextAccountPage" class="btn-secondary !py-1 !px-3 disabled:opacity-50" ${accountsCurrentPage === totalPages ? 'disabled' : ''}><i class="fas fa-chevron-right"></i></button>
+                </div>`;
+            
+            mainContentContainer.querySelector('#prevAccountPage').addEventListener('click', () => {
+                if (accountsCurrentPage > 1) {
+                    accountsCurrentPage--;
+                    renderAccountsTable(allUsersCache);
+                }
+            });
+            mainContentContainer.querySelector('#nextAccountPage').addEventListener('click', () => {
+                if (accountsCurrentPage < totalPages) {
+                    accountsCurrentPage++;
+                    renderAccountsTable(allUsersCache);
+                }
+            });
+        }
+        
+        // --- Dashboard & Analytics ---
+        function updateDashboardWarnings(allReports) {
+            const dailySpikeEl = document.getElementById('dailySpikeWarning');
+            const backlogEl = document.getElementById('backlogWarning');
+
+            if (!dailySpikeEl || !backlogEl) return;
+
+            // --- 1. Abnormal Daily Incident Increase Logic ---
+            const now = new Date();
+            const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+            const sevenDaysAgoStart = new Date(todayStart.getTime() - 7 * 24 * 60 * 60 * 1000);
+
+            const todaysIncidentsCount = allReports.filter(r => new Date(r.reportDate) >= todayStart).length;
+
+            const last7DaysIncidents = allReports.filter(r => {
+                const reportDate = new Date(r.reportDate);
+                return reportDate >= sevenDaysAgoStart && reportDate < todayStart;
+            });
+
+            const uniqueDaysInPast = new Set(last7DaysIncidents.map(r => new Date(r.reportDate).toISOString().split('T')[0])).size;
+            const daysToAverage = uniqueDaysInPast > 0 ? uniqueDaysInPast : 1; // Avoid division by zero
+            const averageDailyIncidents = last7DaysIncidents.length / daysToAverage;
+            
+            // Define thresholds for what constitutes a spike
+            const SPIKE_PERCENTAGE_THRESHOLD = 1.5; // 50% increase
+            const SPIKE_ABSOLUTE_THRESHOLD = 3;   // At least 3 more incidents than average
+
+            if (todaysIncidentsCount > (averageDailyIncidents * SPIKE_PERCENTAGE_THRESHOLD) && todaysIncidentsCount > (averageDailyIncidents + SPIKE_ABSOLUTE_THRESHOLD)) {
+                dailySpikeEl.className = 'alert-error p-4 rounded-lg flex items-start';
+                dailySpikeEl.innerHTML = `
+                    <i class="fas fa-chart-line fa-lg mr-3 mt-1"></i>
+                    <div>
+                        <h4 class="font-bold">Cảnh báo: Số lượng sự cố tăng đột biến</h4>
+                        <p class="text-sm">Hôm nay đã ghi nhận <strong>${todaysIncidentsCount}</strong> sự cố, cao hơn đáng kể so với mức trung bình <strong>${averageDailyIncidents.toFixed(1)}</strong> sự cố/ngày trong 7 ngày qua.</p>
+                    </div>
+                `;
+                dailySpikeEl.classList.remove('hidden');
+            } else {
+                dailySpikeEl.classList.add('hidden');
+            }
+
+
+            // --- 2. Employee/Branch Backlog Warning ---
+            const EMPLOYEE_BACKLOG_THRESHOLD = 5;
+            const BRANCH_BACKLOG_THRESHOLD = 10;
+
+            const unresolvedReports = allReports.filter(r => r.status !== 'Đã giải quyết');
+            
+            const employeeBacklog = unresolvedReports.reduce((acc, report) => {
+                if (report.assigneeName) {
+                    acc[report.assigneeName] = (acc[report.assigneeName] || 0) + 1;
+                }
+                return acc;
+            }, {});
+
+            const branchBacklog = unresolvedReports.reduce((acc, report) => {
+                if (report.issueBranch) {
+                    acc[report.issueBranch] = (acc[report.issueBranch] || 0) + 1;
+                }
+                return acc;
+            }, {});
+
+            const highBacklogEmployees = Object.entries(employeeBacklog)
+                .filter(([name, count]) => count >= EMPLOYEE_BACKLOG_THRESHOLD)
+                .sort((a, b) => b[1] - a[1]); // Sort by count desc
+
+            const highBacklogBranches = Object.entries(branchBacklog)
+                .filter(([name, count]) => count >= BRANCH_BACKLOG_THRESHOLD)
+                .sort((a, b) => b[1] - a[1]);
+
+            if (highBacklogEmployees.length > 0 || highBacklogBranches.length > 0) {
+                let warningHTML = `
+                    <i class="fas fa-exclamation-circle fa-lg mr-3 mt-1"></i>
+                    <div>
+                        <h4 class="font-bold">Cảnh báo: Tồn đọng công việc</h4>`;
+
+                if (highBacklogEmployees.length > 0) {
+                    warningHTML += `<p class="text-sm mt-1">Các nhân viên sau có nhiều công việc chưa hoàn thành:</p><ul class="list-disc pl-5 text-sm">`;
+                    highBacklogEmployees.forEach(([name, count]) => {
+                        warningHTML += `<li><strong>${name}</strong>: ${count} công việc tồn đọng</li>`;
+                    });
+                    warningHTML += `</ul>`;
+                }
+
+                if (highBacklogBranches.length > 0) {
+                    warningHTML += `<p class="text-sm mt-2">Các chi nhánh sau có nhiều sự cố chưa được giải quyết:</p><ul class="list-disc pl-5 text-sm">`;
+                    highBacklogBranches.forEach(([name, count]) => {
+                        warningHTML += `<li><strong>${name}</strong>: ${count} sự cố tồn đọng</li>`;
+                    });
+                    warningHTML += `</ul>`;
+                }
+                
+                warningHTML += `</div>`;
+                
+                backlogEl.className = 'alert-info p-4 rounded-lg flex items-start';
+                backlogEl.innerHTML = warningHTML;
+                backlogEl.classList.remove('hidden');
+
+            } else {
+                backlogEl.classList.add('hidden');
+            }
+        }
+
+        function applyFiltersAndRender(allReports) {
+            const branch = mainContentContainer.querySelector('#filterBranch').value;
+            const issueType = mainContentContainer.querySelector('#filterIssueType').value;
+            const employeeId = mainContentContainer.querySelector('#filterEmployee').value;
+            const startDate = mainContentContainer.querySelector('#filterStartDate').value;
+            const endDate = mainContentContainer.querySelector('#filterEndDate').value;
+
+            const filteredReports = allReports.filter(report => {
+                const reportDate = new Date(report.reportDate);
+                const start = startDate ? new Date(startDate) : null;
+                const end = endDate ? new Date(endDate) : null;
+                if(start) start.setHours(0,0,0,0);
+                if(end) end.setHours(23,59,59,999);
+
+                const branchMatch = !branch || report.issueBranch === branch;
+                const typeMatch = !issueType || report.issueType === issueType;
+                const employeeMatch = !employeeId || report.reporterId === employeeId || report.assigneeId === employeeId;
+                const startDateMatch = !start || reportDate >= start;
+                const endDateMatch = !end || reportDate <= end;
+                
+                return branchMatch && typeMatch && employeeMatch && startDateMatch && endDateMatch;
+            });
+            
+            const perfToggleEmployee = mainContentContainer.querySelector('#perfToggleEmployee');
+            const currentPerfMode = perfToggleEmployee && perfToggleEmployee.classList.contains('bg-white') ? 'employee' : 'branch';
+
+            // We use the global `dashboardReportsCache` so warnings are not affected by filters
+            updateDashboardWarnings(dashboardReportsCache);
+            
+            updateDashboardUI(filteredReports); 
+            updateComparativeAnalysis(allReports); 
+            runPredictiveAnalysis(filteredReports);
+            renderIncidentTrendChart(filteredReports);
+            renderIncidentHeatmap(filteredReports);
+            renderPerformanceAnalysis(filteredReports, currentPerfMode);
+        }
+
+        function updateDashboardUI(reports) {
+            // This function might be called when the view isn't active.
+            const errorsTodayEl = document.getElementById('errorsToday');
+            if (!errorsTodayEl) return;
+            
+            const now = new Date();
+            const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+            const weekStart = new Date(todayStart);
+            weekStart.setDate(weekStart.getDate() - (weekStart.getDay() === 0 ? 6 : weekStart.getDay() - 1) ); // Monday as start of week
+            const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+
+            document.getElementById('errorsToday').textContent = reports.filter(r => new Date(r.reportDate) >= todayStart).length;
+            document.getElementById('errorsThisWeek').textContent = reports.filter(r => new Date(r.reportDate) >= weekStart).length;
+            document.getElementById('errorsThisMonth').textContent = reports.filter(r => new Date(r.reportDate) >= monthStart).length;
+            
+            const typeCounts = reports.reduce((acc, report) => { acc[report.issueType] = (acc[report.issueType] || 0) + 1; return acc; }, {});
+            renderIssueTypePieChart(typeCounts);
+
+            const statusCounts = reports.reduce((acc, report) => { acc[report.status] = (acc[report.status] || 0) + 1; return acc; }, {});
+            renderStatusSummary(statusCounts, reports.length);
+        }
+
+        function updateComparativeAnalysis(allReports) {
+            const now = new Date();
+            
+            // Helper to get week range (Mon-Sun)
+            const getWeekRange = (date) => {
+                const start = new Date(date);
+                const day = start.getDay(); // 0=Sun, 1=Mon,...
+                const diff = start.getDate() - day + (day === 0 ? -6 : 1); // adjust when day is sunday
+                start.setDate(diff);
+                start.setHours(0,0,0,0);
+                
+                const end = new Date(start);
+                end.setDate(start.getDate() + 6);
+                end.setHours(23,59,59,999);
+                return { start, end };
+            };
+
+            // This Week vs Last Week
+            const thisWeekRange = getWeekRange(now);
+            const lastWeekDate = new Date(now);
+            lastWeekDate.setDate(now.getDate() - 7);
+            const lastWeekRange = getWeekRange(lastWeekDate);
+
+            // This Month vs Last Month
+            const thisMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+            const thisMonthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
+            const lastMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+            const lastMonthEnd = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59, 999);
+            
+            // This Year vs Last Year
+            const thisYearStart = new Date(now.getFullYear(), 0, 1);
+            const thisYearEnd = new Date(now.getFullYear(), 11, 31, 23, 59, 59, 999);
+            const lastYearStart = new Date(now.getFullYear() - 1, 0, 1);
+            const lastYearEnd = new Date(now.getFullYear() - 1, 11, 31, 23, 59, 59, 999);
+
+            const countInDateRange = (reports, start, end) => reports.filter(r => {
+                const d = new Date(r.reportDate);
+                return d >= start && d <= end;
+            }).length;
+
+            const thisWeekCount = countInDateRange(allReports, thisWeekRange.start, thisWeekRange.end);
+            const lastWeekCount = countInDateRange(allReports, lastWeekRange.start, lastWeekRange.end);
+            
+            const thisMonthCount = countInDateRange(allReports, thisMonthStart, thisMonthEnd);
+            const lastMonthCount = countInDateRange(allReports, lastMonthStart, lastMonthEnd);
+
+            const thisYearCount = countInDateRange(allReports, thisYearStart, thisYearEnd);
+            const lastYearCount = countInDateRange(allReports, lastYearStart, lastYearEnd);
+
+            renderComparisonCard('compareWeek', 'Tuần Này vs Tuần Trước', thisWeekCount, lastWeekCount);
+            renderComparisonCard('compareMonth', 'Tháng Này vs Tháng Trước', thisMonthCount, lastMonthCount);
+            renderComparisonCard('compareYear', 'Năm Này vs Năm Trước', thisYearCount, lastYearCount);
+        }
+        
+        function renderComparisonCard(elementId, title, current, previous) {
+            const container = document.getElementById(elementId);
+            if(!container) return;
+
+            let percentageChange = 0;
+            if (previous > 0) {
+                percentageChange = ((current - previous) / previous) * 100;
+            } else if (current > 0) {
+                percentageChange = 100; // From 0 to something is a 100% increase
+            }
+            
+            const isIncrease = percentageChange > 0;
+            const isDecrease = percentageChange < 0;
+            const colorClass = isIncrease ? 'text-red-500' : isDecrease ? 'text-green-500' : 'text-slate-500';
+            const iconClass = isIncrease ? 'fa-arrow-up' : isDecrease ? 'fa-arrow-down' : 'fa-minus';
+
+            container.innerHTML = `
+                <p class="text-sm text-slate-500 font-medium">${title}</p>
+                <div class="flex items-baseline justify-between mt-2">
+                    <p class="text-3xl font-bold">${current}</p>
+                    <div class="flex items-center text-sm font-semibold ${colorClass}">
+                        <i class="fas ${iconClass} mr-1"></i>
+                        <span>${percentageChange.toFixed(0)}%</span>
+                    </div>
+                </div>
+                <p class="text-xs text-slate-400 mt-1">Kỳ trước: ${previous}</p>
+            `;
+        }
+
+        function renderIssueTypePieChart(data) {
+            const canvas = document.getElementById('issueTypePieChart');
+            if (!canvas) return;
+            if (issueTypeChart) issueTypeChart.destroy();
+            
+            const ctx = canvas.getContext('2d');
+            issueTypeChart = new Chart(ctx, {
+                type: 'pie',
+                data: {
+                    labels: Object.keys(data),
+                    datasets: [{ data: Object.values(data), backgroundColor: ['#3B82F6', '#10B981', '#F59E0B', '#8B5CF6', '#EF4444'] }]
+                },
+                options: { 
+                    responsive: true, 
+                    maintainAspectRatio: false,
+                    onClick: (event, elements) => {
+                        if (elements.length > 0) {
+                            const chartElement = elements[0];
+                            const label = issueTypeChart.data.labels[chartElement.index];
+                            showDrillDownModal('issueType', label, `Chi tiết Sự cố: Loại "${label}"`);
+                        }
+                    }
+                }
+            });
+        }
+
+        function renderStatusSummary(data, total) {
+            const container = document.getElementById('statusSummary');
+            if (!container) return;
+            const statuses = { 'Mới tạo': 'bg-blue-500', 'Đang xử lý': 'bg-yellow-500', 'Đã giải quyết': 'bg-green-500' };
+            container.innerHTML = Object.entries(statuses).map(([status, color]) => {
+                const count = data[status] || 0;
+                const percentage = total > 0 ? ((count / total) * 100).toFixed(0) : 0;
+                return `<div><div class="flex justify-between mb-1"><span class="text-sm font-medium">${status} (${count})</span><span class="text-sm">${percentage}%</span></div><div class="w-full bg-slate-200 rounded-full h-2"><div class="${color} h-2 rounded-full" style="width: ${percentage}%"></div></div></div>`;
+            }).join('');
+        }
+        
+        function renderIncidentTrendChart(reports) {
+            const canvas = document.getElementById('incidentTrendChart');
+            if (!canvas) return;
+            if (incidentTrendChart) incidentTrendChart.destroy();
+
+            if (reports.length === 0) {
+                const ctx = canvas.getContext('2d');
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                ctx.textAlign = 'center';
+                ctx.fillText('Không có dữ liệu để hiển thị.', canvas.width / 2, canvas.height / 2);
+                return;
+            }
+            
+            // Group data by day
+            const countsByDate = reports.reduce((acc, report) => {
+                const date = new Date(report.reportDate).toISOString().split('T')[0];
+                acc[date] = (acc[date] || 0) + 1;
+                return acc;
+            }, {});
+
+            const sortedDates = Object.keys(countsByDate).sort((a, b) => new Date(a) - new Date(b));
+            
+            const labels = sortedDates.map(date => new Date(date).toLocaleDateString('vi-VN', {day: '2-digit', month: '2-digit'}));
+            const data = sortedDates.map(date => countsByDate[date]);
+
+            incidentTrendChart = new Chart(canvas.getContext('2d'), {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Số lượng sự cố',
+                        data: data,
+                        borderColor: 'var(--primary-color)',
+                        backgroundColor: 'rgba(79, 70, 229, 0.1)',
+                        fill: true,
+                        tension: 0.3,
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                stepSize: 1
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            display: false
+                        }
+                    }
+                }
+            });
+        }
+
+        function renderIncidentHeatmap(reports) {
+            const container = document.getElementById('incidentHeatmapContainer');
+            if (!container) return;
+
+            const heatmapData = Array(7).fill(0).map(() => Array(24).fill(0));
+            let maxCount = 0;
+
+            reports.forEach(report => {
+                const date = new Date(report.reportDate);
+                const dayOfWeek = date.getDay(); // 0 = Sunday, 1 = Monday, ...
+                const hour = date.getHours();
+                heatmapData[dayOfWeek][hour]++;
+                if (heatmapData[dayOfWeek][hour] > maxCount) {
+                    maxCount = heatmapData[dayOfWeek][hour];
+                }
+            });
+
+            const days = ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7'];
+
+            let html = '<div class="heatmap">';
+            // Header Row for hours
+            html += '<div></div>'; // Empty corner
+            for (let i = 0; i < 24; i++) {
+                html += `<div class="heatmap-header">${i}</div>`;
+            }
+
+            // Data Rows (Day labels + cells)
+            days.forEach((dayLabel, dayIndex) => {
+                html += `<div class="heatmap-label">${dayLabel}</div>`;
+                for (let hour = 0; hour < 24; hour++) {
+                    const count = heatmapData[dayIndex][hour];
+                    // Non-linear scale to make smaller values more visible
+                    const opacity = maxCount > 0 ? Math.sqrt(count / maxCount) : 0;
+                    const style = `background-color: rgba(79, 70, 229, ${opacity.toFixed(2)});`;
+                    const tooltipText = `${count} sự cố`;
+                    html += `<div class="heatmap-cell" style="${style}"><span class="tooltip">${tooltipText}</span></div>`;
+                }
+            });
+            
+            html += '</div>';
+            container.innerHTML = html;
+        }
+
+        function renderPerformanceAnalysis(reports, mode = 'employee') {
+            const statusCanvas = document.getElementById('performanceStatusChart');
+            const timeCanvas = document.getElementById('performanceTimeChart');
+            if (!statusCanvas || !timeCanvas) return;
+
+            let performanceData = {};
+
+            reports.forEach(report => {
+                const key = mode === 'employee' ? report.assigneeName : report.issueBranch;
+                if (!key) return; // Skip reports that are unassigned if in employee mode
+
+                if (!performanceData[key]) {
+                    performanceData[key] = {
+                        resolved: 0,
+                        unresolved: 0,
+                        totalProcessingTime: 0,
+                        resolvedCountForTimeCalc: 0
+                    };
+                }
+
+                if (report.status === 'Đã giải quyết') {
+                    performanceData[key].resolved++;
+                    if (report.resolvedDate && report.reportDate) {
+                        const startTime = new Date(report.reportDate);
+                        const endTime = new Date(report.resolvedDate);
+                        const diffHours = (endTime - startTime) / (1000 * 60 * 60);
+                        if (diffHours >= 0) { // Ensure no negative time
+                            performanceData[key].totalProcessingTime += diffHours;
+                            performanceData[key].resolvedCountForTimeCalc++;
+                        }
+                    }
+                } else {
+                    performanceData[key].unresolved++;
+                }
+            });
+
+            // Calculate averages
+            Object.keys(performanceData).forEach(key => {
+                const item = performanceData[key];
+                item.avgProcessingTime = item.resolvedCountForTimeCalc > 0 ?
+                    (item.totalProcessingTime / item.resolvedCountForTimeCalc) : 0;
+            });
+
+            const sortedLabels = Object.keys(performanceData).sort((a, b) => {
+                const totalA = performanceData[a].resolved + performanceData[a].unresolved;
+                const totalB = performanceData[b].resolved + performanceData[b].unresolved;
+                return totalB - totalA;
+            }).slice(0, 10); // Show top 10 for clarity
+
+            const chartData = {
+                labels: sortedLabels,
+                resolvedData: sortedLabels.map(label => performanceData[label].resolved),
+                unresolvedData: sortedLabels.map(label => performanceData[label].unresolved),
+                avgTimeData: sortedLabels.map(label => parseFloat(performanceData[label].avgProcessingTime.toFixed(2))),
+                mode: mode
+            };
+
+            renderPerformanceStatusChart(chartData);
+            renderPerformanceTimeChart(chartData);
+        }
+
+        function renderPerformanceStatusChart(data) {
+            const canvas = document.getElementById('performanceStatusChart');
+            if (!canvas) return;
+            if (performanceStatusChart) performanceStatusChart.destroy();
+            
+            performanceStatusChart = new Chart(canvas.getContext('2d'), {
+                type: 'bar',
+                data: {
+                    labels: data.labels,
+                    datasets: [
+                        {
+                            label: 'Đã giải quyết',
+                            data: data.resolvedData,
+                            backgroundColor: '#22c55e', // green-500
+                        },
+                        {
+                            label: 'Chưa giải quyết',
+                            data: data.unresolvedData,
+                            backgroundColor: '#f97316', // orange-500
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: { stacked: true },
+                        y: { stacked: true, beginAtZero: true, ticks: { stepSize: 1 } }
+                    },
+                    plugins: {
+                        legend: { position: 'bottom' }
+                    },
+                    onClick: (event, elements) => {
+                        if (elements.length > 0) {
+                            const { index, datasetIndex } = elements[0];
+                            const label = performanceStatusChart.data.labels[index];
+                            const status = performanceStatusChart.data.datasets[datasetIndex].label;
+                            const filterKey = data.mode === 'employee' ? 'assigneeName' : 'issueBranch';
+                            const title = `Chi tiết: ${status} bởi "${label}"`;
+                            showDrillDownModal(filterKey, label, title, status === 'Đã giải quyết' ? 'resolved' : 'unresolved');
+                        }
+                    }
+                }
+            });
+        }
+
+        function renderPerformanceTimeChart(data) {
+            const canvas = document.getElementById('performanceTimeChart');
+            if (!canvas) return;
+            if (performanceTimeChart) performanceTimeChart.destroy();
+
+            performanceTimeChart = new Chart(canvas.getContext('2d'), {
+                type: 'bar',
+                data: {
+                    labels: data.labels,
+                    datasets: [{
+                        label: 'Thời gian xử lý TB (giờ)',
+                        data: data.avgTimeData,
+                        backgroundColor: '#6366f1', // indigo-500
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: { beginAtZero: true }
+                    },
+                    plugins: {
+                        legend: { display: false }
+                    },
+                     onClick: (event, elements) => {
+                        if (elements.length > 0) {
+                            const { index } = elements[0];
+                            const label = performanceTimeChart.data.labels[index];
+                            const filterKey = data.mode === 'employee' ? 'assigneeName' : 'issueBranch';
+                             const title = `Chi tiết: Thời gian xử lý của "${label}"`;
+                            showDrillDownModal(filterKey, label, title, 'resolved'); // Only show resolved for time analysis
+                        }
+                    }
+                }
+            });
+        }
+
+        function runPredictiveAnalysis(reports) {
+            const pdmContainer = document.getElementById('pdmTableBody');
+            if (!pdmContainer) return;
+
+            if (reports.length === 0) {
+                pdmContainer.innerHTML = `<tr><td colspan="2" class="text-center py-4 text-slate-500">Chưa có đủ dữ liệu.</td></tr>`;
+                document.getElementById('pdmSummaryStats').innerHTML = '';
+                if (pdmRiskChart) pdmRiskChart.destroy();
+                return;
+            }
+
+            const groupedData = reports.reduce((acc, report) => {
+                const key = `${report.issueBranch}|${report.issueType}`;
+                if (!acc[key]) acc[key] = [];
+                acc[key].push(report);
+                return acc;
+            }, {});
+
+            const priorityMap = { 'Nghiêm trọng': 3, 'Trung bình': 2, 'Thấp': 1 };
+            
+            let analysisResults = Object.entries(groupedData).map(([key, reports]) => {
+                const [branch, type] = key.split('|');
+                const sortedReports = reports.sort((a, b) => new Date(b.reportDate) - new Date(a.reportDate));
+                const lastFailureDate = new Date(sortedReports[0].reportDate);
+                const daysSinceLastFailure = (new Date() - lastFailureDate) / (1000 * 60 * 60 * 24);
+                
+                const failureCount = reports.length;
+                const totalPriorityScore = reports.reduce((sum, r) => sum + (priorityMap[r.priority] || 1), 0);
+                const avgPriorityScore = totalPriorityScore / failureCount;
+                const recencyScore = Math.exp(-0.1 * daysSinceLastFailure);
+                const frequencyScore = Math.log1p(failureCount);
+                const severityScore = avgPriorityScore / 3;
+                const riskScore = (0.5 * recencyScore + 0.3 * frequencyScore + 0.2 * severityScore) * 100;
+
+                return { branch, type, riskScore: Math.min(riskScore, 100) };
+            });
+
+            analysisResults.sort((a, b) => b.riskScore - a.riskScore);
+            
+            renderPdmSummaryStats(analysisResults);
+            renderPdmChart(analysisResults);
+            renderPdmTable(analysisResults);
+        }
+
+        function renderPdmSummaryStats(analysisResults) {
+            const container = document.getElementById('pdmSummaryStats');
+            if (!container) return;
+            const highRiskCount = analysisResults.filter(r => r.riskScore > 75).length;
+            const mediumRiskCount = analysisResults.filter(r => r.riskScore > 50 && r.riskScore <= 75).length;
+            const lowRiskCount = analysisResults.filter(r => r.riskScore <= 50).length;
+
+            container.innerHTML = `
+                <div class="px-2"><p class="text-2xl font-bold text-red-500">${highRiskCount}</p><p class="text-xs text-slate-500">Rủi ro Cao</p></div>
+                <div class="px-2"><p class="text-2xl font-bold text-yellow-500">${mediumRiskCount}</p><p class="text-xs text-slate-500">Rủi ro TB</p></div>
+                <div class="px-2"><p class="text-2xl font-bold text-green-500">${lowRiskCount}</p><p class="text-xs text-slate-500">Rủi ro Thấp</p></div>
+            `;
+        }
+
+        function renderPdmChart(analysisResults) {
+            const canvas = document.getElementById('pdmRiskChart');
+            if (!canvas) return;
+            if (pdmRiskChart) pdmRiskChart.destroy();
+
+            const top5Data = analysisResults.slice(0, 5);
+            const labels = top5Data.map(item => `${item.branch.replace('ICOOL ','')} - ${item.type}`);
+            const data = top5Data.map(item => item.riskScore);
+            const backgroundColors = data.map(score => score > 75 ? 'rgba(239, 68, 68, 0.7)' : score > 50 ? 'rgba(245, 158, 11, 0.7)' : 'rgba(34, 197, 94, 0.7)');
+
+            pdmRiskChart = new Chart(canvas.getContext('2d'), {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Điểm Rủi Ro', data: data, backgroundColor: backgroundColors,
+                        borderColor: backgroundColors.map(c => c.replace('0.7', '1')), borderWidth: 1
+                    }]
+                },
+                options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
+            });
+        }
+
+        function renderPdmTable(analysisResults) {
+            const tableBody = document.getElementById('pdmTableBody');
+            if (!tableBody) return;
+            const getRiskColor = (score) => score > 75 ? 'text-red-600' : score > 50 ? 'text-yellow-600' : 'text-green-600';
+            tableBody.innerHTML = analysisResults.map(item => `
+                <tr class="hover:bg-slate-50">
+                    <td data-label="Hạng mục" class="px-4 py-3 text-sm"><p class="font-semibold text-slate-800">${item.type}</p><p class="text-xs text-slate-500">${item.branch}</p></td>
+                    <td data-label="Rủi Ro" class="px-4 py-3 text-sm font-bold ${getRiskColor(item.riskScore)}">${item.riskScore.toFixed(0)} / 100</td>
+                </tr>
+            `).join('');
+        }
+        
+        // --- Modal Handlers: Account & Issue Management ---
+        async function openIssueDetailModal(issueId) {
+            const modal = document.getElementById('issueDetailModal');
+            if (!modal) return;
+            
+            modal.style.display = 'flex';
+            
+            // Clear previous data and state
+            modal.querySelector('#detailIssueId').value = '';
+            modal.querySelector('#detailIssueDescription').textContent = 'Đang tải...';
+            modal.querySelector('#detailIssueImageContainer').innerHTML = '';
+            modal.querySelector('#detailRepairedImageContainer').innerHTML = '';
+            modal.querySelector('#detailIssueComments').innerHTML = '';
+            
+            const docRef = doc(db, `/artifacts/${canvasAppId}/public/data/issueReports`, issueId);
+            const docSnap = await getDoc(docRef);
+
+            if (!docSnap.exists()) {
+                modal.querySelector('#detailIssueDescription').textContent = 'Không tìm thấy sự cố.';
+                return;
+            }
+            const report = docSnap.data();
+
+            // Populate static info
+            modal.querySelector('#detailIssueId').value = issueId;
+            modal.querySelector('#detailIssueBranch').textContent = report.issueBranch;
+            modal.querySelector('#detailIssueDescription').textContent = report.issueDescription;
+            modal.querySelector('#detailReporterName').textContent = report.reporterName;
+            modal.querySelector('#detailReportDate').textContent = new Date(report.reportDate).toLocaleString('vi-VN');
+            modal.querySelector('#detailIssuePriority').textContent = report.priority;
+            
+            const initialImageContainer = modal.querySelector('#detailIssueImageContainer');
+            if (report.issueImageUrl) {
+                initialImageContainer.innerHTML = `<a href="${report.issueImageUrl}" target="_blank"><img src="${report.issueImageUrl}" class="w-full h-48 object-cover rounded-lg shadow-md"></a>`;
+            }
+
+            const repairedImageContainer = modal.querySelector('#detailRepairedImageContainer');
+            if (report.repairedImageUrl) {
+                repairedImageContainer.innerHTML = `<a href="${report.repairedImageUrl}" target="_blank"><img src="${report.repairedImageUrl}" class="w-full h-48 object-cover rounded-lg shadow-md"></a>`;
+            } else {
+                 repairedImageContainer.innerHTML = '<p class="text-sm text-slate-500 italic">Chưa có ảnh sửa chữa.</p>';
+            }
+
+            const canManage = currentUserProfile.role === 'Admin' || currentUserProfile.role === 'Manager';
+            
+            // Populate Status dropdown & add listener
+            const statusSelect = modal.querySelector('#detailIssueStatus');
+            statusSelect.innerHTML = ISSUE_STATUSES.map(s => `<option value="${s}" ${report.status === s ? 'selected' : ''}>${s}</option>`).join('');
+            statusSelect.disabled = !canManage;
+            
+            const repairedImageUploadContainer = modal.querySelector('#repairedImageUploadContainer');
+            const toggleRepairedImageInput = () => {
+                if (statusSelect.value === 'Đã giải quyết') {
+                    repairedImageUploadContainer.classList.remove('hidden');
+                } else {
+                    repairedImageUploadContainer.classList.add('hidden');
+                }
+            };
+
+            toggleRepairedImageInput(); // Initial check
+
+            // Populate Assignee dropdown
+            const assigneeSelect = modal.querySelector('#detailIssueAssignee');
+            assigneeSelect.disabled = true; // Disable until loaded
+            if (canManage) {
+                const usersSnapshot = await getDocs(collection(db, `/artifacts/${canvasAppId}/users`));
+                const users = usersSnapshot.docs.map(doc => ({ uid: doc.id, ...doc.data() }));
+                assigneeSelect.innerHTML = `<option value="">Chưa giao</option>` + users.map(u => `<option value="${u.uid}" ${report.assigneeId === u.uid ? 'selected' : ''}>${u.displayName}</option>`).join('');
+                assigneeSelect.disabled = false;
+            } else {
+                assigneeSelect.innerHTML = `<option value="">${report.assigneeName || 'Chưa giao'}</option>`;
+            }
+
+            modal.querySelector('#updateIssueBtn').classList.toggle('hidden', !canManage);
+            
+            listenToIssueComments(issueId);
+        }
+
+        async function handleUpdateIssueDetails() {
+            const modal = document.getElementById('issueDetailModal');
+            const issueId = modal.querySelector('#detailIssueId').value;
+            const newStatus = modal.querySelector('#detailIssueStatus').value;
+            const newAssigneeId = modal.querySelector('#detailIssueAssignee').value;
+            const assigneeSelect = modal.querySelector('#detailIssueAssignee');
+            const newAssigneeName = newAssigneeId ? assigneeSelect.options[assigneeSelect.selectedIndex].text : '';
+            const repairedImageFile = modal.querySelector('#repairedImageInput').files[0];
+
+            const messageEl = modal.querySelector('#detailIssueMessage');
+            const saveBtn = modal.querySelector('#updateIssueBtn');
+
+            saveBtn.disabled = true;
+            saveBtn.innerHTML = `<i class="fas fa-spinner fa-spin mr-2"></i>Đang lưu...`;
+
+            try {
+                const docRef = doc(db, `/artifacts/${canvasAppId}/public/data/issueReports`, issueId);
+                const originalDoc = await getDoc(docRef);
+                const originalData = originalDoc.data();
+
+                // Validation for repaired image
+                if (newStatus === 'Đã giải quyết' && !repairedImageFile && !originalData.repairedImageUrl) {
+                    messageEl.textContent = 'Vui lòng tải lên ảnh đã sửa chữa để hoàn tất sự cố.';
+                    messageEl.className = 'p-3 rounded-lg text-sm text-center alert-error';
+                    messageEl.classList.remove('hidden');
+                    saveBtn.disabled = false;
+                    saveBtn.innerHTML = `Cập nhật`;
+                    return;
+                }
+
+                const updateData = { 
+                    status: newStatus, 
+                    assigneeId: newAssigneeId || null,
+                    assigneeName: newAssigneeName || null 
+                };
+
+                if (newStatus === 'Đã giải quyết' && originalData.status !== 'Đã giải quyết') {
+                    updateData.resolvedDate = new Date().toISOString();
+                }
+
+                if (repairedImageFile) {
+                    const storageRef = ref(storage, `repaired_images/${issueId}/${Date.now()}-${repairedImageFile.name}`);
+                    const snapshot = await uploadBytes(storageRef, repairedImageFile);
+                    updateData.repairedImageUrl = await getDownloadURL(snapshot.ref);
+                }
+
+                await updateDoc(docRef, updateData);
+                
+                logActivity("Update Issue", { issueId, newStatus, newAssigneeName });
+                
+                if (newAssigneeId && originalData.assigneeId !== newAssigneeId) {
+                    sendNotification(newAssigneeId, `Bạn được giao một nhiệm vụ mới: ${originalData.issueType} tại ${originalData.issueBranch}`);
+                }
+                
+                messageEl.textContent = 'Cập nhật thành công!';
+                messageEl.className = 'p-3 rounded-lg text-sm text-center alert-success';
+                messageEl.classList.remove('hidden');
+                setTimeout(() => {
+                    closeIssueDetailModal();
+                }, 1500);
+
+            } catch (error) {
+                console.error("Update Issue Error: ", error);
+                messageEl.textContent = `Lỗi: ${error.message}`;
+                messageEl.className = 'p-3 rounded-lg text-sm text-center alert-error';
+                messageEl.classList.remove('hidden');
+            } finally {
+                saveBtn.disabled = false;
+                saveBtn.innerHTML = `Cập nhật`;
+            }
+        }
+        
+        function listenToIssueComments(issueId) {
+            if (issueCommentsUnsubscribe) issueCommentsUnsubscribe();
+            
+            const commentsContainer = document.getElementById('detailIssueComments');
+            const q = query(collection(db, `/artifacts/${canvasAppId}/public/data/issueReports/${issueId}/comments`), orderBy('timestamp', 'asc'));
+            
+            issueCommentsUnsubscribe = onSnapshot(q, snapshot => {
+                if (snapshot.empty) {
+                    commentsContainer.innerHTML = `<p class="text-sm text-slate-500 italic">Chưa có bình luận nào.</p>`;
+                    return;
+                }
+                commentsContainer.innerHTML = snapshot.docs.map(doc => {
+                    const comment = doc.data();
+                    const timestamp = comment.timestamp ? new Date(comment.timestamp.toDate()).toLocaleString('vi-VN') : '';
+                    return `
+                        <div class="text-sm">
+                            <p><strong>${comment.authorName}:</strong> ${comment.text}</p>
+                            <p class="text-xs text-slate-400">${timestamp}</p>
+                        </div>
+                    `;
+                }).join('');
+                commentsContainer.scrollTop = commentsContainer.scrollHeight;
+            });
+        }
+        
+        async function handleAddComment() {
+            const modal = document.getElementById('issueDetailModal');
+            const issueId = modal.querySelector('#detailIssueId').value;
+            const commentInput = modal.querySelector('#newCommentInput');
+            const commentText = commentInput.value.trim();
+
+            if (!issueId || !commentText) return;
+
+            try {
+                const commentsCol = collection(db, `/artifacts/${canvasAppId}/public/data/issueReports/${issueId}/comments`);
+                await addDoc(commentsCol, {
+                    text: commentText,
+                    authorId: currentUser.uid,
+                    authorName: currentUserProfile.displayName,
+                    timestamp: serverTimestamp()
+                });
+                commentInput.value = '';
+                logActivity("Add Comment", { issueId, commentText });
+            } catch(error) {
+                console.error("Error adding comment:", error);
+            }
+        }
+
+        function populateEditAccountModal(userData) {
+            editAccountModal.querySelector('#editAccountUid').value = userData.uid;
+            editAccountModal.querySelector('#editAccountEmail').value = userData.email;
+            editAccountModal.querySelector('#editAccountEmployeeId').value = userData.employeeId || '';
+            editAccountModal.querySelector('#editAccountUsername').value = userData.displayName || '';
+            
+            const roleSelect = editAccountModal.querySelector('#editAccountRole');
+            roleSelect.innerHTML = ROLES.map(r => `<option value="${r}" ${userData.role === r ? 'selected' : ''}>${r}</option>`).join('');
+
+            const branchesContainer = editAccountModal.querySelector('#managedBranchesCheckboxes');
+            branchesContainer.innerHTML = ALL_BRANCHES.map(b => `<label class="flex items-center space-x-2 cursor-pointer"><input type="checkbox" value="${b}" class="form-checkbox h-4 w-4 text-indigo-600 rounded" ${userData.managedBranches?.includes(b) ? 'checked' : ''}><span class="text-sm">${b.replace('ICOOL ','')}</span></label>`).join('');
+            
+            const viewsContainer = editAccountModal.querySelector('#allowedViewsCheckboxes');
+            viewsContainer.innerHTML = Object.entries(ALL_VIEWS).map(([id, name]) => `<label class="flex items-center space-x-2 cursor-pointer"><input type="checkbox" value="${id}" class="form-checkbox h-4 w-4 text-indigo-600 rounded" ${userData.allowedViews?.includes(id) ? 'checked' : ''}><span class="text-sm">${name}</span></label>`).join('');
+
+            const handleRoleChange = () => {
+                const role = roleSelect.value;
+                document.getElementById('managedBranchesContainer').classList.toggle('hidden', role !== 'Manager');
+            };
+
+            roleSelect.addEventListener('change', handleRoleChange);
+            handleRoleChange();
+            
+            editAccountModal.style.display = 'flex';
+        }
+        
+        async function handleUpdateAccountDetails() {
+            const uid = editAccountModal.querySelector('#editAccountUid').value;
+            const messageEl = editAccountModal.querySelector('#editAccountMessage');
+            const saveBtn = editAccountModal.querySelector('#saveAccountDetailsBtn');
+            if (!uid) return;
+
+            const updatedData = {
+                role: editAccountModal.querySelector('#editAccountRole').value,
+                employeeId: editAccountModal.querySelector('#editAccountEmployeeId').value.trim(),
+                displayName: editAccountModal.querySelector('#editAccountUsername').value.trim(),
+                managedBranches: Array.from(editAccountModal.querySelectorAll('#managedBranchesCheckboxes input:checked')).map(cb => cb.value),
+                allowedViews: Array.from(editAccountModal.querySelectorAll('#allowedViewsCheckboxes input:checked')).map(cb => cb.value)
+            };
+            
+            saveBtn.disabled = true;
+            saveBtn.innerHTML = `<i class="fas fa-spinner fa-spin mr-2"></i>Đang lưu...`;
+            
+            try {
+                const userDocRef = doc(db, `/artifacts/${canvasAppId}/users/${uid}`);
+                await updateDoc(userDocRef, updatedData);
+                await logActivity("Update User Profile", { targetUid: uid });
+                
+                messageEl.className = 'p-3 rounded-lg text-sm text-center alert-success';
+                messageEl.textContent = 'Cập nhật thành công!';
+                messageEl.classList.remove('hidden');
+                
+                // No need to call render manually, the listener will do it.
+                setTimeout(() => {
+                    editAccountModal.style.display = 'none';
+                    messageEl.classList.add('hidden');
+                }, 1500);
+
+            } catch (error) {
+                console.error("Error updating user:", error);
+                messageEl.className = 'p-3 rounded-lg text-sm text-center alert-error';
+                messageEl.textContent = `Lỗi: ${error.message}`;
+                messageEl.classList.remove('hidden');
+            } finally {
+                saveBtn.disabled = false;
+                saveBtn.innerHTML = `<i class="fas fa-save mr-2"></i>Lưu Thay Đổi`;
+            }
+        }
+
+        async function handleCreateAccount() {
+            const email = mainContentContainer.querySelector('#createAccountEmail').value;
+            const password = mainContentContainer.querySelector('#createAccountPassword').value;
+            const displayName = mainContentContainer.querySelector('#createAccountUsername').value;
+            const employeeId = mainContentContainer.querySelector('#createAccountEmployeeId').value;
+            const messageEl = mainContentContainer.querySelector('#createAccountMessage');
+
+            if (!email || password.length < 6 || !displayName || !employeeId) {
+                messageEl.textContent = 'Vui lòng điền đầy đủ thông tin hợp lệ.';
+                messageEl.className = 'p-3 rounded-lg text-sm text-center alert-error';
+                messageEl.classList.remove('hidden');
+                return;
+            }
+            
+            try {
+                const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+                const newUid = userCredential.user.uid;
+                
+                const newUserProfile = {
+                    email: email,
+                    displayName: displayName,
+                    employeeId: employeeId,
+                    role: 'Nhân viên',
+                    allowedViews: DEFAULT_VIEWS['Nhân viên'],
+                    managedBranches: [],
+                    requiresPasswordChange: true
+                };
+
+                await setDoc(doc(db, `/artifacts/${canvasAppId}/users/${newUid}`), newUserProfile);
+                
+                await logActivity("Admin Create User", { newEmail: email, newUid: newUid });
+
+                messageEl.textContent = `Tạo tài khoản ${email} thành công!`;
+                messageEl.className = 'p-3 rounded-lg text-sm text-center alert-success';
+                messageEl.classList.remove('hidden');
+                // No need to call render manually, the listener will do it.
+            } catch (error) {
+                messageEl.textContent = `Lỗi tạo tài khoản: ${error.message}`;
+                messageEl.className = 'p-3 rounded-lg text-sm text-center alert-error';
+                messageEl.classList.remove('hidden');
+            }
+        }
+        
+        async function handleExcelImport() {
+            const fileInput = document.getElementById('excelFileInput');
+            const messageEl = document.getElementById('importExcelMessage');
+            const file = fileInput.files[0];
+
+            if (!file) {
+                messageEl.textContent = 'Vui lòng chọn một file Excel.';
+                messageEl.className = 'p-3 rounded-lg text-sm alert-error';
+                messageEl.classList.remove('hidden');
+                return;
+            }
+
+            const reader = new FileReader();
+            reader.onload = async (e) => {
+                const data = new Uint8Array(e.target.result);
+                const workbook = XLSX.read(data, { type: 'array' });
+                const firstSheetName = workbook.SheetNames[0];
+                const worksheet = workbook.Sheets[firstSheetName];
+                const json = XLSX.utils.sheet_to_json(worksheet);
+
+                let createCount = 0;
+                let updateCount = 0;
+                let errorCount = 0;
+                let errors = [];
+
+                for (const row of json) {
+                    const { email, password, displayName, employeeId, role } = row;
+
+                    if (!email || !displayName || !employeeId) {
+                        errorCount++;
+                        errors.push(`Dòng ${createCount + updateCount + errorCount}: Thiếu thông tin email, tên hoặc mã nhân viên.`);
+                        continue;
+                    }
+
+                    const existingUser = allUsersCache.find(u => u.email === email);
+                    const userRole = ROLES.includes(role) ? role : 'Nhân viên';
+
+                    if (existingUser) {
+                        // Update existing user
+                        try {
+                            const userDocRef = doc(db, `/artifacts/${canvasAppId}/users/${existingUser.uid}`);
+                            const profileUpdate = {
+                                displayName,
+                                employeeId,
+                                role: userRole,
+                                allowedViews: DEFAULT_VIEWS[userRole],
+                            };
+                            await updateDoc(userDocRef, profileUpdate);
+                            await logActivity("Admin Bulk Update User", { updatedEmail: email });
+                            updateCount++;
+                        } catch (error) {
+                             errorCount++;
+                            errors.push(`Cập nhật ${email}: ${error.message}`);
+                        }
+                    } else {
+                        // Create new user
+                        if (!password || password.toString().length < 6) {
+                            errorCount++;
+                            errors.push(`Tạo mới ${email}: Mật khẩu không hợp lệ.`);
+                            continue;
+                        }
+
+                        try {
+                            const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+                            const newUid = userCredential.user.uid;
+                            
+                            const newUserProfile = {
+                                email: email,
+                                displayName: displayName,
+                                employeeId: employeeId,
+                                role: userRole,
+                                allowedViews: DEFAULT_VIEWS[userRole],
+                                managedBranches: [],
+                                requiresPasswordChange: true
+                            };
+
+                            await setDoc(doc(db, `/artifacts/${canvasAppId}/users/${newUid}`), newUserProfile);
+                            await logActivity("Admin Bulk Create User", { newEmail: email });
+                            createCount++;
+                        } catch (error) {
+                            errorCount++;
+                            errors.push(`Tạo mới ${email}: ${error.message}`);
+                        }
+                    }
+                }
+                
+                messageEl.innerHTML = `Hoàn tất: <br> - ${createCount} tài khoản đã tạo. <br> - ${updateCount} tài khoản đã cập nhật. <br> - ${errorCount} lỗi.`;
+                if(errors.length > 0) {
+                     messageEl.innerHTML += `<br>Chi tiết lỗi: <br>${errors.slice(0, 5).join('<br>')}`;
+                }
+                messageEl.className = `p-3 rounded-lg text-sm ${errorCount > 0 ? 'alert-error' : 'alert-success'}`;
+                messageEl.classList.remove('hidden');
+                fileInput.value = ''; // Clear file input
+            };
+            reader.readAsArrayBuffer(file);
+        }
+
+        function handleDownloadTemplate() {
+            const templateData = [
+                {
+                    email: "nhanvien.a@example.com",
+                    password: "password123",
+                    displayName: "Nguyễn Văn A",
+                    employeeId: "NV001",
+                    role: "Nhân viên"
+                },
+                {
+                    email: "quanly.b@example.com",
+                    password: "password456",
+                    displayName: "Trần Thị B",
+                    employeeId: "QL001",
+                    role: "Manager"
+                },
+                {
+                    email: "admin.c@example.com",
+                    password: "password789",
+                    displayName: "Lê Văn C",
+                    employeeId: "AD001",
+                    role: "Admin"
+                }
+            ];
+
+            const worksheet = XLSX.utils.json_to_sheet(templateData);
+            const workbook = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(workbook, worksheet, "DanhSachTaiKhoan");
+
+            // Trigger the download
+            XLSX.writeFile(workbook, "mau-tai-khoan.xlsx");
+        }
+
+        function openDeleteAccountModal(uid, name) {
+            const modal = document.getElementById('deleteAccountModal');
+            modal.querySelector('#deleteAccountUid').value = uid;
+            modal.querySelector('#deleteAccountName').textContent = name;
+            modal.style.display = 'flex';
+        }
+
+        async function handleDisableAccount(uid, anonymize = false) {
+            const modal = document.getElementById('deleteAccountModal');
+            try {
+                if (anonymize) {
+                    // Anonymize Issue Reports
+                    const issuesQuery = query(collection(db, `/artifacts/${canvasAppId}/public/data/issueReports`), where('reporterId', '==', uid));
+                    const issuesSnapshot = await getDocs(issuesQuery);
+                    const issueUpdates = [];
+                    issuesSnapshot.forEach(doc => {
+                        issueUpdates.push(updateDoc(doc.ref, { reporterName: "Người dùng đã bị xóa", reporterId: null }));
+                    });
+                    await Promise.all(issueUpdates);
+                }
+
+                // Finally, disable the user document
+                await updateDoc(doc(db, `/artifacts/${canvasAppId}/users/${uid}`), {
+                    status: 'disabled'
+                });
+
+                await logActivity(anonymize ? "Disable and Anonymize User" : "Disable User", { disabledUid: uid });
+                
+                modal.style.display = 'none';
+                // No need to call render manually, the listener will do it.
+            } catch (error) {
+                console.error("Error during account disable:", error);
+                alert("Đã xảy ra lỗi khi thực hiện thao tác.");
+            }
+        }
+        
+        async function handleEnableAccount(uid) {
+            if (!uid) return;
+            
+            try {
+                const userDocRef = doc(db, `/artifacts/${canvasAppId}/users/${uid}`);
+                await updateDoc(userDocRef, {
+                    status: null 
+                });
+
+                await logActivity("Enable User", { enabledUid: uid });
+                // No need to call render manually, the listener will do it.
+            } catch (error) {
+                console.error("Error during account enable:", error);
+            }
+        }
+
+        // --- Feature Handlers: Issue Report, Attendance ---
+        async function handleReportIssue() {
+            const reporterName = mainContentContainer.querySelector('#reporterName').value;
+            const issueType = mainContentContainer.querySelector('#issueType').value;
+            const priority = mainContentContainer.querySelector('#issuePriority').value;
+            const issueBranch = mainContentContainer.querySelector('#issueBranch').value;
+            const issueDescription = mainContentContainer.querySelector('#issueDescription').value;
+            const imageFile = mainContentContainer.querySelector('#issueImage').files[0];
+            const messageEl = mainContentContainer.querySelector('#issueMessage');
+            const button = mainContentContainer.querySelector('#reportIssueBtn');
+
+            if (!issueBranch || !issueDescription) {
+                messageEl.textContent = 'Vui lòng điền đầy đủ thông tin.';
+                messageEl.className = 'p-3 rounded-lg text-sm text-center alert-error';
+                messageEl.classList.remove('hidden');
+                return;
+            }
+            
+            button.disabled = true;
+            button.innerHTML = `<i class="fas fa-spinner fa-spin mr-2"></i>Đang gửi...`;
+
+            try {
+                let imageUrl = '';
+                if (imageFile) {
+                    const storageRef = ref(storage, `issue_images/${currentUser.uid}/${Date.now()}-${imageFile.name}`);
+                    const snapshot = await uploadBytes(storageRef, imageFile);
+                    imageUrl = await getDownloadURL(snapshot.ref);
+                }
+
+                const reportData = {
+                    reporterId: currentUser.uid,
+                    reporterName: reporterName,
+                    issueType: issueType,
+                    priority: priority,
+                    issueBranch: issueBranch,
+                    issueDescription: issueDescription,
+                    issueImageUrl: imageUrl,
+                    reportDate: new Date().toISOString(),
+                    status: 'Mới tạo',
+                    assigneeId: null,
+                    assigneeName: null
+                };
+                
+                await addDoc(collection(db, `/artifacts/${canvasAppId}/public/data/issueReports`), reportData);
+                
+                messageEl.textContent = 'Báo cáo sự cố thành công!';
+                messageEl.className = 'p-3 rounded-lg text-sm text-center alert-success';
+                messageEl.classList.remove('hidden');
+                mainContentContainer.querySelector('#issueDescription').value = '';
+                mainContentContainer.querySelector('#issueImage').value = '';
+
+            } catch (error) {
+                messageEl.textContent = `Lỗi: ${error.message}`;
+                messageEl.className = 'p-3 rounded-lg text-sm text-center alert-error';
+                messageEl.classList.remove('hidden');
+            } finally {
+                button.disabled = false;
+                button.innerHTML = `<i class="fas fa-paper-plane mr-2"></i>Gửi Báo Cáo`;
+            }
+        }
+
+        function handleAttendance(action) {
+            currentAttendanceAction = action;
+            cameraModal.style.display = 'flex';
+            cameraModal.querySelector('#cameraModalTitle').textContent = `${action} - Chụp Ảnh Xác Thực`;
+            startCameraStream();
+            updateLiveInfo();
+        }
+
+        function updateLiveInfo() {
+            const timeEl = document.getElementById('camera-time');
+            const dateEl = document.getElementById('camera-date');
+            const dayEl = document.getElementById('camera-day');
+            const userEl = document.getElementById('camera-user');
+            
+            userEl.textContent = `Họ tên: ${currentUserProfile.displayName}`;
+            
+            if (timeInterval) clearInterval(timeInterval);
+
+            timeInterval = setInterval(() => {
+                const now = new Date();
+                const timeString = now.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', hour12: false });
+                const dateString = now.toLocaleDateString('vi-VN', { day: 'numeric', month: 'long', year: 'numeric' });
+                const dayString = now.toLocaleDateString('vi-VN', { weekday: 'long' });
+
+                timeEl.textContent = timeString;
+                dateEl.textContent = dateString;
+                dayEl.textContent = dayString;
+            }, 1000);
+
+            getLocationAndAddress();
+        }
+
+        async function getLocationAndAddress() {
+            const addressEl = document.getElementById('camera-address');
+            addressEl.textContent = 'Đang lấy vị trí...';
+            capturedLocationInfo = null;
+
+            try {
+                const position = await new Promise((resolve, reject) => {
+                    navigator.geolocation.getCurrentPosition(resolve, reject, { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 });
+                });
+                const { latitude, longitude } = position.coords;
+                
+                const response = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}`);
+                if (!response.ok) throw new Error('Không thể chuyển đổi vị trí.');
+                const data = await response.json();
+
+                capturedLocationInfo = {
+                    latitude, longitude,
+                    address: data.display_name || 'Không tìm thấy địa chỉ'
+                };
+                addressEl.textContent = capturedLocationInfo.address;
+            } catch (error) {
+                console.error("Location Error:", error);
+                addressEl.textContent = 'Không thể lấy vị trí. Vui lòng kiểm tra quyền truy cập.';
+                capturedLocationInfo = { error: error.message };
+            }
+        }
+
+        async function startCameraStream() {
+            if (currentCameraStream) {
+                currentCameraStream.getTracks().forEach(track => track.stop());
+            }
+
+            const video = cameraModal.querySelector('#cameraFeed');
+            const preview = cameraModal.querySelector('#photoPreview');
+            const captureBtn = cameraModal.querySelector('#captureBtn');
+            const recaptureBtn = cameraModal.querySelector('#recaptureBtn');
+            const confirmBtn = cameraModal.querySelector('#confirmAttendanceBtn');
+
+            video.classList.remove('hidden');
+            preview.classList.add('hidden');
+            captureBtn.classList.remove('hidden');
+            recaptureBtn.classList.add('hidden');
+            confirmBtn.classList.add('hidden');
+
+            try {
+                currentCameraStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" } });
+                video.srcObject = currentCameraStream;
+            } catch (err) {
+                console.error("Camera error:", err);
+                cameraModal.querySelector('#cameraMessage').textContent = 'Không thể truy cập camera. Vui lòng cấp quyền.';
+            }
+        }
+
+        function capturePhoto() {
+            const video = cameraModal.querySelector('#cameraFeed');
+            const canvas = cameraModal.querySelector('#photoCanvas');
+            const preview = cameraModal.querySelector('#photoPreview');
+            
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            canvas.getContext('2d').drawImage(video, 0, 0);
+
+            canvas.toBlob(blob => {
+                capturedPhotoBlob = blob;
+                preview.src = URL.createObjectURL(blob);
+                
+                video.classList.add('hidden');
+                preview.classList.remove('hidden');
+                cameraModal.querySelector('#captureBtn').classList.add('hidden');
+                cameraModal.querySelector('#recaptureBtn').classList.remove('hidden');
+                cameraModal.querySelector('#confirmAttendanceBtn').classList.remove('hidden');
+
+                stopCameraStream();
+            }, 'image/jpeg');
+        }
+
+        function stopCameraStream() {
+            if (currentCameraStream) {
+                currentCameraStream.getTracks().forEach(track => track.stop());
+                currentCameraStream = null;
+            }
+        }
+
+        async function confirmAttendance() {
+            if (!capturedPhotoBlob) return;
+
+            const messageEl = mainContentContainer.querySelector('#attendanceMessage');
+            const modalMessageEl = cameraModal.querySelector('#cameraMessage');
+            const confirmBtn = cameraModal.querySelector('#confirmAttendanceBtn');
+
+            confirmBtn.disabled = true;
+            confirmBtn.innerHTML = `<i class="fas fa-spinner fa-spin"></i>`;
+            
+            try {
+                const today = new Date().toISOString().split('T')[0];
+                const storageRef = ref(storage, `attendance_photos/${currentUser.uid}/${today}/${Date.now()}.jpg`);
+                const snapshot = await uploadBytes(storageRef, capturedPhotoBlob);
+                const photoUrl = await getDownloadURL(snapshot.ref);
+
+                await addDoc(collection(db, `/artifacts/${canvasAppId}/users/${currentUser.uid}/attendance`), {
+                    action: currentAttendanceAction,
+                    timestamp: serverTimestamp(),
+                    photoUrl: photoUrl,
+                    location: capturedLocationInfo || { error: 'No location captured' }
+                });
+                
+                const successTime = new Date().toLocaleString('vi-VN');
+                messageEl.textContent = `${currentAttendanceAction} thành công lúc ${successTime}!`;
+                messageEl.className = 'p-3 rounded-lg text-sm text-center alert-success';
+                messageEl.classList.remove('hidden');
+                closeCameraModal();
+
+            } catch (error) {
+                modalMessageEl.textContent = `Lỗi: ${error.message}`;
+                modalMessageEl.className = 'p-3 rounded-lg text-sm text-center alert-error';
+                modalMessageEl.classList.remove('hidden');
+            } finally {
+                confirmBtn.disabled = false;
+                confirmBtn.textContent = 'Xác Nhận';
+            }
+        }
+        
+        function listenToAttendance() {
+            const listEl = mainContentContainer.querySelector('#attendanceHistory');
+            if (!listEl) return;
+            const q = query(collection(db, `/artifacts/${canvasAppId}/users/${currentUser.uid}/attendance`), orderBy('timestamp', 'desc'), limit(5));
+            const unsubscribe = onSnapshot(q, (snapshot) => {
+                listEl.innerHTML = snapshot.docs.length > 0
+                    ? snapshot.docs.map(doc => {
+                        const data = doc.data();
+                        const time = data.timestamp ? new Date(data.timestamp.toDate()).toLocaleString('vi-VN') : '';
+                        return `<li class="p-2 bg-slate-50 rounded-md text-sm">${data.action} lúc: ${time}</li>`;
+                    }).join('')
+                    : `<li class="text-slate-500">Chưa có lịch sử.</li>`;
+            });
+            unsubscribeListeners.push(unsubscribe);
+        }
+
+        // --- Global Modal Close Functions ---
+        function closeIssueDetailModal() {
+            issueDetailModal.style.display = 'none';
+            if (issueCommentsUnsubscribe) {
+                issueCommentsUnsubscribe();
+                issueCommentsUnsubscribe = null;
+            }
+        }
+
+        function closeCameraModal() {
+            stopCameraStream();
+            if (timeInterval) clearInterval(timeInterval);
+            cameraModal.style.display = 'none';
+        }
+
+        // --- DOM Binding & Event Listeners ---
+        function bindShellDOMElements() {
+            skeletonLoader = document.getElementById('skeletonLoader');
+            authSection = document.getElementById('authSection');
+            appContainer = document.getElementById('appContainer');
+            mainContentContainer = document.querySelector('#mainContent main');
+            viewsContainer = document.getElementById('viewsContainer');
+            sidebarNav = document.getElementById('sidebarNav');
+            authEmailInput = document.getElementById('authEmail');
+            authPasswordInput = document.getElementById('authPassword');
+            loginBtn = document.getElementById('loginBtn');
+            authMessage = document.getElementById('authMessage');
+            loggedInUserDisplay = document.getElementById('loggedInUserDisplay');
+            dropdownUserName = document.getElementById('dropdownUserName');
+            dropdownUserRole = document.getElementById('dropdownUserRole');
+            notificationToggle = document.getElementById('notificationToggle');
+            notificationBadge = document.getElementById('notificationBadge');
+            notificationMenu = document.getElementById('notificationMenu');
+            notificationList = document.getElementById('notificationList');
+            editAccountModal = document.getElementById('editAccountModal');
+            issueDetailModal = document.getElementById('issueDetailModal');
+            deleteAccountModal = document.getElementById('deleteAccountModal');
+            cameraModal = document.getElementById('cameraModal');
+            resetPasswordModal = document.getElementById('resetPasswordModal');
+            forceChangePasswordModal = document.getElementById('forceChangePasswordModal');
+            drillDownModal = document.getElementById('drillDownModal');
+            sidebar = document.getElementById('sidebar');
+            mobileMenuToggle = document.getElementById('mobileMenuToggle');
+        }
+
+        function bindShellEventListeners() {
+            loginBtn.addEventListener('click', handleLogin);
+             authEmailInput.addEventListener('keydown', (event) => {
+                 if (event.key === 'Enter') {
+                     event.preventDefault(); // Prevent default form submission
+                     handleLogin();
+                 }
+            });
+             authPasswordInput.addEventListener('keydown', (event) => {
+                 if (event.key === 'Enter') {
+                     event.preventDefault(); // Prevent default form submission
+                     handleLogin();
+                 }
+            });
+            document.getElementById('logoutDropdownBtn').addEventListener('click', handleLogout);
+            document.getElementById('userDropdownToggle').addEventListener('click', (e) => { e.stopPropagation(); document.getElementById('userDropdownMenu').classList.toggle('show'); });
+            notificationToggle.addEventListener('click', (e) => { e.stopPropagation(); notificationMenu.classList.toggle('show'); });
+            
+            mobileMenuToggle.addEventListener('click', () => toggleMobileMenu(false));
+
+            document.addEventListener('click', (e) => {
+                if (!notificationToggle.contains(e.target) && !notificationMenu.contains(e.target)) { notificationMenu.classList.remove('show'); }
+                if (!document.getElementById('userDropdownToggle').contains(e.target) && !document.getElementById('userDropdownMenu').contains(e.target)) { document.getElementById('userDropdownMenu').classList.remove('show'); }
+                if (window.innerWidth < 1024 && !sidebar.contains(e.target) && !mobileMenuToggle.contains(e.target)) {
+                    toggleMobileMenu(true);
+                }
+            });
+
+            // Account Modal Listeners
+            editAccountModal.querySelector('#saveAccountDetailsBtn').addEventListener('click', handleUpdateAccountDetails);
+            const closeEditAccountModal = () => editAccountModal.style.display = 'none';
+            editAccountModal.querySelector('#cancelEditAccountBtn').addEventListener('click', closeEditAccountModal);
+            editAccountModal.querySelector('#closeEditAccountModalBtn').addEventListener('click', closeEditAccountModal);
+            
+            // Issue Detail Modal Listeners
+            issueDetailModal.querySelector('#closeIssueDetailModalBtn').addEventListener('click', closeIssueDetailModal);
+            issueDetailModal.querySelector('#updateIssueBtn').addEventListener('click', handleUpdateIssueDetails);
+            issueDetailModal.querySelector('#addCommentBtn').addEventListener('click', handleAddComment);
+            
+            const statusSelect = issueDetailModal.querySelector('#detailIssueStatus');
+            const repairedImageUploadContainer = issueDetailModal.querySelector('#repairedImageUploadContainer');
+            statusSelect.addEventListener('change', () => {
+                if (statusSelect.value === 'Đã giải quyết') {
+                    repairedImageUploadContainer.classList.remove('hidden');
+                } else {
+                    repairedImageUploadContainer.classList.add('hidden');
+                }
+            });
+
+            // Delete Account Modal Listeners
+            deleteAccountModal.querySelector('#confirmDisableProfileOnlyBtn').addEventListener('click', () => {
+                const uid = deleteAccountModal.querySelector('#deleteAccountUid').value;
+                handleDisableAccount(uid, false);
+            });
+            deleteAccountModal.querySelector('#confirmDisableAndAnonymizeBtn').addEventListener('click', () => {
+                const uid = deleteAccountModal.querySelector('#deleteAccountUid').value;
+                handleDisableAccount(uid, true);
+            });
+            const closeDeleteAccountModal = () => deleteAccountModal.style.display = 'none';
+            deleteAccountModal.querySelector('#closeDeleteModalBtn').addEventListener('click', closeDeleteAccountModal);
+
+
+            // Camera Modal Listeners
+            cameraModal.querySelector('#closeCameraModalBtn').addEventListener('click', closeCameraModal);
+            cameraModal.querySelector('#captureBtn').addEventListener('click', capturePhoto);
+            cameraModal.querySelector('#recaptureBtn').addEventListener('click', startCameraStream);
+            cameraModal.querySelector('#confirmAttendanceBtn').addEventListener('click', confirmAttendance);
+            
+            // Password Reset Listeners
+            document.getElementById('forgotPasswordBtn').addEventListener('click', () => resetPasswordModal.style.display = 'flex');
+            const closeResetModal = () => resetPasswordModal.style.display = 'none';
+            resetPasswordModal.querySelector('#closeResetPasswordModalBtn').addEventListener('click', closeResetModal);
+            resetPasswordModal.querySelector('#cancelResetBtn').addEventListener('click', closeResetModal);
+            resetPasswordModal.querySelector('#sendResetEmailBtn').addEventListener('click', handleSendResetEmail);
+            
+            // Force Change Password Listener
+            forceChangePasswordModal.querySelector('#confirmChangePasswordBtn').addEventListener('click', handleForcePasswordChange);
+        
+            const closeDrillDownModal = () => drillDownModal.style.display = 'none';
+            drillDownModal.querySelector('#closeDrillDownModalBtn').addEventListener('click', closeDrillDownModal);
+            drillDownModal.querySelector('#cancelDrillDownBtn').addEventListener('click', closeDrillDownModal);
+        }
+        
+        async function handleSendResetEmail() {
+            const emailInput = resetPasswordModal.querySelector('#resetEmail');
+            const messageEl = resetPasswordModal.querySelector('#resetPasswordMessage');
+            const email = emailInput.value.trim();
+
+            if (!email) {
+                messageEl.textContent = 'Vui lòng nhập email của bạn.';
+                messageEl.className = 'p-3 rounded-lg text-sm alert-error';
+                messageEl.classList.remove('hidden');
+                return;
+            }
+
+            try {
+                await sendPasswordResetEmail(auth, email);
+                messageEl.textContent = 'Email đặt lại mật khẩu đã được gửi. Vui lòng kiểm tra hộp thư của bạn.';
+                messageEl.className = 'p-3 rounded-lg text-sm alert-success';
+                messageEl.classList.remove('hidden');
+                emailInput.value = '';
+            } catch (error) {
+                console.error("Password Reset Error:", error);
+                messageEl.textContent = 'Lỗi: Không thể gửi email. Vui lòng kiểm tra lại địa chỉ email.';
+                messageEl.className = 'p-3 rounded-lg text-sm alert-error';
+                messageEl.classList.remove('hidden');
+            }
+        }
+
+        function promptForcePasswordChange() {
+    authSection.classList.add('hidden');
+    // appContainer.classList.add('hidden'); // ĐÃ XÓA DÒNG NÀY
+    skeletonLoader.classList.add('hidden');
+    forceChangePasswordModal.style.display = 'flex';
+}
+
+        async function handleForcePasswordChange() {
+            const newPassword = forceChangePasswordModal.querySelector('#newPassword').value;
+            const confirmPassword = forceChangePasswordModal.querySelector('#confirmNewPassword').value;
+            const messageEl = forceChangePasswordModal.querySelector('#changePasswordMessage');
+
+            if (newPassword.length < 6) {
+                messageEl.textContent = 'Mật khẩu phải có ít nhất 6 ký tự.';
+                messageEl.className = 'p-3 rounded-lg text-sm alert-error';
+                messageEl.classList.remove('hidden');
+                return;
+            }
+
+            if (newPassword !== confirmPassword) {
+                messageEl.textContent = 'Mật khẩu xác nhận không khớp.';
+                messageEl.className = 'p-3 rounded-lg text-sm alert-error';
+                messageEl.classList.remove('hidden');
+                return;
+            }
+
+            try {
+                await updatePassword(currentUser, newPassword);
+                const userDocRef = doc(db, `/artifacts/${canvasAppId}/users/${currentUser.uid}`);
+                await updateDoc(userDocRef, { requiresPasswordChange: false });
+
+                messageEl.textContent = 'Đổi mật khẩu thành công! Đang tải ứng dụng...';
+                messageEl.className = 'p-3 rounded-lg text-sm alert-success';
+                messageEl.classList.remove('hidden');
+
+                setTimeout(() => {
+                    currentUserProfile.requiresPasswordChange = false; // Update local state
+                    forceChangePasswordModal.style.display = 'none';
+                    setupUIForLoggedInUser();
+                    listenToNotifications();
+                    showInitialView();
+                    if (currentUserProfile.role === 'Admin') {
+                        startEscalationChecker();
+                    }
+                }, 2000);
+
+            } catch (error) {
+                console.error("Force Password Change Error:", error);
+                messageEl.textContent = `Lỗi: ${error.message}`;
+                messageEl.className = 'p-3 rounded-lg text-sm alert-error';
+                messageEl.classList.remove('hidden');
+            }
+        }
+
+        function showDrillDownModal(filterKey, filterValue, title, statusFilter = null) {
+            const modal = document.getElementById('drillDownModal');
+            const titleEl = modal.querySelector('#drillDownTitle');
+            const contentEl = modal.querySelector('#drillDownContent');
+
+            titleEl.textContent = title;
+
+            let filteredReports = dashboardReportsCache.filter(report => report[filterKey] === filterValue);
+
+            if (statusFilter === 'resolved') {
+                filteredReports = filteredReports.filter(report => report.status === 'Đã giải quyết');
+            } else if (statusFilter === 'unresolved') {
+                filteredReports = filteredReports.filter(report => report.status !== 'Đã giải quyết');
+            }
+
+            if (filteredReports.length === 0) {
+                contentEl.innerHTML = `<p class="text-center text-slate-500 p-8">Không có dữ liệu chi tiết để hiển thị.</p>`;
+            } else {
+                 contentEl.innerHTML = `
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full divide-y divide-slate-200 responsive-table">
+                            <thead class="bg-slate-50">
+                                <tr>
+                                    <th class="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase">Chi Nhánh</th>
+                                    <th class="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase">Người Gửi</th>
+                                    <th class="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase">Mô Tả</th>
+                                    <th class="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase">Ngày Báo Cáo</th>
+                                    <th class="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase">Trạng Thái</th>
+                                </tr>
+                            </thead>
+                            <tbody class="bg-white divide-y divide-slate-200">
+                                ${filteredReports.map(report => `
+                                    <tr class="hover:bg-gray-50">
+                                        <td data-label="Chi Nhánh" class="px-4 py-3">${report.issueBranch}</td>
+                                        <td data-label="Người Gửi" class="px-4 py-3">${report.reporterName}</td>
+                                        <td data-label="Mô Tả" class="px-4 py-3 text-sm truncate" style="max-width: 200px;" title="${report.issueDescription}">${report.issueDescription}</td>
+                                        <td data-label="Ngày Báo Cáo" class="px-4 py-3">${new Date(report.reportDate).toLocaleString('vi-VN')}</td>
+                                        <td data-label="Trạng Thái" class="px-4 py-3">${report.status}</td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+                `;
+            }
+
+            modal.style.display = 'flex';
+        }
+
+        // --- Utility Functions ---
+        function unsubscribeAll() {
+            unsubscribeListeners.forEach(unsub => unsub());
+            unsubscribeListeners = [];
+            if (issueCommentsUnsubscribe) {
+                issueCommentsUnsubscribe();
+                issueCommentsUnsubscribe = null;
+            }
+        }
+    </script>
+</body>
+</html>
