@@ -1,0 +1,25 @@
+{
+  "name": "index",
+  "version": "1.0.0",
+  "description": "Đây là một ứng dụng web toàn diện được thiết kế để quản lý vận hành, nhân sự và xử lý sự cố trong môi trường doanh nghiệp một cách hiệu quả và an toàn.",
+  "main": "core.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/trungthang2601/icool-nb.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/trungthang2601/icool-nb/issues"
+  },
+  "homepage": "https://github.com/trungthang2601/icool-nb#readme",
+  "dependencies": {
+    "body-parser": "^2.2.0",
+    "cors": "^2.8.5",
+    "express": "^5.1.0"
+  }
+}
