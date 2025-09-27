@@ -78,30 +78,30 @@ const ALL_BRANCHES = [
   "ICOOL VŨNG TÀU",
 ];
 
-// Cấu trúc dữ liệu mới: Chi nhánh -> Tầng -> Mảng các phòng
-// QUAN TRỌNG: Tên chi nhánh phải TRÙNG KHỚP TUYỆT ĐỐI với tên trong mảng ALL_BRANCHES.
+// New data structure: Branch -> Floor -> Room array
+// IMPORTANT: Branch name must EXACTLY MATCH the name in the ALL_BRANCHES array.
 const BRANCH_DATA = {
   "ICOOL XÔ VIẾT NGHỆ TĨNH": {
     "Tầng 1": ["XVNT-101", "XVNT-102", "XVNT-103", "XVNT-104", "XVNT-105"],
     "Tầng 2": ["XVNT-201", "XVNT-202", "XVNT-203", "XVNT-204"],
-    "Tầng 3": ["XVNT-VIP1", "XVNT-VIP2", "XVNT-VIP3"]
+    "Tầng 3": ["XVNT-VIP1", "XVNT-VIP2", "XVNT-VIP3"],
   },
   "ICOOL BÌNH PHÚ": {
-    "Trệt": ["BP-T01", "BP-T02", "BP-T03"],
+    Trệt: ["BP-T01", "BP-T02", "BP-T03"],
     "Lầu 1": ["BP-L1-01", "BP-L1-02", "BP-L1-03", "BP-L1-04"],
-    "Lầu 2": ["BP-L2-01", "BP-L2-02", "BP-L2-VIP"]
+    "Lầu 2": ["BP-L2-01", "BP-L2-02", "BP-L2-VIP"],
   },
   "ICOOL UNG VĂN KHIÊM": {
     "Tầng 1": ["UVK-P1", "UVK-P2", "UVK-P3"],
     "Tầng 2": ["UVK-P4", "UVK-P5", "UVK-P6"],
   },
-  
+
   // Dữ liệu mặc định cho các chi nhánh không được liệt kê ở trên
-  "default": {
+  default: {
     "Tầng 1": ["P101", "P102", "P103", "P104", "P105"],
     "Tầng 2": ["P201", "P202", "P203", "P204", "P205"],
-    "VIP": ["V01", "V02"]
-  }
+    VIP: ["V01", "V02"],
+  },
 };
 
 const ALL_VIEWS = {
@@ -727,8 +727,21 @@ window.setup_dashboardView = function () {
                         <div class="flex items-end space-x-2"><button id="applyFiltersBtn" class="btn-primary flex-grow">Lọc</button><button id="resetFiltersBtn" class="btn-secondary"><i class="fas fa-undo"></i></button></div>
                     </div>
                 </div>
-                <div class="mt-6"><h3 class="text-xl font-bold text-slate-800 mb-3">Phân Tích So Sánh (Số Lượng Sự Cố)</h3><div class="grid grid-cols-1 md:grid-cols-3 gap-6"><div id="compareWeek" class="card p-5"></div><div id="compareMonth" class="card p-5"></div><div id="compareYear" class="card p-5"></div></div></div>
-                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-6"><div class="card p-5"><p class="text-sm text-slate-500">Lỗi Phát Sinh Hôm Nay</p><p id="errorsToday" class="text-3xl font-bold">0</p></div><div class="card p-5"><p class="text-sm text-slate-500">Lỗi Trong Tuần Này</p><p id="errorsThisWeek" class="text-3xl font-bold">0</p></div><div class="card p-5"><p class="text-sm text-slate-500">Lỗi Trong Tháng Này</p><p id="errorsThisMonth" class="text-3xl font-bold">0</p></div></div>`,
+                
+                <div class="mt-6">
+                  <h3 class="text-xl font-bold text-slate-800 mb-3">Phân Tích So Sánh (Số Lượng Sự Cố)</h3>
+                  <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div id="compareWeek" class="card p-5"></div>
+                    <div id="compareMonth" class="card p-5"></div>
+                    <div id="compareYear" class="card p-5"></div>
+                  </div>
+                </div>
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-6">
+                  <div class="card p-5"><p class="text-sm text-slate-500">Lỗi Phát Sinh Hôm Nay</p><p id="errorsToday" class="text-3xl font-bold">0</p></div>
+                  <div class="card p-5"><p class="text-sm text-slate-500">Lỗi Trong Tuần Này</p><p id="errorsThisWeek" class="text-3xl font-bold">0</p></div>
+                  <div class="card p-5"><p class="text-sm text-slate-500">Lỗi Trong Tháng Này</p><p id="errorsThisMonth" class="text-3xl font-bold">0</p></div>
+                </div>`,
     },
     analysis: {
       title: "Phân tích Lỗi",
@@ -833,6 +846,23 @@ window.setup_dashboardView = function () {
     predictive: {
       title: "Bảo trì Dự đoán",
       content: `<div class="card p-6"><h3 class="font-semibold text-slate-800 mb-4">Dự Báo Bảo Trì</h3><div class="grid grid-cols-1 lg:grid-cols-2 gap-6"><div><h4 class="font-semibold text-slate-700 mb-2">Hạng mục Rủi ro Cao nhất</h4><div id="pdmSummaryStats" class="flex justify-around text-center mb-4 p-4 bg-slate-50 rounded-lg"></div><div class="h-80"><canvas id="pdmRiskChart"></canvas></div></div><div class="lg:col-span-1"><h4 class="font-semibold text-slate-700 mb-2">Danh sách Chi tiết</h4><div class="table-responsive max-h-96 overflow-y-auto"><table class="min-w-full responsive-table"><thead class="bg-slate-50 sticky top-0"><tr><th class="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase">Hạng mục</th><th class="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase">Rủi Ro</th></tr></thead><tbody id="pdmTableBody" class="bg-white divide-y divide-slate-200"></tbody></table></div></div></div></div>`,
+    },
+    locationAnalysis: {
+      title: "Phân tích Vị trí",
+      content: `
+            <div class="card p-6">
+                <div class="flex flex-col sm:flex-row justify-between sm:items-center gap-4 mb-6">
+                    <h3 id="locationAnalysisTitle" class="text-xl font-bold text-slate-800">Tổng quan lỗi toàn hệ thống</h3>
+                    <div>
+                        <label for="locationBranchFilter" class="text-sm font-medium mr-2">Chọn chi nhánh:</label>
+                        <select id="locationBranchFilter" class="select-field w-full sm:w-64"></select>
+                    </div>
+                </div>
+
+                <div id="locationDashboardContent">
+                    </div>
+            </div>
+        `,
     },
   };
 
@@ -994,124 +1024,152 @@ window.setup_dashboardView = function () {
 };
 
 window.setup_issueReportView = function () {
-    if (!currentUserProfile) return;
+  if (!currentUserProfile) return;
 
-    // --- Lấy các DOM element cần thiết ---
-    const reporterNameInput = mainContentContainer.querySelector("#reporterName");
-    const branchSelect = mainContentContainer.querySelector("#issueBranch");
-    const floorSelect = mainContentContainer.querySelector("#issueFloor"); // Mới
-    const reportBtn = mainContentContainer.querySelector("#reportIssueBtn");
-    const scopeRadios = mainContentContainer.querySelectorAll('input[name="issueScope"]');
-    const specificRoomsContainer = mainContentContainer.querySelector("#specificRoomsContainer");
-    const roomsTrigger = mainContentContainer.querySelector("#specificRoomsTrigger");
-    const roomsOptions = mainContentContainer.querySelector("#specificRoomsOptions");
+  // --- Lấy các DOM element cần thiết ---
+  const reporterNameInput = mainContentContainer.querySelector("#reporterName");
+  const branchSelect = mainContentContainer.querySelector("#issueBranch");
+  const floorSelect = mainContentContainer.querySelector("#issueFloor");
+  const reportBtn = mainContentContainer.querySelector("#reportIssueBtn");
+  const scopeRadios = mainContentContainer.querySelectorAll(
+    'input[name="issueScope"]'
+  );
+  const floorSelectorContainer = mainContentContainer.querySelector(
+    "#floorSelectorContainer"
+  ); // Mới
+  const specificRoomsContainer = mainContentContainer.querySelector(
+    "#specificRoomsContainer"
+  );
+  const roomsTrigger = mainContentContainer.querySelector(
+    "#specificRoomsTrigger"
+  );
+  const roomsOptions = mainContentContainer.querySelector(
+    "#specificRoomsOptions"
+  );
 
-    // --- Thiết lập ban đầu ---
-    reporterNameInput.value = currentUserProfile.displayName;
-    branchSelect.innerHTML = ALL_BRANCHES.map(b => `<option value="${b}">${b}</option>`).join("");
-    reportBtn.addEventListener("click", handleReportIssue);
+  // --- Thiết lập ban đầu ---
+  reporterNameInput.value = currentUserProfile.displayName;
+  branchSelect.innerHTML = ALL_BRANCHES.map(
+    (b) => `<option value="${b}">${b}</option>`
+  ).join("");
+  reportBtn.addEventListener("click", handleReportIssue);
 
-    if (roomsTrigger && roomsOptions && floorSelect) {
-        
-        // --- Hàm cập nhật giao diện các thẻ tag phòng đã chọn ---
-        const updateSelectedRoomsUI = () => {
-            const selectedCheckboxes = roomsOptions.querySelectorAll('.room-checkbox:checked');
-            roomsTrigger.innerHTML = '';
-            if (selectedCheckboxes.length === 0) {
-                roomsTrigger.innerHTML = `<span class="placeholder-text">Chọn phòng...</span><i class="fas fa-chevron-down text-xs text-slate-500 ml-auto"></i>`;
-            } else {
-                selectedCheckboxes.forEach(checkbox => {
-                    const tag = document.createElement('div');
-                    tag.className = 'custom-select-tag';
-                    tag.innerHTML = `<span>${checkbox.value}</span><span class="tag-close-btn" data-value="${checkbox.value}">&times;</span>`;
-                    roomsTrigger.appendChild(tag);
-                });
-                roomsTrigger.insertAdjacentHTML('beforeend', '<i class="fas fa-chevron-down text-xs text-slate-500 ml-auto"></i>');
-            }
-        };
+  // --- Logic ẩn/hiện mục chọn Tầng và Phòng ---
+  const updateScopeVisibility = () => {
+    const isSpecificScope = mainContentContainer.querySelector(
+      'input[name="issueScope"][value="specific_rooms"]'
+    ).checked;
+    floorSelectorContainer.classList.toggle("hidden", !isSpecificScope);
+    specificRoomsContainer.classList.toggle("hidden", !isSpecificScope);
+  };
 
-        // --- Hàm tải danh sách phòng dựa trên chi nhánh và tầng ---
-        const populateRooms = (branchName, floorName) => {
-            const branch = BRANCH_DATA[branchName] || BRANCH_DATA.default;
-            const rooms = branch[floorName] || [];
-            
-            roomsOptions.innerHTML = rooms.map(room => `
+  scopeRadios.forEach((radio) => {
+    radio.addEventListener("change", updateScopeVisibility);
+  });
+
+  if (roomsTrigger && roomsOptions && floorSelect) {
+    // --- Hàm cập nhật giao diện các thẻ tag phòng đã chọn ---
+    const updateSelectedRoomsUI = () => {
+      const selectedCheckboxes = roomsOptions.querySelectorAll(
+        ".room-checkbox:checked"
+      );
+      roomsTrigger.innerHTML = "";
+      if (selectedCheckboxes.length === 0) {
+        roomsTrigger.innerHTML = `<span class="placeholder-text">Chọn phòng...</span><i class="fas fa-chevron-down text-xs text-slate-500 ml-auto"></i>`;
+      } else {
+        selectedCheckboxes.forEach((checkbox) => {
+          const tag = document.createElement("div");
+          tag.className = "custom-select-tag";
+          tag.innerHTML = `<span>${checkbox.value}</span><span class="tag-close-btn" data-value="${checkbox.value}">&times;</span>`;
+          roomsTrigger.appendChild(tag);
+        });
+        roomsTrigger.insertAdjacentHTML(
+          "beforeend",
+          '<i class="fas fa-chevron-down text-xs text-slate-500 ml-auto"></i>'
+        );
+      }
+    };
+
+    // --- Hàm tải danh sách phòng dựa trên chi nhánh và tầng ---
+    const populateRooms = (branchName, floorName) => {
+      const branch = BRANCH_DATA[branchName] || BRANCH_DATA.default;
+      const rooms = branch[floorName] || [];
+
+      roomsOptions.innerHTML = rooms
+        .map(
+          (room) => `
                 <div class="custom-select-option">
                     <label>
                         <input type="checkbox" class="room-checkbox" value="${room}">
                         <span>${room}</span>
                     </label>
                 </div>
-            `).join('');
+            `
+        )
+        .join("");
 
-            updateSelectedRoomsUI();
-        };
+      updateSelectedRoomsUI();
+    };
 
-        // --- Hàm tải danh sách tầng dựa trên chi nhánh ---
-        const populateFloors = (branchName) => {
-            const branch = BRANCH_DATA[branchName] || BRANCH_DATA.default;
-            const floors = Object.keys(branch);
-            
-            floorSelect.innerHTML = floors.map(floor => `<option value="${floor}">${floor}</option>`).join('');
+    // --- Hàm tải danh sách tầng dựa trên chi nhánh ---
+    const populateFloors = (branchName) => {
+      const branch = BRANCH_DATA[branchName] || BRANCH_DATA.default;
+      const floors = Object.keys(branch);
 
-            // Sau khi tải tầng, tự động tải danh sách phòng cho tầng đầu tiên
-            if (floors.length > 0) {
-                populateRooms(branchName, floors[0]);
-            } else {
-                populateRooms(branchName, ''); // Trường hợp chi nhánh không có tầng nào
-            }
-        };
+      floorSelect.innerHTML = floors
+        .map((floor) => `<option value="${floor}">${floor}</option>`)
+        .join("");
 
-        // --- Gán sự kiện ---
-        // 1. Khi thay đổi Chi nhánh -> Cập nhật Tầng -> Cập nhật Phòng
-        branchSelect.addEventListener('change', () => {
-            populateFloors(branchSelect.value);
-        });
+      if (floors.length > 0) {
+        populateRooms(branchName, floors[0]);
+      } else {
+        populateRooms(branchName, "");
+      }
+    };
 
-        // 2. Khi thay đổi Tầng -> Cập nhật Phòng
-        floorSelect.addEventListener('change', () => {
-            populateRooms(branchSelect.value, floorSelect.value);
-        });
-        
-        // 3. Sự kiện đóng/mở dropdown phòng và xóa tag
-        roomsTrigger.addEventListener("click", (e) => {
-            if (e.target.classList.contains('tag-close-btn')) {
-                e.stopPropagation();
-                const roomValue = e.target.dataset.value;
-                const checkboxToUncheck = roomsOptions.querySelector(`input[value="${roomValue}"]`);
-                if (checkboxToUncheck) {
-                    checkboxToUncheck.checked = false;
-                    updateSelectedRoomsUI();
-                }
-            } else {
-                roomsOptions.classList.toggle("show");
-            }
-        });
+    // --- Gán sự kiện ---
+    branchSelect.addEventListener("change", () =>
+      populateFloors(branchSelect.value)
+    );
+    floorSelect.addEventListener("change", () =>
+      populateRooms(branchSelect.value, floorSelect.value)
+    );
 
-        // 4. Cập nhật giao diện khi chọn/bỏ chọn phòng
-        roomsOptions.addEventListener('change', (e) => {
-            if (e.target.classList.contains('room-checkbox')) {
-                updateSelectedRoomsUI();
-            }
-        });
-
-        // --- Tải dữ liệu lần đầu tiên khi trang được mở ---
-        populateFloors(branchSelect.value);
-    }
-
-    // --- Logic ẩn/hiện mục chọn phòng ---
-    scopeRadios.forEach((radio) => {
-        radio.addEventListener("change", () => {
-            specificRoomsContainer.classList.toggle("hidden", radio.value !== "specific_rooms" || !radio.checked);
-        });
-    });
-
-    // --- Đóng dropdown khi click ra ngoài ---
-    document.addEventListener('click', function(event) {
-        if (roomsTrigger && !roomsTrigger.contains(event.target) && !roomsOptions.contains(event.target)) {
-            roomsOptions.classList.remove('show');
+    roomsTrigger.addEventListener("click", (e) => {
+      if (e.target.classList.contains("tag-close-btn")) {
+        e.stopPropagation();
+        const roomValue = e.target.dataset.value;
+        const checkboxToUncheck = roomsOptions.querySelector(
+          `input[value="${roomValue}"]`
+        );
+        if (checkboxToUncheck) {
+          checkboxToUncheck.checked = false;
+          updateSelectedRoomsUI();
         }
+      } else {
+        roomsOptions.classList.toggle("show");
+      }
     });
+
+    roomsOptions.addEventListener("change", (e) => {
+      if (e.target.classList.contains("room-checkbox")) updateSelectedRoomsUI();
+    });
+
+    // --- Tải dữ liệu và cập nhật giao diện lần đầu ---
+    populateFloors(branchSelect.value);
+    updateScopeVisibility(); // Chạy lần đầu để ẩn các mục không cần thiết
+  }
+
+  // --- Đóng dropdown khi click ra ngoài ---
+  document.addEventListener("click", function (event) {
+    if (
+      roomsTrigger &&
+      !roomsTrigger.contains(event.target) &&
+      !roomsOptions.contains(event.target)
+    ) {
+      roomsOptions.classList.remove("show");
+    }
+  });
 };
 
 window.setup_issueHistoryView = function () {
@@ -1121,7 +1179,7 @@ window.setup_issueHistoryView = function () {
     "#issueHistoryTableBody"
   );
   if (!tableBody) return;
-  tableBody.innerHTML = `<tr><td colspan="6" class="text-center p-4">Đang tải...</td></tr>`;
+  tableBody.innerHTML = `<tr><td colspan="7" class="text-center p-4">Đang tải...</td></tr>`;
 
   const q = getScopedIssuesQuery();
   const unsubscribe = onSnapshot(
@@ -1134,6 +1192,10 @@ window.setup_issueHistoryView = function () {
       issueHistoryCache.sort(
         (a, b) => new Date(b.reportDate) - new Date(a.reportDate)
       );
+
+      // Thêm dòng này để đảm bảo map được tạo
+      buildRoomToLocationMap();
+
       renderIssueHistoryTable(issueHistoryCache);
     },
     (error) => console.error("Issue history listener failed:", error)
@@ -1301,35 +1363,55 @@ function renderIssueHistoryTable(reports) {
   tableBody.innerHTML =
     paginatedReports.length > 0
       ? paginatedReports
-          .map(
-            (report) => `
-        <tr class="hover:bg-gray-50">
-            <td data-label="Chi nhánh" class="px-4 py-3">${
-              report.issueBranch
-            }</td>
-            <td data-label="Người gửi" class="px-4 py-3">${
-              report.reporterName
-            }</td>
-            <td data-label="Loại sự cố" class="px-4 py-3">${
-              report.issueType
-            }</td>
-            <td data-label="Ngày báo cáo" class="px-4 py-3">${new Date(
-              report.reportDate
-            ).toLocaleString("vi-VN")}</td>
-            <td data-label="Trạng thái" class="px-4 py-3">${report.status}</td>
-            <td data-label="Hành động" class="px-4 py-3 text-right">
-                ${
-                  currentUserProfile.role === "Admin" ||
-                  currentUserProfile.role === "Manager"
-                    ? `<button class="detail-issue-btn btn-secondary !text-sm !py-1 !px-2" data-id="${report.id}">Chi tiết</button>`
-                    : ""
-                }
-            </td>
-        </tr>
-    `
-          )
+          .map((report) => {
+            // Logic mới để tạo chi tiết vị trí
+            let locationDetail = "";
+            if (report.issueScope === "all_rooms") {
+              locationDetail = `<span class="italic text-slate-500">Toàn bộ chi nhánh</span>`;
+            } else if (report.specificRooms) {
+              const firstRoom = report.specificRooms.split(", ")[0];
+              const locationInfo = roomToLocationMap[firstRoom];
+              const floorName = locationInfo ? `${locationInfo.floor}` : "N/A";
+
+              locationDetail = `
+                    <div class="text-xs">
+                        <span class="font-semibold">Tầng:</span> ${floorName}<br>
+                        <span class="font-semibold">Phòng:</span> ${report.specificRooms}
+                    </div>
+                  `;
+            }
+
+            return `
+                <tr class="hover:bg-gray-50">
+                    <td data-label="Chi nhánh" class="px-4 py-3">${
+                      report.issueBranch
+                    }</td>
+                    <td data-label="Vị trí cụ thể" class="px-4 py-3">${locationDetail}</td>
+                    <td data-label="Người gửi" class="px-4 py-3">${
+                      report.reporterName
+                    }</td>
+                    <td data-label="Loại sự cố" class="px-4 py-3">${
+                      report.issueType
+                    }</td>
+                    <td data-label="Ngày báo cáo" class="px-4 py-3">${new Date(
+                      report.reportDate
+                    ).toLocaleString("vi-VN")}</td>
+                    <td data-label="Trạng thái" class="px-4 py-3">${
+                      report.status
+                    }</td>
+                    <td data-label="Hành động" class="px-4 py-3 text-right">
+                        ${
+                          currentUserProfile.role === "Admin" ||
+                          currentUserProfile.role === "Manager"
+                            ? `<button class="detail-issue-btn btn-secondary !text-sm !py-1 !px-2" data-id="${report.id}">Chi tiết</button>`
+                            : ""
+                        }
+                    </td>
+                </tr>
+              `;
+          })
           .join("")
-      : `<tr><td colspan="6" class="text-center p-4">Không có báo cáo nào.</td></tr>`;
+      : `<tr><td colspan="7" class="text-center p-4">Không có báo cáo nào.</td></tr>`;
 
   tableBody.querySelectorAll(".detail-issue-btn").forEach((btn) => {
     btn.addEventListener("click", () => openIssueDetailModal(btn.dataset.id));
@@ -1756,6 +1838,7 @@ function applyFiltersAndRender(allReports) {
   renderManagerPerformanceAnalysis(filteredReports);
   renderBranchPerformanceAnalysis(filteredReports);
   renderScopeAnalysis(filteredReports);
+  renderLocationAnalysis(filteredReports);
 }
 
 function updateDashboardUI(reports) {
@@ -2288,30 +2371,56 @@ function renderEmployeePerformanceAnalysis(reports) {
 
   const employeeStats = {};
 
-  reports.forEach((report) => {
-    if (!report.assigneeId) return;
+  // Hàm helper để tạo một đối tượng thống kê trống
+  const createEmptyStat = (name) => ({
+    name: name,
+    assigned: 0,
+    resolved: 0,
+    onTime: 0,
+    totalProcessingHours: 0,
+  });
 
-    if (!employeeStats[report.assigneeId]) {
-      employeeStats[report.assigneeId] = {
-        name: report.assigneeName,
-        assigned: 0,
-        resolved: 0,
-        onTime: 0,
-        totalProcessingHours: 0,
-      };
+  // ▼▼▼ LOGIC TÍNH TOÁN MỚI HOÀN TOÀN ▼▼▼
+
+  // Bước 1: Khởi tạo tất cả nhân viên có liên quan (được giao hoặc đã giải quyết)
+  reports.forEach((report) => {
+    if (report.assigneeId && !employeeStats[report.assigneeId]) {
+      employeeStats[report.assigneeId] = createEmptyStat(report.assigneeName);
+    }
+    if (report.resolverId && !employeeStats[report.resolverId]) {
+      employeeStats[report.resolverId] = createEmptyStat(report.resolverName);
+    }
+  });
+
+  // Bước 2: Tính toán các chỉ số
+  reports.forEach((report) => {
+    // Tăng số lượt được giao cho người được giao
+    if (report.assigneeId && employeeStats[report.assigneeId]) {
+      employeeStats[report.assigneeId].assigned++;
     }
 
-    const stats = employeeStats[report.assigneeId];
-    stats.assigned++;
-
-    if (report.status === "Đã giải quyết") {
+    // Nếu công việc đã giải quyết, tính điểm cho người giải quyết
+    if (report.status === "Đã giải quyết" && report.resolverId && employeeStats[report.resolverId]) {
+      const stats = employeeStats[report.resolverId];
       stats.resolved++;
-      if (report.resolvedDate && report.assignedDate) {
-        const assigned = new Date(report.assignedDate);
-        const resolved = new Date(report.resolvedDate);
-        stats.totalProcessingHours += (resolved - assigned) / (1000 * 60 * 60);
 
+      // Tính thời gian xử lý:
+      // - Nếu được giao: tính từ lúc giao (assignedDate)
+      // - Nếu tự xử lý: tính từ lúc báo cáo (reportDate)
+      const startDate = report.assignedDate || report.reportDate;
+      if (report.resolvedDate && startDate) {
+        const start = new Date(startDate);
+        const resolved = new Date(report.resolvedDate);
+        const processingHours = (resolved - start) / (1000 * 60 * 60);
+        if (processingHours >= 0) { // Đảm bảo không phải số âm
+            stats.totalProcessingHours += processingHours;
+        }
+      }
+
+      // Tính đúng hạn (dựa vào dueDate)
+      if(report.dueDate && report.resolvedDate) {
         const due = new Date(report.dueDate);
+        const resolved = new Date(report.resolvedDate);
         if (resolved <= due) {
           stats.onTime++;
         }
@@ -2319,8 +2428,11 @@ function renderEmployeePerformanceAnalysis(reports) {
     }
   });
 
+  // ▲▲▲ KẾT THÚC LOGIC MỚI ▲▲▲
+
   const statsArray = Object.values(employeeStats);
 
+  // Phần hiển thị bảng và các chỉ số tổng quan giữ nguyên
   tableBody.innerHTML =
     statsArray
       .map((stats) => {
@@ -2347,15 +2459,17 @@ function renderEmployeePerformanceAnalysis(reports) {
     `<tr><td colspan="4" class="p-4 text-center">Không có dữ liệu.</td></tr>`;
 
   let totalOnTime = 0,
-    totalResolved = 0,
+    totalResolvedForRate = 0,
     totalProcessingHours = 0,
-    topResolvedCount = 0;
+    topResolvedCount = -1;
   let topPerformerName = "N/A";
 
   statsArray.forEach((s) => {
-    totalOnTime += s.onTime;
-    totalResolved += s.resolved;
-    totalProcessingHours += s.totalProcessingHours;
+    if (s.resolved > 0) {
+        totalOnTime += s.onTime;
+        totalResolvedForRate += s.resolved;
+        totalProcessingHours += s.totalProcessingHours;
+    }
     if (s.resolved > topResolvedCount) {
       topResolvedCount = s.resolved;
       topPerformerName = s.name;
@@ -2363,9 +2477,9 @@ function renderEmployeePerformanceAnalysis(reports) {
   });
 
   const overallOnTimeRate =
-    totalResolved > 0 ? (totalOnTime / totalResolved) * 100 : 0;
+    totalResolvedForRate > 0 ? (totalOnTime / totalResolvedForRate) * 100 : 0;
   const overallAvgProcessingTime =
-    totalResolved > 0 ? totalProcessingHours / totalResolved : 0;
+    totalResolvedForRate > 0 ? totalProcessingHours / totalResolvedForRate : 0;
 
   avgOnTimeRateEl.textContent = `${overallOnTimeRate.toFixed(0)}%`;
   avgProcessingTimeEl.textContent = `${overallAvgProcessingTime.toFixed(
@@ -2755,8 +2869,12 @@ async function openIssueDetailModal(issueId) {
 
   modal.style.display = "flex";
 
+  // Đảm bảo bản đồ tra cứu phòng-tầng luôn được cập nhật
+  buildRoomToLocationMap();
+
   // Clear previous data and state
   modal.querySelector("#detailIssueId").value = "";
+  modal.querySelector("#detailIssueLocation").textContent = ""; // Xóa vị trí cũ
   modal.querySelector("#detailIssueDescription").textContent = "Đang tải...";
   modal.querySelector("#detailIssueImageContainer").innerHTML = "";
   modal.querySelector("#detailRepairedImageContainer").innerHTML = "";
@@ -2779,19 +2897,32 @@ async function openIssueDetailModal(issueId) {
   // Populate static info
   modal.querySelector("#detailIssueId").value = issueId;
   modal.querySelector("#detailIssueBranch").textContent = report.issueBranch;
-  modal.querySelector("#detailIssueDescription").textContent =
-    report.issueDescription;
   modal.querySelector("#detailReporterName").textContent = report.reporterName;
   modal.querySelector("#detailReportDate").textContent = new Date(
     report.reportDate
   ).toLocaleString("vi-VN");
   modal.querySelector("#detailIssuePriority").textContent = report.priority;
 
+  // ▼▼▼ LOGIC MỚI ĐỂ HIỂN THỊ VỊ TRÍ CỤ THỂ ▼▼▼
+  const locationEl = modal.querySelector("#detailIssueLocation");
+  if (report.issueScope === "all_rooms") {
+    locationEl.textContent = "Phạm vi: Toàn bộ chi nhánh";
+  } else if (report.specificRooms) {
+    const firstRoom = report.specificRooms.split(", ")[0];
+    const locationInfo = roomToLocationMap[firstRoom];
+    const floorName = locationInfo ? locationInfo.floor : "Không xác định";
+    locationEl.textContent = `Vị trí: ${floorName} / ${report.specificRooms}`;
+  }
+  // ▲▲▲ KẾT THÚC LOGIC MỚI ▲▲▲
+
   const initialImageContainer = modal.querySelector(
     "#detailIssueImageContainer"
   );
   if (report.issueImageUrl) {
     initialImageContainer.innerHTML = `<a href="${report.issueImageUrl}" target="_blank"><img src="${report.issueImageUrl}" class="w-full h-48 object-cover rounded-lg shadow-md"></a>`;
+  } else {
+    initialImageContainer.innerHTML =
+      '<p class="text-sm text-slate-500 italic">Chưa có ảnh ban đầu.</p>';
   }
 
   const repairedImageContainer = modal.querySelector(
@@ -2822,18 +2953,18 @@ async function openIssueDetailModal(issueId) {
     "#repairedImageUploadContainer"
   );
   const toggleRepairedImageInput = () => {
-    if (statusSelect.value === "Đã giải quyết") {
-      repairedImageUploadContainer.classList.remove("hidden");
-    } else {
-      repairedImageUploadContainer.classList.add("hidden");
-    }
+    repairedImageUploadContainer.classList.toggle(
+      "hidden",
+      statusSelect.value !== "Đã giải quyết"
+    );
   };
 
-  toggleRepairedImageInput(); // Initial check
+  toggleRepairedImageInput();
+  statusSelect.addEventListener("change", toggleRepairedImageInput);
 
   // Populate Assignee dropdown
   const assigneeSelect = modal.querySelector("#detailIssueAssignee");
-  assigneeSelect.disabled = true; // Disable until loaded
+  assigneeSelect.disabled = true;
   if (canManage) {
     const usersSnapshot = await getDocs(
       collection(db, `/artifacts/${canvasAppId}/users`)
@@ -2890,7 +3021,6 @@ async function handleUpdateIssueDetails() {
     const originalDoc = await getDoc(docRef);
     const originalData = originalDoc.data();
 
-    // Validation for repaired image
     if (
       newStatus === "Đã giải quyết" &&
       !repairedImageFile &&
@@ -2911,18 +3041,23 @@ async function handleUpdateIssueDetails() {
       assigneeName: newAssigneeName || null,
     };
 
-    // If the issue is assigned for the first time or reassigned
     if (newAssigneeId && originalData.assigneeId !== newAssigneeId) {
       updateData.assignerId = currentUser.uid;
       updateData.assignerName = currentUserProfile.displayName;
       updateData.assignedDate = new Date().toISOString();
     }
+    
+    // ▼▼▼ THAY ĐỔI QUAN TRỌNG ▼▼▼
+    // Ghi nhận người giải quyết và ngày giải quyết
     if (
       newStatus === "Đã giải quyết" &&
       originalData.status !== "Đã giải quyết"
     ) {
       updateData.resolvedDate = new Date().toISOString();
+      updateData.resolverId = currentUser.uid; // Ghi nhận ai là người giải quyết
+      updateData.resolverName = currentUserProfile.displayName; // Ghi nhận tên người giải quyết
     }
+    // ▲▲▲ KẾT THÚC THAY ĐỔI ▲▲▲
 
     if (repairedImageFile) {
       const storageRef = ref(
@@ -3411,11 +3546,15 @@ async function handleReportIssue() {
   // Logic lấy danh sách phòng đã chọn từ các checkbox
   let specificRooms = null;
   if (issueScope === "specific_rooms") {
-      const checkedRooms = mainContentContainer.querySelectorAll('.room-checkbox:checked');
-      const selectedRooms = Array.from(checkedRooms).map(checkbox => checkbox.value);
-      if (selectedRooms.length > 0) {
-        specificRooms = selectedRooms.join(', ');
-      }
+    const checkedRooms = mainContentContainer.querySelectorAll(
+      ".room-checkbox:checked"
+    );
+    const selectedRooms = Array.from(checkedRooms).map(
+      (checkbox) => checkbox.value
+    );
+    if (selectedRooms.length > 0) {
+      specificRooms = selectedRooms.join(", ");
+    }
   }
 
   // Validation: Kiểm tra các trường bắt buộc
@@ -3424,7 +3563,8 @@ async function handleReportIssue() {
     !issueDescription ||
     (issueScope === "specific_rooms" && !specificRooms)
   ) {
-    messageEl.textContent = "Vui lòng điền đầy đủ thông tin (chọn ít nhất 1 phòng nếu là sự cố phòng cụ thể).";
+    messageEl.textContent =
+      "Vui lòng điền đầy đủ thông tin (chọn ít nhất 1 phòng nếu là sự cố phòng cụ thể).";
     messageEl.className = "p-3 rounded-lg text-sm text-center alert-error";
     messageEl.classList.remove("hidden");
     return;
@@ -3481,22 +3621,25 @@ async function handleReportIssue() {
     messageEl.textContent = "Báo cáo sự cố thành công!";
     messageEl.className = "p-3 rounded-lg text-sm text-center alert-success";
     messageEl.classList.remove("hidden");
-    
+
     // Reset các trường trong form
     mainContentContainer.querySelector("#issueDescription").value = "";
     mainContentContainer.querySelector("#issueImage").value = "";
-    
+
     // Bỏ chọn tất cả checkbox
-    mainContentContainer.querySelectorAll('.room-checkbox:checked').forEach(checkbox => {
+    mainContentContainer
+      .querySelectorAll(".room-checkbox:checked")
+      .forEach((checkbox) => {
         checkbox.checked = false;
-    });
+      });
 
     // Cập nhật lại giao diện trigger để xóa các thẻ tag và hiện placeholder
-    const roomsTrigger = mainContentContainer.querySelector("#specificRoomsTrigger");
-    if(roomsTrigger) {
-        roomsTrigger.innerHTML = `<span class="placeholder-text">Chọn phòng...</span><i class="fas fa-chevron-down text-xs text-slate-500 ml-auto"></i>`;
+    const roomsTrigger = mainContentContainer.querySelector(
+      "#specificRoomsTrigger"
+    );
+    if (roomsTrigger) {
+      roomsTrigger.innerHTML = `<span class="placeholder-text">Chọn phòng...</span><i class="fas fa-chevron-down text-xs text-slate-500 ml-auto"></i>`;
     }
-
   } catch (error) {
     // Xử lý và hiển thị lỗi nếu có
     console.error("Error reporting issue:", error);
@@ -4087,5 +4230,367 @@ function unsubscribeAll() {
   if (issueCommentsUnsubscribe) {
     issueCommentsUnsubscribe();
     issueCommentsUnsubscribe = null;
+  }
+}
+
+let locationAnalysisChart = null;
+let roomToLocationMap = {};
+
+// --- HÀM ĐIỀU KHIỂN CHÍNH ---
+function renderLocationAnalysis(reports) {
+  const filterSelect = mainContentContainer.querySelector(
+    "#locationBranchFilter"
+  );
+  if (!filterSelect) return;
+
+  if (!filterSelect.hasAttribute("data-listener-attached")) {
+    filterSelect.innerHTML =
+      `<option value="all">Tất cả Chi nhánh</option>` +
+      ALL_BRANCHES.map((b) => `<option value="${b}">${b}</option>`).join("");
+    filterSelect.addEventListener("change", () => updateLocationView(reports));
+    filterSelect.setAttribute("data-listener-attached", "true");
+  }
+  updateLocationView(reports);
+}
+
+function updateLocationView(reports) {
+  buildRoomToLocationMap();
+  const selectedBranch = mainContentContainer.querySelector(
+    "#locationBranchFilter"
+  ).value;
+  const dashboardContent = mainContentContainer.querySelector(
+    "#locationDashboardContent"
+  );
+  const title = mainContentContainer.querySelector("#locationAnalysisTitle");
+
+  if (selectedBranch === "all") {
+    title.textContent = "Tổng quan lỗi toàn hệ thống";
+    dashboardContent.innerHTML = `
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div>
+                    <h4 class="font-semibold text-center mb-2">Tổng lỗi theo Chi nhánh</h4>
+                    <div class="h-[32rem] p-2 border rounded-lg"><canvas id="overviewBranchChart"></canvas></div>
+                </div>
+                <div>
+                    <h4 class="font-semibold mb-2">Top 5 Tầng có nhiều lỗi nhất</h4>
+                    <div id="overviewTopFloorsTableContainer"></div>
+                </div>
+            </div>`;
+    renderSystemOverview(reports);
+  } else {
+    title.textContent = `Chi tiết lỗi tại: ${selectedBranch}`;
+    dashboardContent.innerHTML = `
+            <div class="grid grid-cols-1 lg:grid-cols-5 gap-6">
+                <div class="lg:col-span-2">
+                    <h4 class="font-semibold text-center mb-2">Phân tích theo Tầng</h4>
+                    <div class="h-[32rem]"><canvas id="locationAnalysisChart"></canvas></div>
+                </div>
+                <div class="lg:col-span-3">
+                    <h4 class="font-semibold mb-2">Bảng chi tiết theo Phòng</h4>
+                    <input type="text" id="locationAnalysisSearch" class="input-field mb-3" placeholder="Tìm kiếm phòng...">
+                    <div id="locationAnalysisTableContainer" class="max-h-[30rem] overflow-y-auto border rounded-lg"></div>
+                </div>
+            </div>`;
+    renderBranchDetailView(reports, selectedBranch);
+  }
+}
+
+// --- CÁC HÀM CHO CHẾ ĐỘ TỔNG QUAN HỆ THỐNG (V3) ---
+function renderSystemOverview(reports) {
+  // 1. Tổng hợp lỗi theo Chi nhánh
+  const branchCounts = reports.reduce((acc, report) => {
+    if (report.issueBranch) {
+      acc[report.issueBranch] = (acc[report.issueBranch] || 0) + 1;
+    }
+    return acc;
+  }, {});
+  renderOverviewBranchChart(branchCounts);
+
+  // 2. Tổng hợp lỗi theo Tầng để lấy Top 5
+  const floorErrorCounts = {};
+  reports.forEach((report) => {
+    if (!report.issueBranch) return;
+    const keyPrefix = report.issueBranch;
+    if (report.issueScope === "all_rooms") {
+      const key = `${keyPrefix}---Lỗi Toàn Chi nhánh`;
+      floorErrorCounts[key] = (floorErrorCounts[key] || 0) + 1;
+    } else if (report.specificRooms) {
+      const affectedFloors = new Set();
+      report.specificRooms.split(", ").forEach((room) => {
+        if (roomToLocationMap[room])
+          affectedFloors.add(roomToLocationMap[room].floor);
+      });
+      affectedFloors.forEach((floor) => {
+        const key = `${keyPrefix}---${floor}`;
+        floorErrorCounts[key] = (floorErrorCounts[key] || 0) + 1;
+      });
+    }
+  });
+  const aggregatedData = Object.entries(floorErrorCounts)
+    .map(([key, count]) => {
+      const [branch, floor] = key.split("---");
+      return { branch, floor, count };
+    })
+    .sort((a, b) => b.count - a.count);
+
+  renderOverviewTopFloorsTable(aggregatedData.slice(0, 5));
+}
+
+function renderOverviewBranchChart(branchCounts) {
+  const canvas = mainContentContainer.querySelector("#overviewBranchChart");
+  if (!canvas) return;
+  if (locationAnalysisChart) locationAnalysisChart.destroy();
+
+  const sortedBranches = Object.entries(branchCounts).sort(
+    (a, b) => b[1] - a[1]
+  );
+  const labels = sortedBranches.map((item) => item[0].replace("ICOOL ", ""));
+  const data = sortedBranches.map((item) => item[1]);
+
+  locationAnalysisChart = new Chart(canvas.getContext("2d"), {
+    type: "bar",
+    data: {
+      labels,
+      datasets: [{ label: "Số Lỗi", data, backgroundColor: "#4f46e5" }],
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } },
+    },
+  });
+}
+
+function renderOverviewTopFloorsTable(top5Data) {
+  const tableContainer = mainContentContainer.querySelector(
+    "#overviewTopFloorsTableContainer"
+  );
+  if (!tableContainer) return;
+
+  let tableHTML = createTableHead(["Chi Nhánh", "Tầng", "Số Lỗi"]);
+  if (top5Data.length === 0) {
+    tableHTML += `<tr><td colspan="3" class="text-center p-4 text-slate-500">Không có dữ liệu.</td></tr>`;
+  } else {
+    top5Data.forEach((item) => {
+      tableHTML += `<tr class="hover:bg-slate-50">
+                <td class="px-4 py-3 font-medium text-sm">${item.branch}</td>
+                <td class="px-4 py-3 text-sm">${item.floor}</td>
+                <td class="px-4 py-3 text-right font-bold text-base">${item.count}</td>
+            </tr>`;
+    });
+  }
+  tableHTML += `</tbody></table>`;
+  tableContainer.innerHTML = tableHTML;
+}
+
+// --- Các hàm cho chế độ CHI TIẾT CHI NHÁNH ---
+function renderBranchDetailView(reports, branchName) {
+  const branchReports = reports.filter((r) => r.issueBranch === branchName);
+
+  // Phân tích theo Tầng
+  const branchTemplate = BRANCH_DATA[branchName] || BRANCH_DATA.default;
+  const floorCounts = Object.keys(branchTemplate).reduce(
+    (acc, floor) => ({ ...acc, [floor]: 0 }),
+    {}
+  );
+  floorCounts["Lỗi Toàn Chi nhánh"] = 0;
+
+  branchReports.forEach((report) => {
+    if (report.issueScope === "all_rooms") {
+      floorCounts["Lỗi Toàn Chi nhánh"]++;
+    } else if (report.specificRooms) {
+      const floorsAffected = new Set();
+      report.specificRooms.split(", ").forEach((room) => {
+        if (roomToLocationMap[room])
+          floorsAffected.add(roomToLocationMap[room].floor);
+      });
+      floorsAffected.forEach((floor) => {
+        if (floorCounts.hasOwnProperty(floor)) floorCounts[floor]++;
+      });
+    }
+  });
+  renderDoughnutChart(Object.keys(floorCounts), Object.values(floorCounts));
+
+  // Phân tích theo Phòng
+  const roomCounts = {};
+  branchReports
+    .filter((r) => r.specificRooms)
+    .forEach((report) => {
+      report.specificRooms.split(", ").forEach((room) => {
+        roomCounts[room] = (roomCounts[room] || 0) + 1;
+      });
+    });
+  const sortedRooms = Object.entries(roomCounts).sort((a, b) => b[1] - a[1]);
+
+  let tableHTML = createTableHead(["Phòng", "Số Lỗi"]);
+  sortedRooms.forEach(([room, count]) => {
+    tableHTML += `<tr><td class="px-4 py-3 font-medium text-sm">${room}</td><td class="px-4 py-3 text-right font-bold text-base">${count}</td></tr>`;
+  });
+  finalizeTable(tableHTML, sortedRooms.length);
+  addSearchFunctionality();
+}
+
+// --- CÁC HÀM HELPER CHUNG ---
+function buildRoomToLocationMap() {
+  roomToLocationMap = {};
+  for (const branchName in BRANCH_DATA) {
+    const floors = BRANCH_DATA[branchName];
+    for (const floorName in floors) {
+      floors[floorName].forEach((roomName) => {
+        roomToLocationMap[roomName] = { floor: floorName, branch: branchName };
+      });
+    }
+  }
+}
+
+function renderBarChart(labels, data, color) {
+  const canvas = mainContentContainer.querySelector("#locationAnalysisChart");
+  if (!canvas) return;
+  if (locationAnalysisChart) locationAnalysisChart.destroy();
+  locationAnalysisChart = new Chart(canvas.getContext("2d"), {
+    type: "bar",
+    data: {
+      labels,
+      datasets: [{ label: "Số Lỗi", data, backgroundColor: color }],
+    },
+    options: {
+      indexAxis: "y",
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: { x: { beginAtZero: true, ticks: { stepSize: 1 } } },
+    },
+  });
+}
+
+function renderDoughnutChart(labels, data) {
+  const canvas = mainContentContainer.querySelector("#locationAnalysisChart");
+  if (!canvas) return;
+  if (locationAnalysisChart) locationAnalysisChart.destroy();
+
+  const totalErrors = data.reduce((sum, current) => sum + current, 0);
+  const colorPalette = [
+    "#4f46e5",
+    "#10b981",
+    "#f59e0b",
+    "#ef4444",
+    "#8b5cf6",
+    "#3b82f6",
+  ];
+
+  locationAnalysisChart = new Chart(canvas.getContext("2d"), {
+    type: "doughnut",
+    data: {
+      labels: labels,
+      datasets: [
+        {
+          label: "Số Lỗi",
+          data: data,
+          backgroundColor: colorPalette,
+          borderColor: "#ffffff",
+          borderWidth: 2,
+        },
+      ],
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      cutout: "70%",
+      plugins: {
+        legend: { position: "bottom" },
+        title: { display: false },
+        // Plugin để vẽ tổng số lỗi ở giữa
+        tooltip: {
+          callbacks: {
+            label: function (context) {
+              let label = context.label || "";
+              if (label) {
+                label += ": ";
+              }
+              if (context.parsed !== null) {
+                label += context.parsed;
+              }
+              return label;
+            },
+          },
+        },
+      },
+    },
+    plugins: [
+      {
+        id: "doughnutLabel",
+        beforeDraw: (chart) => {
+          const { width, height, ctx } = chart;
+          ctx.restore();
+          const fontSize = (height / 150).toFixed(2);
+          ctx.font = `bold ${fontSize}em Inter, sans-serif`;
+          ctx.textBaseline = "middle";
+          ctx.textAlign = "center";
+
+          const text = `${totalErrors}`;
+          const text2 = "Lỗi";
+
+          const textX = Math.round(width / 2);
+          const textY = Math.round(height / 2) - fontSize * 8;
+
+          ctx.fillStyle = "#1e2d3b"; // slate-800
+          ctx.fillText(text, textX, textY);
+
+          const fontSize2 = (height / 250).toFixed(2);
+          ctx.font = `${fontSize2}em Inter, sans-serif`;
+          ctx.fillText(text2, textX, textY + fontSize * 18);
+          ctx.save();
+        },
+      },
+    ],
+  });
+}
+
+function createTableHead(headers) {
+  let headHTML =
+    '<table class="min-w-full"><thead class="bg-slate-50 sticky top-0"><tr>';
+  headers.forEach((header, index) => {
+    const align = index === headers.length - 1 ? "text-right" : "text-left";
+    headHTML += `<th class="px-4 py-2 ${align} text-xs font-semibold text-slate-500 uppercase">${header}</th>`;
+  });
+  headHTML += '</tr></thead><tbody class="divide-y divide-slate-200">';
+  return headHTML;
+}
+
+function finalizeTable(tableHTML, dataLength) {
+  const tableContainer = mainContentContainer.querySelector(
+    "#locationAnalysisTableContainer"
+  );
+  if (dataLength === 0) {
+    tableHTML += `<tr><td colspan="3" class="text-center p-4 text-slate-500">Không có dữ liệu.</td></tr>`;
+  }
+  tableHTML += `</tbody></table>`;
+  tableContainer.innerHTML = tableHTML;
+}
+
+function addSearchFunctionality() {
+  const searchInput = mainContentContainer.querySelector(
+    "#locationAnalysisSearch"
+  );
+  if (searchInput) {
+    searchInput.addEventListener("keyup", () => {
+      const searchTerm = searchInput.value.toLowerCase();
+      mainContentContainer
+        .querySelectorAll("#locationAnalysisTableContainer tbody tr")
+        .forEach((row) => {
+          searchInput.addEventListener("keyup", () => {
+            // Chuyển cả hai về chữ thường để so sánh
+            const searchTerm = searchInput.value.toLowerCase();
+            mainContentContainer
+              .querySelectorAll("#locationAnalysisTableContainer tbody tr")
+              .forEach((row) => {
+                // Chuyển nội dung của hàng về chữ thường
+                const rowText = row.textContent.toLowerCase();
+                row.style.display = rowText.includes(searchTerm) ? "" : "none";
+              });
+          });
+        });
+    });
   }
 }
