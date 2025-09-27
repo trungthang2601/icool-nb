@@ -270,209 +270,133 @@
         <div id="dashboardTabContent" class="mt-6"></div>
       </div>
       <div id="issueReportView">
-          <div class="card p-6 lg:p-8">
-            <h2
-              class="text-2xl sm:text-3xl font-bold text-slate-800 mb-6 flex items-center"
-            >
-              <i class="fas fa-exclamation-triangle mr-3 text-red-600"></i>Báo
-              Lỗi & Sự Cố
-            </h2>
+        <div class="card p-6 lg:p-8">
+          <h2 class="text-2xl sm:text-3xl font-bold text-slate-800 mb-6 flex items-center">
+            <i class="fas fa-exclamation-triangle mr-3 text-red-600"></i>Báo
+            Lỗi & Sự Cố
+          </h2>
 
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
-              
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
+
+            <div>
+              <label for="reporterName" class="block text-slate-600 text-sm font-medium mb-2">Người báo
+                cáo:</label><input type="text" id="reporterName" class="input-field bg-slate-100" disabled />
+            </div>
+
+            <div>
+              <label for="issueType" class="block text-slate-600 text-sm font-medium mb-2">Loại sự cố:</label><select
+                id="issueType" class="select-field">
+                <option value="Kỹ thuật">Kỹ thuật</option>
+                <option value="Vận hành">Vận hành</option>
+                <option value="Hệ thống">Hệ thống</option>
+                <option value="Con người">Con người</option>
+                <option value="Khác">Khác</option>
+              </select>
+            </div>
+
+            <div>
+              <label for="issuePriority" class="block text-slate-600 text-sm font-medium mb-2">Mức độ ưu
+                tiên:</label><select id="issuePriority" class="select-field">
+                <option value="Thấp">Thấp</option>
+                <option value="Trung bình">Trung bình</option>
+                <option value="Nghiêm trọng">Nghiêm trọng</option>
+              </select>
+            </div>
+
+            <div>
+              <label for="issueBranch" class="block text-slate-600 text-sm font-medium mb-2">Chi nhánh:</label><select
+                id="issueBranch" class="select-field"></select>
+            </div>
+
+            <div class="md:col-span-2 pt-2">
+              <label class="block text-slate-600 text-sm font-medium mb-2">Phạm vi sự cố:</label>
+              <div class="flex items-center space-x-6 mt-1">
+                <label class="flex items-center space-x-2 cursor-pointer">
+                  <input type="radio" name="issueScope" value="all_rooms" class="form-radio h-4 w-4 text-indigo-600"
+                    checked />
+                  <span class="text-sm">Toàn bộ chi nhánh</span>
+                </label>
+                <label class="flex items-center space-x-2 cursor-pointer">
+                  <input type="radio" name="issueScope" value="specific_rooms"
+                    class="form-radio h-4 w-4 text-indigo-600" />
+                  <span class="text-sm">Phòng cụ thể</span>
+                </label>
+              </div>
+            </div>
+
+            <div id="floorSelectorContainer" class="hidden md:col-span-1">
               <div>
-                <label
-                  for="reporterName"
-                  class="block text-slate-600 text-sm font-medium mb-2"
-                  >Người báo cáo:</label
-                ><input
-                  type="text"
-                  id="reporterName"
-                  class="input-field bg-slate-100"
-                  disabled
-                />
+                <label for="issueFloor" class="block text-slate-600 text-sm font-medium mb-2">Tầng:</label>
+                <select id="issueFloor" class="select-field"></select>
               </div>
+            </div>
 
-              <div>
-                <label
-                  for="issueType"
-                  class="block text-slate-600 text-sm font-medium mb-2"
-                  >Loại sự cố:</label
-                ><select id="issueType" class="select-field">
-                  <option value="Kỹ thuật">Kỹ thuật</option>
-                  <option value="Vận hành">Vận hành</option>
-                  <option value="Hệ thống">Hệ thống</option>
-                  <option value="Con người">Con người</option>
-                  <option value="Khác">Khác</option>
-                </select>
-              </div>
-
-              <div>
-                <label
-                  for="issuePriority"
-                  class="block text-slate-600 text-sm font-medium mb-2"
-                  >Mức độ ưu tiên:</label
-                ><select id="issuePriority" class="select-field">
-                  <option value="Thấp">Thấp</option>
-                  <option value="Trung bình">Trung bình</option>
-                  <option value="Nghiêm trọng">Nghiêm trọng</option>
-                </select>
-              </div>
-              
-              <div>
-                <label
-                  for="issueBranch"
-                  class="block text-slate-600 text-sm font-medium mb-2"
-                  >Chi nhánh:</label
-                ><select id="issueBranch" class="select-field"></select>
-              </div>
-
-              <div class="md:col-span-2 pt-2">
-                  <label class="block text-slate-600 text-sm font-medium mb-2"
-                    >Phạm vi sự cố:</label
-                  >
-                  <div class="flex items-center space-x-6 mt-1">
-                    <label class="flex items-center space-x-2 cursor-pointer">
-                      <input
-                        type="radio"
-                        name="issueScope"
-                        value="all_rooms"
-                        class="form-radio h-4 w-4 text-indigo-600"
-                        checked
-                      />
-                      <span class="text-sm">Toàn bộ chi nhánh</span>
-                    </label>
-                    <label class="flex items-center space-x-2 cursor-pointer">
-                      <input
-                        type="radio"
-                        name="issueScope"
-                        value="specific_rooms"
-                        class="form-radio h-4 w-4 text-indigo-600"
-                      />
-                      <span class="text-sm">Phòng cụ thể</span>
-                    </label>
-                  </div>
-              </div>
-
-              <div id="floorSelectorContainer" class="hidden md:col-span-1">
-                  <div>
-                    <label 
-                      for="issueFloor" 
-                      class="block text-slate-600 text-sm font-medium mb-2"
-                      >Tầng:</label
-                    >
-                    <select id="issueFloor" class="select-field"></select>
-                  </div>
-              </div>
-
-              <div id="specificRoomsContainer" class="hidden md:col-span-1">
-                <label
-                  for="specificRoomsTrigger"
-                  class="block text-slate-600 text-sm font-medium mb-2"
-                  >Chọn phòng cụ thể:</label
-                >
-                <div class="custom-select-container">
-                    <div id="specificRoomsTrigger" class="custom-select-trigger" tabindex="0">
-                        </div>
-                    <div id="specificRoomsOptions" class="custom-select-options">
-                        </div>
+            <div id="specificRoomsContainer" class="hidden md:col-span-1">
+              <label for="specificRoomsTrigger" class="block text-slate-600 text-sm font-medium mb-2">Chọn phòng cụ
+                thể:</label>
+              <div class="custom-select-container">
+                <div id="specificRoomsTrigger" class="custom-select-trigger" tabindex="0">
+                </div>
+                <div id="specificRoomsOptions" class="custom-select-options">
                 </div>
               </div>
-              
-              <div class="md:col-span-2 pt-2">
-                <label
-                  for="issueImage"
-                  class="block text-slate-600 text-sm font-medium mb-2"
-                  >Ảnh mô tả lỗi:</label
-                ><input
-                  type="file"
-                  id="issueImage"
-                  accept="image/*"
-                  class="input-field"
-                />
-              </div>
+            </div>
 
-              <div class="md:col-span-2">
-                <label
-                  for="issueDescription"
-                  class="block text-slate-600 text-sm font-medium mb-2"
-                  >Mô tả chi tiết:</label
-                ><textarea
-                  id="issueDescription"
-                  class="textarea-field h-28"
-                  placeholder="Mô tả sự cố..."
-                ></textarea>
-              </div>
+            <div class="md:col-span-2 pt-2">
+              <label for="issueImage" class="block text-slate-600 text-sm font-medium mb-2">Ảnh mô tả lỗi:</label><input
+                type="file" id="issueImage" accept="image/*" class="input-field" />
             </div>
-            <button id="reportIssueBtn" class="btn-primary mt-6">
-              <i class="fas fa-paper-plane mr-2"></i>Gửi Báo Cáo
-            </button>
-            <div
-              id="issueMessage"
-              class="hidden mt-4 p-3 rounded-lg text-sm"
-            ></div>
+
+            <div class="md:col-span-2">
+              <label for="issueDescription" class="block text-slate-600 text-sm font-medium mb-2">Mô tả chi
+                tiết:</label><textarea id="issueDescription" class="textarea-field h-28"
+                placeholder="Mô tả sự cố..."></textarea>
+            </div>
           </div>
+          <button id="reportIssueBtn" class="btn-primary mt-6">
+            <i class="fas fa-paper-plane mr-2"></i>Gửi Báo Cáo
+          </button>
+          <div id="issueMessage" class="hidden mt-4 p-3 rounded-lg text-sm"></div>
         </div>
+      </div>
       <div id="issueHistoryView">
-          <div class="card p-6">
-            <h2 class="text-2xl font-bold text-slate-800 mb-4">
-              Lịch Sử Báo Cáo
-            </h2>
-            <div class="overflow-x-auto">
-              <table
-                class="min-w-full divide-y divide-slate-200 responsive-table"
-              >
-                <thead class="bg-slate-50">
-                  <tr>
-                    <th
-                      class="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase"
-                    >
-                      Chi nhánh
-                    </th>
-                    <th
-                      class="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase"
-                    >
-                      Vị trí cụ thể
-                    </th>
-                    <th
-                      class="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase"
-                    >
-                      Người gửi
-                    </th>
-                    <th
-                      class="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase"
-                    >
-                      Loại sự cố
-                    </th>
-                    <th
-                      class="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase"
-                    >
-                      Ngày báo cáo
-                    </th>
-                    <th
-                      class="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase"
-                    >
-                      Trạng thái
-                    </th>
-                    <th
-                      class="px-4 py-3 text-right text-xs font-semibold text-slate-500 uppercase"
-                    >
-                      Hành Động
-                    </th>
-                  </tr>
-                </thead>
-                <tbody
-                  id="issueHistoryTableBody"
-                  class="bg-white divide-y divide-slate-200"
-                ></tbody>
-              </table>
-            </div>
-            <div
-              id="issueHistoryPagination"
-              class="flex justify-between items-center mt-4"
-            ></div>
+        <div class="card p-6">
+          <h2 class="text-2xl font-bold text-slate-800 mb-4">
+            Lịch Sử Báo Cáo
+          </h2>
+          <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-slate-200 responsive-table">
+              <thead class="bg-slate-50">
+                <tr>
+                  <th class="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase">
+                    Chi nhánh
+                  </th>
+                  <th class="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase">
+                    Vị trí cụ thể
+                  </th>
+                  <th class="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase">
+                    Người gửi
+                  </th>
+                  <th class="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase">
+                    Loại sự cố
+                  </th>
+                  <th class="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase">
+                    Ngày báo cáo
+                  </th>
+                  <th class="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase">
+                    Trạng thái
+                  </th>
+                  <th class="px-4 py-3 text-right text-xs font-semibold text-slate-500 uppercase">
+                    Hành Động
+                  </th>
+                </tr>
+              </thead>
+              <tbody id="issueHistoryTableBody" class="bg-white divide-y divide-slate-200"></tbody>
+            </table>
           </div>
+          <div id="issueHistoryPagination" class="flex justify-between items-center mt-4"></div>
         </div>
+      </div>
       <div id="myTasksView">
         <div class="card p-6">
           <h2 class="text-2xl font-bold text-slate-800 mb-4">

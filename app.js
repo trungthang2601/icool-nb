@@ -82,20 +82,170 @@ const ALL_BRANCHES = [
 // IMPORTANT: Branch name must EXACTLY MATCH the name in the ALL_BRANCHES array.
 const BRANCH_DATA = {
   "ICOOL XÔ VIẾT NGHỆ TĨNH": {
-    "Tầng 1": ["XVNT-101", "XVNT-102", "XVNT-103", "XVNT-104", "XVNT-105"],
-    "Tầng 2": ["XVNT-201", "XVNT-202", "XVNT-203", "XVNT-204"],
-    "Tầng 3": ["XVNT-VIP1", "XVNT-VIP2", "XVNT-VIP3"],
+    Trệt: ["P.101", "P.102"],
+    "Tầng 1": ["P.201", "P.202", "P.203", "P.204", "P.205", "P.206", "P.207", "P.208", "P.209", "P.210", "P.211"],
+    "Tầng 2": ["P.300", "P.301", "P.302", "P.303", "P.304", "P.305", "P.306", "P.307", "P.308", "P.309", "P.310", "P.311", "P.312"],
+    "Tầng 3": ["P.401"],
+    "Tầng 4": ["P.501", "P.502"],
   },
   "ICOOL BÌNH PHÚ": {
-    Trệt: ["BP-T01", "BP-T02", "BP-T03"],
-    "Lầu 1": ["BP-L1-01", "BP-L1-02", "BP-L1-03", "BP-L1-04"],
-    "Lầu 2": ["BP-L2-01", "BP-L2-02", "BP-L2-VIP"],
+    Trệt: ["P.101", "P.102", "P.103", "P.104", "P.105", "P.106", "P.107", "P.108", "P.109", "P.110"],
+    "Lầu 1": ["P.201", "P.202", "P.203", "P.204", "P.205"],
   },
   "ICOOL UNG VĂN KHIÊM": {
+    Trệt: ["P.001", "P.002","P.101", "P.102", "P.103", "P.104"],
+    "Tầng 1": ["P.101", "P.101", "P.102", "P.103", "P.104", "P.105", "P.106", "P.107", "P.108", "P.109", "P.110"],
+    "Tầng 2": ["P.201", "P.202", "P.203", "P.204", "P.205", "P.206", "P.207"],
+    "Tầng 3": ["P.301", "P.302", "P.303", "P.304", "P.305", "P.306", "P.307"],
+    "Tầng 4": ["P.401", "P.402", "P.403", "P.404", "P.405", "P.406", "P.407", "P.408", "P.409"],
+    "Tầng 5": ["P.501"],
+  },
+  "ICOOL TÔ KÝ": {
+    Trệt: ["P.001", "P.002", "P.003", "P.004", "P.005", "P.006"],
+    "Tầng 1": ["P.101", "P.102", "P.103", "P.104", "P.105", "P.106", "P.107", "P.108", "P.109"],
+    "Tầng 2": ["P.201", "P.202", "P.203", "P.204", "P.205", "P.206", "P.207", "P.208", "P.209"],
+    "Tầng 3": ["P.301", "P.302"],
+    "Tầng 4": ["P.401", "P.402"],
+  },
+  "ICOOL DƯƠNG BÁ TRẠC": {
+    Trệt: ["P.001", "P.002", "P.003", "P.004", "P.005", "P.006"],
+    "Tầng 1": ["P.101", "P.102", "P.103", "P.104", "P.105", "P.106", "P.107", "P.108"],
+    "Tầng 2": ["P.201", "P.202", "P.203", "P.204", "P.205", "P.206", "P.207"],
+    "Tầng 3": ["P.301"],
+    "Tầng 4": ["P.401", "P.402"],
+    "Tầng 5": ["P.501", "P.502"],
+  },
+  "ICOOL TRẦN NÃO": {
+    Trệt: ["P.101", "P.102", "P.103", "P.104", "P.105", "P.106", "P.107", "P.108"],
+    "Tầng 1": ["P.201", "P.202", "P.203", "P.204", "P.205", "P.206"],
+    "Tầng 2": ["P.301", "P.302", "P.303", "P.304", "P.305", "P.306"],
+  },
+  "ICOOL THÀNH THÁI": {
+    Trệt: ["P.001"],
+    "Tầng 1": ["P.101", "P.102", "P.103", "P.104", "P.105"],
+    "Tầng 2": ["P.201", "P.202", "P.203", "P.204", "P.205"],
+    "Tầng 3": ["P.301", "P.302", "P.303", "P.304", "P.305"],
+    "Tầng 4": ["P.401", "P.402", "P.403", "P.404"],
+    "Tầng 5": ["P.501", "P.502", "P.503"],
+    "Tầng 6": ["P.601", "P.602", "P.603", "P.604", "P.605"],
+  },
+  "ICOOL MẠC ĐĨNH CHI": {
+    Trệt: ["P.001", "P.002", "P.003", "P.004", "P.005", "P.006", "P.007", "P.008"],
+    "Tầng 1": ["P.101", "P.102", "P.104", "P.105", "P.106", "P.107"],
+    "Tầng 2": ["P.201", "P.202"],
+    "Tầng 3": ["P.301", "P.302"],
+    "Tầng 4": ["P.401", "P.402"],
+    "Tầng 5": ["P.501", "P.502"],
+  },
+  "ICOOL NGUYỄN SƠN": {
+    Trệt: ["P.001", "P.002"],
+    "Tầng 1": ["P.101", "P.102", "P.103", "P.104", "P.105", "P.106", "P.107"],
+    "Tầng 2": ["P.201", "P.202", "P.203", "P.204", "P.205", "P.206", "P.207", "P.208", "P.209"],
+    "Tầng 3": ["P.301", "P.302", "P.303", "P.304", "P.305"],
+  },
+  "ICOOL NGUYỄN TRÃI": {
+    Trệt: ["P.001", "P.002"],
+    "Tầng 1": ["P.101", "P.102", "P.103", "P.104"],
+    "Tầng 2": ["P.201", "P.202", "P.203", "P.204"],
+    "Tầng 3": ["P.301", "P.302", "P.303", "P.304"],
+    "Tầng 4": ["P.401", "P.402"],
+  },
+  "ICOOL NHỊ THIÊN ĐƯỜNG": {
+    Trệt: ["P.001"],
+    "Tầng 1": ["P.101", "P.104", "P.105"],
+    "Tầng 2": ["P.204", "P.205", "P.206", "P.207"],
+    "Tầng 3": ["P.301", "P.302", "P.303", "P.304", "P.305"],
+    "Tầng 4": ["P.401", "P.402", "P.403", "P.404", "P.405"],
+  },
+  "ICOOL CÁCH MẠNG THÁNG TÁM": {
+    Trệt: ["P.001", "P.002", "P.003", "P.004"],
+    "Tầng 1": ["P.101", "P.102", "P.103", "P.104", "P.105", "P.106"],
+    "Tầng 2": ["P.201", "P.202", "P.203", "P.204", "P.205", "P.206"],
+    "Tầng 3": ["P.301", "P.302", "P.303", "P.304", "P.305", "P.306"],
+    "Tầng 4": ["P.401", "P.402", "P.403", "P.404", "P.405", "P.406"],
+    "Tầng 5": ["P.501", "P.502"],
+  },
+  "ICOOL TRẦN BÌNH TRỌNG": {
+    Trệt: ["P.101", "P.102"],
+    "Tầng 1": ["P.201", "P.202", "P.203"],
+    "Tầng 2": ["P.301", "P.302", "P.303"],
+    "Tầng 3": ["P.401", "P.402", "P.403"],
+    "Tầng 4": ["P.501", "P.502", "P.503"],
+    "Tầng 5": ["P.601", "P.602", "P.603"],
+  },
+  "ICOOL ĐỒNG ĐEN": {
+    Trệt: ["P.101", "P.102", "P.103", "P.104", "P.105", "P.106", "P.107"],
+    "Tầng 1": ["P.201", "P.202", "P.203", "P.204", "P.205", "P.206", "P.207", "P.208"],
+    "Tầng 2": ["P.301", "P.302", "P.303", "P.304", "P.305", "P.306", "P.307", "P.308"],
+  },
+  "ICOOL PHAN CHU TRINH": {
+    Trệt: ["P.001", "P.002", "P.003"],
+    "Tầng 1": ["P.101", "P.102", "P.103"],
+    "Tầng 2": ["P.201", "P.202"],
+    "Tầng 3": ["P.301", "P.302", "P.303"],
+    "Tầng 4": ["P.401", "P.402", "P.403"],
+    "Tầng 5": ["P.501", "P.502", "P.503"],
+  },
+  "ICOOL NGUYỄN TRI PHƯƠNG": {
+    Trệt: ["P.001"],
+    "Tầng 1": ["P.101", "P.102", "P.103"],
+    "Tầng 2": ["P.201", "P.202", "P.203"],
+    "Tầng 3": ["P.301", "P.302", "P.303"],
+    "Tầng 4": ["P.401", "P.402"],
+    "Tầng 5": ["P.501", "P.502"],
+    "Tầng 6": ["P.601", "P.602"],
+  },
+  "ICOOL PHAN XÍCH LONG": {
+    Trệt: ["P.001", "P.002"],
+    "Tầng 1": ["P.101", "P.102", "P.103", "P.104", "P.105", "P.106"],
+    "Tầng 2": ["P.201", "P.202", "P.203", "P.204", "P.205", "P.206", "P.207"],
+    "Tầng 3": ["P.301", "P.302", "P.303", "P.304", "P.305", "P.306", "P.307"],
+    "Tầng 4": ["P.401", "P.402", "P.403", "P.404", "P.405", "P.406", "P.407"],
+    "Tầng 5": ["P.501", "P.502", "P.503", "P.504", "P.505", "P.506", "P.507"],
+    "Tầng 6": ["P.601", "P.602", "P.603"],
+  },
+  "ICOOL HOÀNG DIỆU 2": {
+    Trệt: ["P.001", "P.002"],
+    "Tầng 1": ["P.002", "P.101", "P.103"],
+    "Tầng 2": ["P.201", "P.202"],
+    "Tầng 3": ["P.301"],
+  },
+  "ICOOL ICOOL CẦU CHỮ Y": {
+    Trệt: ["P.001", "P.002"],
+    "Tầng 1": ["P.101", "P.102", "P.103"],
+    "Tầng 2": ["P.201", "P.202", "P.203"],
+    "Tầng 3": ["P.301", "P.302", "P.303"],
+    "Tầng 4": ["P.401", "P.402", "P.403"],
+  },
+  "ICOOL LÊ VĂN VIỆT": {
+    Trệt: ["P.001", "P.002", "P.003", "P.004", "P.005", "P.006", "P.007", "P.008", "P.009", "P.010","P.011", "P.012", "P.014", "P.015", "P.016", "P.017", "P.018", "P.019", "P.020", "P.021","P.022", "P.023",  "P.026","VIP1", "VIP2"],
+    "Tầng 1": ["P.024", "P.025"],
+  },
+  "ICOOL SƯ VẠN HẠNH": {
+    Trệt: ["P.001"],
+    "Tầng 1": ["P.101", "P.102", "P.103"],
+    "Tầng 2": ["P.201", "P.202", "P.203", "P.204", "P.205"],
+    "Tầng 3": ["P.301", "P.302", "P.303", "P.304", "P.305"],
+    "Tầng 4": ["P.401"],
+  },
+  "ICOOL ĐẠI LỘ 2": {
+    Trệt: ["P.101", "P.102"],
+    "Tầng 1": ["P.201", "P.202", "P.203"],
+    "Tầng 2": ["P.301", "P.302", "P.303"],
+    "Tầng 3": ["P.401", "P.402", "P.403"],
+  },
+  "ICOOL LÊ THỊ HÀ": {
+    Trệt: ["P.101", "P.102", "P.103", "P.104"],
     "Tầng 1": ["UVK-P1", "UVK-P2", "UVK-P3"],
     "Tầng 2": ["UVK-P4", "UVK-P5", "UVK-P6"],
   },
-
+  "ICOOL VŨNG TÀU": {
+    Trệt: ["P.001", "P.002"],
+    "Tầng 1": ["P.101", "P.102", "P.103", "P.104", "P.105", "P.106"],
+    "Tầng 2": ["P.201", "P.202", "P.203", "P.204", "P.205", "P.206"],
+    "Tầng 3": ["P.301", "P.302", "P.303", "P.304", "P.305", "P.306"],
+  },
+  
   // Dữ liệu mặc định cho các chi nhánh không được liệt kê ở trên
   default: {
     "Tầng 1": ["P101", "P102", "P103", "P104", "P105"],
@@ -2400,7 +2550,11 @@ function renderEmployeePerformanceAnalysis(reports) {
     }
 
     // Nếu công việc đã giải quyết, tính điểm cho người giải quyết
-    if (report.status === "Đã giải quyết" && report.resolverId && employeeStats[report.resolverId]) {
+    if (
+      report.status === "Đã giải quyết" &&
+      report.resolverId &&
+      employeeStats[report.resolverId]
+    ) {
       const stats = employeeStats[report.resolverId];
       stats.resolved++;
 
@@ -2412,13 +2566,14 @@ function renderEmployeePerformanceAnalysis(reports) {
         const start = new Date(startDate);
         const resolved = new Date(report.resolvedDate);
         const processingHours = (resolved - start) / (1000 * 60 * 60);
-        if (processingHours >= 0) { // Đảm bảo không phải số âm
-            stats.totalProcessingHours += processingHours;
+        if (processingHours >= 0) {
+          // Đảm bảo không phải số âm
+          stats.totalProcessingHours += processingHours;
         }
       }
 
       // Tính đúng hạn (dựa vào dueDate)
-      if(report.dueDate && report.resolvedDate) {
+      if (report.dueDate && report.resolvedDate) {
         const due = new Date(report.dueDate);
         const resolved = new Date(report.resolvedDate);
         if (resolved <= due) {
@@ -2466,9 +2621,9 @@ function renderEmployeePerformanceAnalysis(reports) {
 
   statsArray.forEach((s) => {
     if (s.resolved > 0) {
-        totalOnTime += s.onTime;
-        totalResolvedForRate += s.resolved;
-        totalProcessingHours += s.totalProcessingHours;
+      totalOnTime += s.onTime;
+      totalResolvedForRate += s.resolved;
+      totalProcessingHours += s.totalProcessingHours;
     }
     if (s.resolved > topResolvedCount) {
       topResolvedCount = s.resolved;
@@ -3046,7 +3201,7 @@ async function handleUpdateIssueDetails() {
       updateData.assignerName = currentUserProfile.displayName;
       updateData.assignedDate = new Date().toISOString();
     }
-    
+
     // ▼▼▼ THAY ĐỔI QUAN TRỌNG ▼▼▼
     // Ghi nhận người giải quyết và ngày giải quyết
     if (

@@ -345,16 +345,18 @@ body {
     background-color: white;
     border: 1px solid var(--border-color);
     border-radius: 0.5rem;
-    box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
     z-index: 10;
     margin-top: 0.25rem;
     max-height: 200px;
     overflow-y: auto;
-    display: none; /* Ẩn mặc định */
+    display: none;
+    /* Ẩn mặc định */
 }
 
 .custom-select-options.show {
-    display: block; /* Hiện khi có class 'show' */
+    display: block;
+    /* Hiện khi có class 'show' */
 }
 
 .custom-select-option {
@@ -385,14 +387,17 @@ body {
     align-items: center;
     padding-top: 0.375rem;
     padding-bottom: 0.375rem;
-    min-height: calc(1.5em + 1.25rem + 2px); /* Tương đương chiều cao của input */
+    min-height: calc(1.5em + 1.25rem + 2px);
+    /* Tương đương chiều cao của input */
 }
 
 .custom-select-tag {
     display: flex;
     align-items: center;
-    background-color: #e0e7ff; /* indigo-100 */
-    color: #3730a3; /* indigo-800 */
+    background-color: #e0e7ff;
+    /* indigo-100 */
+    color: #3730a3;
+    /* indigo-800 */
     padding: 0.25rem 0.5rem;
     border-radius: 0.25rem;
     margin-right: 0.25rem;
@@ -410,10 +415,12 @@ body {
 }
 
 .tag-close-btn:hover {
-    color: #dc2626; /* red-600 */
+    color: #dc2626;
+    /* red-600 */
 }
 
 /* Ẩn mũi tên xuống khi không có placeholder */
 .custom-select-trigger .placeholder-text {
-    color: #64748b; /* slate-500 */
+    color: #64748b;
+    /* slate-500 */
 }
