@@ -3023,13 +3023,12 @@ async function openIssueDetailModal(issueId) {
   if (!modal) return;
 
   modal.style.display = "flex";
-
-  // Đảm bảo bản đồ tra cứu phòng-tầng luôn được cập nhật
   buildRoomToLocationMap();
 
-  // Clear previous data and state
+  // Xóa dữ liệu cũ
   modal.querySelector("#detailIssueId").value = "";
-  modal.querySelector("#detailIssueLocation").textContent = ""; // Xóa vị trí cũ
+  modal.querySelector("#detailIssueLocation").textContent = "Đang tải vị trí...";
+  modal.querySelector("#detailIssueLocation").title = "";
   modal.querySelector("#detailIssueDescription").textContent = "Đang tải...";
   modal.querySelector("#detailIssueImageContainer").innerHTML = "";
   modal.querySelector("#detailRepairedImageContainer").innerHTML = "";
@@ -3043,32 +3042,37 @@ async function openIssueDetailModal(issueId) {
   const docSnap = await getDoc(docRef);
 
   if (!docSnap.exists()) {
-    modal.querySelector("#detailIssueDescription").textContent =
-      "Không tìm thấy sự cố.";
+    modal.querySelector("#detailIssueDescription").textContent = "Không tìm thấy sự cố.";
     return;
   }
   const report = docSnap.data();
 
-  // Populate static info
   modal.querySelector("#detailIssueId").value = issueId;
-  modal.querySelector("#detailIssueBranch").textContent = report.issueBranch;
+
+  // ▼▼▼ THAY ĐỔI LOGIC HIỂN THỊ VỊ TRÍ ▼▼▼
+  const locationEl = modal.querySelector("#detailIssueLocation");
+  // Thêm "Vị trí: " vào đầu chuỗi
+  let locationString = `Vị trí: ${report.issueBranch.replace("ICOOL ", "") || "Không xác định"}`;
+
+  if (report.issueScope === "all_rooms") {
+    locationString += " / Toàn bộ chi nhánh";
+  } else if (report.specificRooms) {
+    const firstRoom = report.specificRooms.split(", ")[0];
+    const locationInfo = roomToLocationMap[firstRoom];
+    const floorName = locationInfo ? locationInfo.floor : "Không xác định";
+    locationString += ` / ${floorName} / ${report.specificRooms}`;
+  }
+  locationEl.textContent = locationString;
+  locationEl.title = locationString; // Thêm tooltip để xem đầy đủ nếu tên quá dài
+  // ▲▲▲ KẾT THÚC THAY ĐỔI ▲▲▲
+
+  // Phần còn lại của hàm giữ nguyên...
   modal.querySelector("#detailReporterName").textContent = report.reporterName;
   modal.querySelector("#detailReportDate").textContent = new Date(
     report.reportDate
   ).toLocaleString("vi-VN");
   modal.querySelector("#detailIssuePriority").textContent = report.priority;
-
-  // ▼▼▼ LOGIC MỚI ĐỂ HIỂN THỊ VỊ TRÍ CỤ THỂ ▼▼▼
-  const locationEl = modal.querySelector("#detailIssueLocation");
-  if (report.issueScope === "all_rooms") {
-    locationEl.textContent = "Phạm vi: Toàn bộ chi nhánh";
-  } else if (report.specificRooms) {
-    const firstRoom = report.specificRooms.split(", ")[0];
-    const locationInfo = roomToLocationMap[firstRoom];
-    const floorName = locationInfo ? locationInfo.floor : "Không xác định";
-    locationEl.textContent = `Vị trí: ${floorName} / ${report.specificRooms}`;
-  }
-  // ▲▲▲ KẾT THÚC LOGIC MỚI ▲▲▲
+  modal.querySelector("#detailIssueDescription").textContent = report.issueDescription;
 
   const initialImageContainer = modal.querySelector(
     "#detailIssueImageContainer"
@@ -3094,7 +3098,6 @@ async function openIssueDetailModal(issueId) {
     currentUserProfile.role === "Admin" ||
     currentUserProfile.role === "Manager";
 
-  // Populate Status dropdown & add listener
   const statusSelect = modal.querySelector("#detailIssueStatus");
   statusSelect.innerHTML = ISSUE_STATUSES.map(
     (s) =>
@@ -3117,7 +3120,6 @@ async function openIssueDetailModal(issueId) {
   toggleRepairedImageInput();
   statusSelect.addEventListener("change", toggleRepairedImageInput);
 
-  // Populate Assignee dropdown
   const assigneeSelect = modal.querySelector("#detailIssueAssignee");
   assigneeSelect.disabled = true;
   if (canManage) {
