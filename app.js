@@ -48,8 +48,7 @@ const firebaseConfig =
       };
 const initialAuthToken =
   typeof __initial_auth_token !== "undefined" ? __initial_auth_token : null;
-const canvasAppId =
-  typeof __app_id !== "undefined" ? __app_id : "default-app-id";
+const canvasAppId = "default-app-id";
 const DEFAULT_ADMIN_EMAIL = "trungthang2601@gmail.com";
 const ALL_BRANCHES = [
   "ICOOL XÔ VIẾT NGHỆ TĨNH",
