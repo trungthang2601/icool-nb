@@ -48,7 +48,8 @@ const firebaseConfig =
       };
 const initialAuthToken =
   typeof __initial_auth_token !== "undefined" ? __initial_auth_token : null;
-const canvasAppId = "default-app-id";
+const canvasAppId =
+  typeof __app_id !== "undefined" ? __app_id : "default-app-id";
 const DEFAULT_ADMIN_EMAIL = "trungthang2601@gmail.com";
 const ALL_BRANCHES = [
   "ICOOL XÔ VIẾT NGHỆ TĨNH",
@@ -82,40 +83,137 @@ const ALL_BRANCHES = [
 const BRANCH_DATA = {
   "ICOOL XÔ VIẾT NGHỆ TĨNH": {
     Trệt: ["P.101", "P.102"],
-    "Tầng 1": ["P.201", "P.202", "P.203", "P.204", "P.205", "P.206", "P.207", "P.208", "P.209", "P.210", "P.211"],
-    "Tầng 2": ["P.300", "P.301", "P.302", "P.303", "P.304", "P.305", "P.306", "P.307", "P.308", "P.309", "P.310", "P.311", "P.312"],
+    "Tầng 1": [
+      "P.201",
+      "P.202",
+      "P.203",
+      "P.204",
+      "P.205",
+      "P.206",
+      "P.207",
+      "P.208",
+      "P.209",
+      "P.210",
+      "P.211",
+    ],
+    "Tầng 2": [
+      "P.300",
+      "P.301",
+      "P.302",
+      "P.303",
+      "P.304",
+      "P.305",
+      "P.306",
+      "P.307",
+      "P.308",
+      "P.309",
+      "P.310",
+      "P.311",
+      "P.312",
+    ],
     "Tầng 3": ["P.401"],
     "Tầng 4": ["P.501", "P.502"],
   },
   "ICOOL BÌNH PHÚ": {
-    Trệt: ["P.101", "P.102", "P.103", "P.104", "P.105", "P.106", "P.107", "P.108", "P.109", "P.110"],
+    Trệt: [
+      "P.101",
+      "P.102",
+      "P.103",
+      "P.104",
+      "P.105",
+      "P.106",
+      "P.107",
+      "P.108",
+      "P.109",
+      "P.110",
+    ],
     "Lầu 1": ["P.201", "P.202", "P.203", "P.204", "P.205"],
   },
   "ICOOL UNG VĂN KHIÊM": {
-    Trệt: ["P.001", "P.002","P.101", "P.102", "P.103", "P.104"],
-    "Tầng 1": ["P.101", "P.101", "P.102", "P.103", "P.104", "P.105", "P.106", "P.107", "P.108", "P.109", "P.110"],
+    Trệt: ["P.001", "P.002", "P.101", "P.102", "P.103", "P.104"],
+    "Tầng 1": [
+      "P.101",
+      "P.101",
+      "P.102",
+      "P.103",
+      "P.104",
+      "P.105",
+      "P.106",
+      "P.107",
+      "P.108",
+      "P.109",
+      "P.110",
+    ],
     "Tầng 2": ["P.201", "P.202", "P.203", "P.204", "P.205", "P.206", "P.207"],
     "Tầng 3": ["P.301", "P.302", "P.303", "P.304", "P.305", "P.306", "P.307"],
-    "Tầng 4": ["P.401", "P.402", "P.403", "P.404", "P.405", "P.406", "P.407", "P.408", "P.409"],
+    "Tầng 4": [
+      "P.401",
+      "P.402",
+      "P.403",
+      "P.404",
+      "P.405",
+      "P.406",
+      "P.407",
+      "P.408",
+      "P.409",
+    ],
     "Tầng 5": ["P.501"],
   },
   "ICOOL TÔ KÝ": {
     Trệt: ["P.001", "P.002", "P.003", "P.004", "P.005", "P.006"],
-    "Tầng 1": ["P.101", "P.102", "P.103", "P.104", "P.105", "P.106", "P.107", "P.108", "P.109"],
-    "Tầng 2": ["P.201", "P.202", "P.203", "P.204", "P.205", "P.206", "P.207", "P.208", "P.209"],
+    "Tầng 1": [
+      "P.101",
+      "P.102",
+      "P.103",
+      "P.104",
+      "P.105",
+      "P.106",
+      "P.107",
+      "P.108",
+      "P.109",
+    ],
+    "Tầng 2": [
+      "P.201",
+      "P.202",
+      "P.203",
+      "P.204",
+      "P.205",
+      "P.206",
+      "P.207",
+      "P.208",
+      "P.209",
+    ],
     "Tầng 3": ["P.301", "P.302"],
     "Tầng 4": ["P.401", "P.402"],
   },
   "ICOOL DƯƠNG BÁ TRẠC": {
     Trệt: ["P.001", "P.002", "P.003", "P.004", "P.005", "P.006"],
-    "Tầng 1": ["P.101", "P.102", "P.103", "P.104", "P.105", "P.106", "P.107", "P.108"],
+    "Tầng 1": [
+      "P.101",
+      "P.102",
+      "P.103",
+      "P.104",
+      "P.105",
+      "P.106",
+      "P.107",
+      "P.108",
+    ],
     "Tầng 2": ["P.201", "P.202", "P.203", "P.204", "P.205", "P.206", "P.207"],
     "Tầng 3": ["P.301"],
     "Tầng 4": ["P.401", "P.402"],
     "Tầng 5": ["P.501", "P.502"],
   },
   "ICOOL TRẦN NÃO": {
-    Trệt: ["P.101", "P.102", "P.103", "P.104", "P.105", "P.106", "P.107", "P.108"],
+    Trệt: [
+      "P.101",
+      "P.102",
+      "P.103",
+      "P.104",
+      "P.105",
+      "P.106",
+      "P.107",
+      "P.108",
+    ],
     "Tầng 1": ["P.201", "P.202", "P.203", "P.204", "P.205", "P.206"],
     "Tầng 2": ["P.301", "P.302", "P.303", "P.304", "P.305", "P.306"],
   },
@@ -129,7 +227,16 @@ const BRANCH_DATA = {
     "Tầng 6": ["P.601", "P.602", "P.603", "P.604", "P.605"],
   },
   "ICOOL MẠC ĐĨNH CHI": {
-    Trệt: ["P.001", "P.002", "P.003", "P.004", "P.005", "P.006", "P.007", "P.008"],
+    Trệt: [
+      "P.001",
+      "P.002",
+      "P.003",
+      "P.004",
+      "P.005",
+      "P.006",
+      "P.007",
+      "P.008",
+    ],
     "Tầng 1": ["P.101", "P.102", "P.104", "P.105", "P.106", "P.107"],
     "Tầng 2": ["P.201", "P.202"],
     "Tầng 3": ["P.301", "P.302"],
@@ -139,7 +246,17 @@ const BRANCH_DATA = {
   "ICOOL NGUYỄN SƠN": {
     Trệt: ["P.001", "P.002"],
     "Tầng 1": ["P.101", "P.102", "P.103", "P.104", "P.105", "P.106", "P.107"],
-    "Tầng 2": ["P.201", "P.202", "P.203", "P.204", "P.205", "P.206", "P.207", "P.208", "P.209"],
+    "Tầng 2": [
+      "P.201",
+      "P.202",
+      "P.203",
+      "P.204",
+      "P.205",
+      "P.206",
+      "P.207",
+      "P.208",
+      "P.209",
+    ],
     "Tầng 3": ["P.301", "P.302", "P.303", "P.304", "P.305"],
   },
   "ICOOL NGUYỄN TRÃI": {
@@ -174,8 +291,26 @@ const BRANCH_DATA = {
   },
   "ICOOL ĐỒNG ĐEN": {
     Trệt: ["P.101", "P.102", "P.103", "P.104", "P.105", "P.106", "P.107"],
-    "Tầng 1": ["P.201", "P.202", "P.203", "P.204", "P.205", "P.206", "P.207", "P.208"],
-    "Tầng 2": ["P.301", "P.302", "P.303", "P.304", "P.305", "P.306", "P.307", "P.308"],
+    "Tầng 1": [
+      "P.201",
+      "P.202",
+      "P.203",
+      "P.204",
+      "P.205",
+      "P.206",
+      "P.207",
+      "P.208",
+    ],
+    "Tầng 2": [
+      "P.301",
+      "P.302",
+      "P.303",
+      "P.304",
+      "P.305",
+      "P.306",
+      "P.307",
+      "P.308",
+    ],
   },
   "ICOOL PHAN CHU TRINH": {
     Trệt: ["P.001", "P.002", "P.003"],
@@ -217,7 +352,33 @@ const BRANCH_DATA = {
     "Tầng 4": ["P.401", "P.402", "P.403"],
   },
   "ICOOL LÊ VĂN VIỆT": {
-    Trệt: ["P.001", "P.002", "P.003", "P.004", "P.005", "P.006", "P.007", "P.008", "P.009", "P.010","P.011", "P.012", "P.014", "P.015", "P.016", "P.017", "P.018", "P.019", "P.020", "P.021","P.022", "P.023",  "P.026","VIP1", "VIP2"],
+    Trệt: [
+      "P.001",
+      "P.002",
+      "P.003",
+      "P.004",
+      "P.005",
+      "P.006",
+      "P.007",
+      "P.008",
+      "P.009",
+      "P.010",
+      "P.011",
+      "P.012",
+      "P.014",
+      "P.015",
+      "P.016",
+      "P.017",
+      "P.018",
+      "P.019",
+      "P.020",
+      "P.021",
+      "P.022",
+      "P.023",
+      "P.026",
+      "VIP1",
+      "VIP2",
+    ],
     "Tầng 1": ["P.024", "P.025"],
   },
   "ICOOL SƯ VẠN HẠNH": {
@@ -244,7 +405,7 @@ const BRANCH_DATA = {
     "Tầng 2": ["P.201", "P.202", "P.203", "P.204", "P.205", "P.206"],
     "Tầng 3": ["P.301", "P.302", "P.303", "P.304", "P.305", "P.306"],
   },
-  
+
   // Dữ liệu mặc định cho các chi nhánh không được liệt kê ở trên
   default: {
     "Tầng 1": ["P101", "P102", "P103", "P104", "P105"],
@@ -524,11 +685,18 @@ async function handleAuthStateChange(user) {
 
   if (user) {
     await fetchAndSetUserProfile(user.uid, user);
+    
     if (currentUserProfile && currentUserProfile.status !== "disabled") {
+      // --- SỬA LỖI LOGIC ---
+      // Luôn thiết lập UI cho người dùng đã đăng nhập TRƯỚC KHI kiểm tra đổi mật khẩu
+      setupUIForLoggedInUser(); 
+
       if (currentUserProfile.requiresPasswordChange) {
+        // Chỉ cần hiện modal lên
         promptForcePasswordChange();
       } else {
-        setupUIForLoggedInUser();
+        // Nếu không cần đổi mật khẩu, ẩn modal đi và tải các chức năng
+        forceChangePasswordModal.style.display = "none";
         listenToNotifications();
         showInitialView();
         if (currentUserProfile.role === "Admin") {
@@ -536,6 +704,7 @@ async function handleAuthStateChange(user) {
         }
       }
       setTimeout(() => logActivity("User Login", { email: user.email }), 500);
+      // --- KẾT THÚC SỬA LỖI ---
     } else {
       console.error(
         "User profile not found or account is disabled. Logging out."
@@ -606,8 +775,9 @@ async function handleLogout() {
 
 function setupUIForLoggedInUser() {
   authSection.classList.add("hidden");
-  appContainer.classList.remove("hidden");
-  forceChangePasswordModal.style.display = "none";
+  appContainer.classList.remove("hidden"); 
+  // KHÔNG được ẩn modal đổi mật khẩu ở đây
+  // forceChangePasswordModal.style.display = "none"; // <-- XÓA DÒNG NÀY
   loggedInUserDisplay.textContent = currentUserProfile.displayName;
   dropdownUserName.textContent = currentUserProfile.displayName;
   dropdownUserRole.textContent = currentUserProfile.role;
@@ -812,6 +982,17 @@ window.setup_manageAccountsView = function () {
     accountsCurrentPage = 1;
     renderAccountsTable(allUsersCache); // Re-render from cache when toggling
   });
+
+  const exportAllBtn = mainContentContainer.querySelector(
+    "#exportAllAttendanceBtn"
+  );
+  if (
+    currentUserProfile.role === "Admin" ||
+    currentUserProfile.role === "Manager"
+  ) {
+    exportAllBtn.classList.remove("hidden");
+    exportAllBtn.addEventListener("click", handleExportAllAttendance);
+  }
 
   if (currentUserProfile.role === "Admin") {
     const adminSettingsCard =
@@ -1701,6 +1882,8 @@ function renderMyTasksPagination(totalItems) {
     });
 }
 
+// TÌM VÀ THAY THẾ TOÀN BỘ HÀM NÀY TRONG app.js
+
 function renderAccountsTable(users) {
   const tableBody = mainContentContainer.querySelector("#accountsTableBody");
   if (!tableBody) return;
@@ -1717,6 +1900,15 @@ function renderAccountsTable(users) {
     paginatedUsers
       .map((user) => {
         const isDisabled = user.status === "disabled";
+        // Thêm ': '' vào cuối để hoàn thiện biểu thức điều kiện
+        const exportButtonHTML =
+          currentUserProfile.role === "Admin" ||
+          currentUserProfile.role === "Manager"
+            ? `<button class="export-user-attendance-btn btn-secondary !text-xs !py-1 !px-2 mr-2" data-uid="${user.uid}" data-name="${user.displayName}" title="Xuất file chấm công">
+                <i class="fas fa-file-alt"></i> CC
+             </button>`
+            : ""; // Thêm phần else để trả về chuỗi rỗng nếu không phải Admin/Manager
+
         return `
             <tr class="hover:bg-gray-50 ${
               isDisabled ? "opacity-60 bg-slate-50" : ""
@@ -1734,6 +1926,7 @@ function renderAccountsTable(users) {
                 <td data-label="Email" class="px-4 py-3">${user.email}</td>
                 <td data-label="Vai Trò" class="px-4 py-3">${user.role}</td>
                 <td data-label="Hành động" class="px-4 py-3 text-right">
+                    ${exportButtonHTML}
                     <button class="edit-user-btn btn-secondary !text-sm !py-1 !px-2 mr-2" data-uid="${
                       user.uid
                     }" ${isDisabled ? "disabled" : ""}>Sửa</button>
@@ -1751,6 +1944,7 @@ function renderAccountsTable(users) {
       .join("") ||
     `<tr><td colspan="5" class="text-center p-4">Không có tài khoản nào.</td></tr>`;
 
+  // Gắn sự kiện cho các nút Sửa, Xóa...
   tableBody.querySelectorAll(".edit-user-btn").forEach((btn) => {
     btn.addEventListener("click", () => {
       const userToEdit = users.find((u) => u.uid === btn.dataset.uid);
@@ -1767,6 +1961,14 @@ function renderAccountsTable(users) {
   tableBody.querySelectorAll(".enable-user-btn").forEach((btn) => {
     btn.addEventListener("click", () => {
       handleEnableAccount(btn.dataset.uid);
+    });
+  });
+
+  // Gắn sự kiện cho các nút Xuất CC
+  tableBody.querySelectorAll(".export-user-attendance-btn").forEach((btn) => {
+    btn.addEventListener("click", (e) => {
+      const { uid, name } = e.currentTarget.dataset;
+      handleExportSingleUserAttendance(uid, name, e.currentTarget);
     });
   });
 
@@ -3026,7 +3228,8 @@ async function openIssueDetailModal(issueId) {
 
   // Xóa dữ liệu cũ
   modal.querySelector("#detailIssueId").value = "";
-  modal.querySelector("#detailIssueLocation").textContent = "Đang tải vị trí...";
+  modal.querySelector("#detailIssueLocation").textContent =
+    "Đang tải vị trí...";
   modal.querySelector("#detailIssueLocation").title = "";
   modal.querySelector("#detailIssueDescription").textContent = "Đang tải...";
   modal.querySelector("#detailIssueImageContainer").innerHTML = "";
@@ -3041,7 +3244,8 @@ async function openIssueDetailModal(issueId) {
   const docSnap = await getDoc(docRef);
 
   if (!docSnap.exists()) {
-    modal.querySelector("#detailIssueDescription").textContent = "Không tìm thấy sự cố.";
+    modal.querySelector("#detailIssueDescription").textContent =
+      "Không tìm thấy sự cố.";
     return;
   }
   const report = docSnap.data();
@@ -3051,7 +3255,9 @@ async function openIssueDetailModal(issueId) {
   // ▼▼▼ THAY ĐỔI LOGIC HIỂN THỊ VỊ TRÍ ▼▼▼
   const locationEl = modal.querySelector("#detailIssueLocation");
   // Thêm "Vị trí: " vào đầu chuỗi
-  let locationString = `Vị trí: ${report.issueBranch.replace("ICOOL ", "") || "Không xác định"}`;
+  let locationString = `Vị trí: ${
+    report.issueBranch.replace("ICOOL ", "") || "Không xác định"
+  }`;
 
   if (report.issueScope === "all_rooms") {
     locationString += " / Toàn bộ chi nhánh";
@@ -3071,7 +3277,8 @@ async function openIssueDetailModal(issueId) {
     report.reportDate
   ).toLocaleString("vi-VN");
   modal.querySelector("#detailIssuePriority").textContent = report.priority;
-  modal.querySelector("#detailIssueDescription").textContent = report.issueDescription;
+  modal.querySelector("#detailIssueDescription").textContent =
+    report.issueDescription;
 
   const initialImageContainer = modal.querySelector(
     "#detailIssueImageContainer"
@@ -4037,6 +4244,138 @@ function closeCameraModal() {
   cameraModal.style.display = "none";
 }
 
+/**
+ * Helper function to export an array of data to an Excel file.
+ * @param {Array<Object>} data The data to export.
+ * @param {string} fileName The desired name for the output file.
+ */
+function exportToExcel(data, fileName) {
+  if (data.length === 0) {
+    alert("Không có dữ liệu chấm công để xuất.");
+    return;
+  }
+  // Tạo worksheet từ mảng JSON
+  const ws = XLSX.utils.json_to_sheet(data);
+  // Tạo workbook mới
+  const wb = XLSX.utils.book_new();
+  // Gắn worksheet vào workbook với tên là 'Chấm Công'
+  XLSX.utils.book_append_sheet(wb, ws, "Chấm Công");
+  // Xuất file
+  XLSX.writeFile(wb, fileName);
+}
+
+/**
+ * Handles the logic for exporting attendance for a single employee.
+ * @param {string} uid The UID of the user.
+ * @param {string} name The display name of the user.
+ * @param {HTMLElement} button The button element that was clicked.
+ */
+async function handleExportSingleUserAttendance(uid, name, button) {
+  const originalContent = button.innerHTML;
+  button.innerHTML = `<i class="fas fa-spinner fa-spin"></i>`;
+  button.disabled = true;
+
+  try {
+    const userProfile = allUsersCache.find((u) => u.uid === uid);
+    const employeeId = userProfile ? userProfile.employeeId : "N/A";
+
+    const attendanceQuery = query(
+      collection(db, `/artifacts/${canvasAppId}/users/${uid}/attendance`),
+      orderBy("timestamp", "desc")
+    );
+    const snapshot = await getDocs(attendanceQuery);
+
+    const attendanceRecords = snapshot.docs.map((doc) => {
+      const data = doc.data();
+      return {
+        "Tên Nhân Viên": name,
+        MSNV: employeeId,
+        "Hành Động": data.action,
+        "Thời Gian": data.timestamp
+          ? new Date(data.timestamp.toDate()).toLocaleString("vi-VN")
+          : "Không có",
+        "Địa Chỉ":
+          data.location && data.location.address
+            ? data.location.address
+            : "Không có",
+      };
+    });
+
+    const safeName = name.replace(/[^a-z0-9]/gi, "_").toLowerCase();
+    exportToExcel(attendanceRecords, `cham_cong_${safeName}.xlsx`);
+  } catch (error) {
+    console.error(`Error exporting attendance for ${name}:`, error);
+    alert(`Đã xảy ra lỗi khi xuất file chấm công cho ${name}.`);
+  } finally {
+    button.innerHTML = originalContent;
+    button.disabled = false;
+  }
+}
+
+/**
+ * Handles the logic for exporting attendance data for all employees.
+ */
+async function handleExportAllAttendance() {
+  const button = document.getElementById("exportAllAttendanceBtn");
+  const originalContent = button.innerHTML;
+  button.innerHTML = `<i class="fas fa-spinner fa-spin mr-2"></i>Đang xử lý...`;
+  button.disabled = true;
+
+  try {
+    // Lọc những tài khoản không bị vô hiệu hóa
+    const activeUsers = allUsersCache.filter(
+      (user) => user.status !== "disabled"
+    );
+    let allAttendanceRecords = [];
+
+    // Dùng Promise.all để tăng tốc độ lấy dữ liệu
+    const promises = activeUsers.map(async (user) => {
+      const attendanceQuery = query(
+        collection(
+          db,
+          `/artifacts/${canvasAppId}/users/${user.uid}/attendance`
+        ),
+        orderBy("timestamp", "desc")
+      );
+      const snapshot = await getDocs(attendanceQuery);
+
+      snapshot.docs.forEach((doc) => {
+        const data = doc.data();
+        allAttendanceRecords.push({
+          "Tên Nhân Viên": user.displayName,
+          MSNV: user.employeeId,
+          "Hành Động": data.action,
+          "Thời Gian": data.timestamp
+            ? new Date(data.timestamp.toDate()).toLocaleString("vi-VN")
+            : "Không có",
+          "Địa Chỉ":
+            data.location && data.location.address
+              ? data.location.address
+              : "Không có",
+        });
+      });
+    });
+
+    await Promise.all(promises);
+
+    // Sắp xếp lại toàn bộ dữ liệu theo Tên Nhân Viên rồi đến Thời Gian
+    allAttendanceRecords.sort((a, b) => {
+      if (a["Tên Nhân Viên"] < b["Tên Nhân Viên"]) return -1;
+      if (a["Tên Nhân Viên"] > b["Tên Nhân Viên"]) return 1;
+      // Nếu cùng tên, sắp xếp theo thời gian mới nhất lên đầu
+      return new Date(b["Thời Gian"]) - new Date(a["Thời Gian"]);
+    });
+
+    exportToExcel(allAttendanceRecords, "cham_cong_toan_bo_nhan_vien.xlsx");
+  } catch (error) {
+    console.error("Error exporting all attendance:", error);
+    alert("Đã xảy ra lỗi khi xuất file chấm công toàn bộ.");
+  } finally {
+    button.innerHTML = originalContent;
+    button.disabled = false;
+  }
+}
+
 // --- DOM Binding & Event Listeners ---
 function bindShellDOMElements() {
   skeletonLoader = document.getElementById("skeletonLoader");
@@ -4245,9 +4584,8 @@ async function handleSendResetEmail() {
 }
 
 function promptForcePasswordChange() {
-  authSection.classList.add("hidden");
-  appContainer.classList.add("hidden");
-  skeletonLoader.classList.add("hidden");
+  // Hàm này bây giờ chỉ cần HIỆN modal lên.
+  // Mọi thứ khác đã được setupUIForLoggedInUser và handleAuthStateChange lo.
   forceChangePasswordModal.style.display = "flex";
 }
 
