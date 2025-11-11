@@ -423,7 +423,7 @@ const ALL_VIEWS = {
   manageAccountsView: "Quản Lý Tài Khoản",
   activityLogView: "Nhật Ký Hoạt Động",
 };
-const ROLES = ["Admin", "Manager", "Nhân viên"];
+const ROLES = ["Admin", "Manager", "Nhân viên", "Chi nhánh"];
 const DEFAULT_VIEWS = {
   Admin: Object.keys(ALL_VIEWS),
   Manager: [
@@ -441,6 +441,7 @@ const DEFAULT_VIEWS = {
     "issueHistoryView",
     "myTasksView",
   ],
+  "Chi nhánh": ["issueReportView", "issueHistoryView"],
 };
 const ISSUE_STATUSES = ["Mới tạo", "Đang xử lý", "Đã giải quyết"];
 const ISSUE_TYPES = ["Kỹ thuật", "Vận hành", "Hệ thống", "Con người", "Khác"];
@@ -685,11 +686,11 @@ async function handleAuthStateChange(user) {
 
   if (user) {
     await fetchAndSetUserProfile(user.uid, user);
-    
+
     if (currentUserProfile && currentUserProfile.status !== "disabled") {
       // --- SỬA LỖI LOGIC ---
       // Luôn thiết lập UI cho người dùng đã đăng nhập TRƯỚC KHI kiểm tra đổi mật khẩu
-      setupUIForLoggedInUser(); 
+      setupUIForLoggedInUser();
 
       if (currentUserProfile.requiresPasswordChange) {
         // Chỉ cần hiện modal lên
@@ -775,7 +776,7 @@ async function handleLogout() {
 
 function setupUIForLoggedInUser() {
   authSection.classList.add("hidden");
-  appContainer.classList.remove("hidden"); 
+  appContainer.classList.remove("hidden");
   // KHÔNG được ẩn modal đổi mật khẩu ở đây
   // forceChangePasswordModal.style.display = "none"; // <-- XÓA DÒNG NÀY
   loggedInUserDisplay.textContent = currentUserProfile.displayName;
@@ -963,6 +964,39 @@ window.setup_attendanceView = function () {
 window.setup_manageAccountsView = function () {
   if (!currentUserProfile) return;
   accountsCurrentPage = 1; // Reset page
+  // --- BỔ SUNG LOGIC CHO FORM TẠO TÀI KHOẢN MỚI ---
+  const createRoleSelect =
+    mainContentContainer.querySelector("#createAccountRole");
+  const employeeIdContainer = mainContentContainer.querySelector(
+    "#createAccountEmployeeIdContainer"
+  );
+
+  if (createRoleSelect && employeeIdContainer) {
+    // 1. Điền các vai trò vào dropdown (lấy từ hằng số ROLES đã có)
+    createRoleSelect.innerHTML = ROLES.map(
+      (r) =>
+        `<option value="${r}" ${
+          r === "Nhân viên" ? "selected" : ""
+        }>${r}</option>`
+    ).join("");
+
+    // 2. Hàm ẩn/hiện MSNV
+    const toggleEmployeeIdField = () => {
+      const selectedRole = createRoleSelect.value;
+      if (selectedRole === "Chi nhánh") {
+        employeeIdContainer.classList.add("hidden");
+      } else {
+        employeeIdContainer.classList.remove("hidden");
+      }
+    };
+
+    // 3. Gắn event listener
+    createRoleSelect.addEventListener("change", toggleEmployeeIdField);
+
+    // 4. Chạy 1 lần lúc ban đầu để set trạng thái đúng
+    toggleEmployeeIdField();
+  }
+  // --- KẾT THÚC BỔ SUNG ---
   mainContentContainer
     .querySelector("#createAccountBtn")
     .addEventListener("click", handleCreateAccount);
@@ -3300,35 +3334,51 @@ async function openIssueDetailModal(issueId) {
       '<p class="text-sm text-slate-500 italic">Chưa có ảnh sửa chữa.</p>';
   }
 
+  // --- LOGIC QUẢN LÝ & KHÓA VẤN ĐỀ ---
+
   const canManage =
     currentUserProfile.role === "Admin" ||
     currentUserProfile.role === "Manager";
+  const isResolved = report.status === "Đã giải quyết";
 
+  // Lấy các element
   const statusSelect = modal.querySelector("#detailIssueStatus");
+  const assigneeSelect = modal.querySelector("#detailIssueAssignee");
+  const updateBtn = modal.querySelector("#updateIssueBtn");
+  const repairedImageUploadContainer = modal.querySelector(
+    "#repairedImageUploadContainer"
+  );
+  const repairedImageInput = modal.querySelector("#repairedImageInput");
+  const newCommentInput = modal.querySelector("#newCommentInput");
+  const addCommentBtn = modal.querySelector("#addCommentBtn");
+  const resolutionInfoContainer = modal.querySelector(
+    "#resolutionInfoContainer"
+  );
+  const actionsContainer = updateBtn.closest(".pt-4.border-t"); // Tìm container của "Hành Động"
+
+  // 1. Hiển thị thông tin giải quyết (nếu có)
+  if (isResolved) {
+    modal.querySelector("#detailResolverName").textContent =
+      report.resolverName || "Không rõ";
+    modal.querySelector("#detailResolvedDate").textContent = report.resolvedDate
+      ? new Date(report.resolvedDate).toLocaleString("vi-VN")
+      : "Không rõ";
+    resolutionInfoContainer.classList.remove("hidden");
+  } else {
+    resolutionInfoContainer.classList.add("hidden");
+  }
+
+  // 2. Điền dữ liệu cho Status
   statusSelect.innerHTML = ISSUE_STATUSES.map(
     (s) =>
       `<option value="${s}" ${
         report.status === s ? "selected" : ""
       }>${s}</option>`
   ).join("");
-  statusSelect.disabled = !canManage;
 
-  const repairedImageUploadContainer = modal.querySelector(
-    "#repairedImageUploadContainer"
-  );
-  const toggleRepairedImageInput = () => {
-    repairedImageUploadContainer.classList.toggle(
-      "hidden",
-      statusSelect.value !== "Đã giải quyết"
-    );
-  };
-
-  toggleRepairedImageInput();
-  statusSelect.addEventListener("change", toggleRepairedImageInput);
-
-  const assigneeSelect = modal.querySelector("#detailIssueAssignee");
-  assigneeSelect.disabled = true;
+  // 3. Điền dữ liệu cho Assignee
   if (canManage) {
+    // Chỉ tải danh sách user nếu user là manager
     const usersSnapshot = await getDocs(
       collection(db, `/artifacts/${canvasAppId}/users`)
     );
@@ -3346,16 +3396,47 @@ async function openIssueDetailModal(issueId) {
             }>${u.displayName}</option>`
         )
         .join("");
-    assigneeSelect.disabled = false;
   } else {
+    // Nếu là nhân viên, chỉ hiển thị người được giao (nếu có)
     assigneeSelect.innerHTML = `<option value="">${
       report.assigneeName || "Chưa giao"
     }</option>`;
   }
 
-  modal.querySelector("#updateIssueBtn").classList.toggle("hidden", !canManage);
+  // 4. KHÓA CÁC TRƯỜNG NẾU (KHÔNG THỂ QUẢN LÝ) HOẶC (ĐÃ GIẢI QUYẾT)
+  const shouldLock = !canManage || isResolved;
 
+  statusSelect.disabled = shouldLock;
+  assigneeSelect.disabled = shouldLock;
+  repairedImageInput.disabled = shouldLock;
+  newCommentInput.disabled = isResolved; // Cho phép comment nếu chưa giải quyết, kể cả là nhân viên
+  addCommentBtn.disabled = isResolved; // Tương tự
+
+  // Ẩn toàn bộ phần "Hành Động" nếu đã giải quyết
+  if (isResolved) {
+    actionsContainer.classList.add("hidden");
+  } else {
+    actionsContainer.classList.remove("hidden");
+  }
+
+  // Ẩn nút "Cập nhật" (dùng riêng cho trường hợp nhân viên xem)
+  updateBtn.classList.toggle("hidden", !canManage);
+
+  // Ẩn/hiện ô upload ảnh sửa chữa
+  const toggleRepairedImageInput = () => {
+    // Chỉ hiện khi CHUẨN BỊ chuyển sang "Đã giải quyết" VÀ chưa bị khóa
+    const showUpload = statusSelect.value === "Đã giải quyết" && !isResolved;
+    repairedImageUploadContainer.classList.toggle("hidden", !showUpload);
+  };
+
+  toggleRepairedImageInput();
+  // Xóa listener cũ (nếu có) và thêm listener mới để tránh lỗi
+  statusSelect.removeEventListener("change", toggleRepairedImageInput);
+  statusSelect.addEventListener("change", toggleRepairedImageInput);
+
+  // 5. Mở listener cho comment
   listenToIssueComments(issueId);
+  // --- KẾT THÚC LOGIC QUẢN LÝ ---
 }
 
 async function handleUpdateIssueDetails() {
@@ -3624,24 +3705,39 @@ async function handleUpdateAccountDetails() {
 }
 
 async function handleCreateAccount() {
+  // Lấy thêm vai trò (role) từ dropdown mới
   const email = mainContentContainer.querySelector("#createAccountEmail").value;
-  const password = mainContentContainer.querySelector(
-    "#createAccountPassword"
-  ).value;
-  const displayName = mainContentContainer.querySelector(
-    "#createAccountUsername"
-  ).value;
-  const employeeId = mainContentContainer.querySelector(
-    "#createAccountEmployeeId"
-  ).value;
+  const password = mainContentContainer.querySelector("#createAccountPassword").value;
+  const displayName = mainContentContainer.querySelector("#createAccountUsername").value;
+  const role = mainContentContainer.querySelector("#createAccountRole").value; // <-- BIẾN MỚI
+  const employeeIdInput = mainContentContainer.querySelector("#createAccountEmployeeId");
   const messageEl = mainContentContainer.querySelector("#createAccountMessage");
 
-  if (!email || password.length < 6 || !displayName || !employeeId) {
-    messageEl.textContent = "Vui lòng điền đầy đủ thông tin hợp lệ.";
+  let employeeId = employeeIdInput.value.trim();
+
+  // --- LOGIC VALIDATION MỚI ---
+  let validationError = "";
+  if (!email || password.length < 6 || !displayName) {
+    validationError = "Vui lòng điền đầy đủ Email, Mật khẩu (tối thiểu 6 ký tự), và Tên người dùng.";
+  }
+
+  // Chỉ yêu cầu MSNV nếu vai trò KHÔNG PHẢI "Chi nhánh"
+  if (role !== "Chi nhánh" && !employeeId) {
+    validationError = "Mã nhân viên (MSNV) là bắt buộc cho vai trò này.";
+  }
+
+  // Nếu là "Chi nhánh", tự động gán MSNV là "N/A"
+  if (role === "Chi nhánh") {
+    employeeId = "N/A";
+  }
+
+  if (validationError) {
+    messageEl.textContent = validationError;
     messageEl.className = "p-3 rounded-lg text-sm text-center alert-error";
     messageEl.classList.remove("hidden");
     return;
   }
+  // --- KẾT THÚC VALIDATION MỚI ---
 
   try {
     const userCredential = await createUserWithEmailAndPassword(
@@ -3651,15 +3747,17 @@ async function handleCreateAccount() {
     );
     const newUid = userCredential.user.uid;
 
+    // --- PROFILE MỚI (đã sửa) ---
     const newUserProfile = {
       email: email,
       displayName: displayName,
-      employeeId: employeeId,
-      role: "Nhân viên",
-      allowedViews: DEFAULT_VIEWS["Nhân viên"],
+      employeeId: employeeId, // <-- Dùng biến employeeId đã qua xử lý
+      role: role, // <-- Lấy từ dropdown
+      allowedViews: DEFAULT_VIEWS[role] || DEFAULT_VIEWS["Nhân viên"], // <-- Lấy quyền động
       managedBranches: [],
       requiresPasswordChange: true,
     };
+    // --- KẾT THÚC PROFILE MỚI ---
 
     await setDoc(
       doc(db, `/artifacts/${canvasAppId}/users/${newUid}`),
@@ -3668,10 +3766,15 @@ async function handleCreateAccount() {
 
     await logActivity("Admin Create User", { newEmail: email, newUid: newUid });
 
-    messageEl.textContent = `Tạo tài khoản ${email} thành công!`;
+    messageEl.textContent = `Tạo tài khoản ${email} (vai trò: ${role}) thành công!`;
     messageEl.className = "p-3 rounded-lg text-sm text-center alert-success";
     messageEl.classList.remove("hidden");
-    // No need to call render manually, the listener will do it.
+    // Xóa trống form
+    mainContentContainer.querySelector("#createAccountEmail").value = "";
+    mainContentContainer.querySelector("#createAccountPassword").value = "";
+    mainContentContainer.querySelector("#createAccountUsername").value = "";
+    mainContentContainer.querySelector("#createAccountEmployeeId").value = "";
+    
   } catch (error) {
     messageEl.textContent = `Lỗi tạo tài khoản: ${error.message}`;
     messageEl.className = "p-3 rounded-lg text-sm text-center alert-error";
@@ -3705,20 +3808,44 @@ async function handleExcelImport() {
     let errors = [];
 
     for (const row of json) {
-      const { email, password, displayName, employeeId, role } = row;
+      
+      // --- ▼▼▼ LOGIC VALIDATION MỚI ĐÃ SỬA ▼▼▼ ---
+      let { email, password, displayName, employeeId, role } = row;
 
-      if (!email || !displayName || !employeeId) {
+      // 1. Kiểm tra các trường cơ bản
+      if (!email || !displayName) {
         errorCount++;
         errors.push(
           `Dòng ${
             createCount + updateCount + errorCount
-          }: Thiếu thông tin email, tên hoặc mã nhân viên.`
+          }: Thiếu thông tin email hoặc tên người dùng.`
         );
         continue;
       }
 
-      const existingUser = allUsersCache.find((u) => u.email === email);
+      // 2. Xử lý Vai trò
       const userRole = ROLES.includes(role) ? role : "Nhân viên";
+
+      // 3. Xử lý EmployeeId (MSNV)
+      if (userRole === "Chi nhánh") {
+          // Nếu là Chi nhánh, không bắt buộc, tự gán "N/A" nếu trống
+          employeeId = employeeId ? employeeId.toString() : "N/A";
+      } else {
+          // Nếu là vai trò khác, BẮT BUỘC phải có
+          if (!employeeId) {
+              errorCount++;
+              errors.push(
+                `Dòng ${
+                  createCount + updateCount + errorCount
+                }: (Email: ${email}) Thiếu 'employeeId' (bắt buộc cho vai trò ${userRole}).`
+              );
+              continue;
+          }
+          employeeId = employeeId.toString(); // Đảm bảo là string
+      }
+      // --- ▲▲▲ KẾT THÚC LOGIC VALIDATION MỚI ▲▲▲ ---
+
+      const existingUser = allUsersCache.find((u) => u.email === email);
 
       if (existingUser) {
         // Update existing user
@@ -3729,9 +3856,9 @@ async function handleExcelImport() {
           );
           const profileUpdate = {
             displayName,
-            employeeId,
+            employeeId, // <-- Dùng employeeId đã qua xử lý
             role: userRole,
-            allowedViews: DEFAULT_VIEWS[userRole],
+            allowedViews: DEFAULT_VIEWS[userRole] || DEFAULT_VIEWS["Nhân viên"], // Dùng quyền động
           };
           await updateDoc(userDocRef, profileUpdate);
           await logActivity("Admin Bulk Update User", { updatedEmail: email });
@@ -3759,9 +3886,9 @@ async function handleExcelImport() {
           const newUserProfile = {
             email: email,
             displayName: displayName,
-            employeeId: employeeId,
-            role: userRole,
-            allowedViews: DEFAULT_VIEWS[userRole],
+            employeeId: employeeId, // <-- Dùng employeeId đã qua xử lý
+            role: userRole, // <-- Dùng vai trò đã xử lý
+            allowedViews: DEFAULT_VIEWS[userRole] || DEFAULT_VIEWS["Nhân viên"], // Dùng quyền động
             managedBranches: [],
             requiresPasswordChange: true,
           };
@@ -3800,22 +3927,29 @@ function handleDownloadTemplate() {
       email: "nhanvien.a@example.com",
       password: "password123",
       displayName: "Nguyễn Văn A",
-      employeeId: "NV001",
+      employeeId: "NV001", // Bắt buộc cho Nhân viên
       role: "Nhân viên",
     },
     {
       email: "quanly.b@example.com",
       password: "password456",
       displayName: "Trần Thị B",
-      employeeId: "QL001",
+      employeeId: "QL001", // Bắt buộc cho Manager
       role: "Manager",
     },
     {
       email: "admin.c@example.com",
       password: "password789",
       displayName: "Lê Văn C",
-      employeeId: "AD001",
+      employeeId: "AD001", // Bắt buộc cho Admin
       role: "Admin",
+    },
+    {
+      email: "chinhanh.d@example.com", // <-- VÍ DỤ MỚI
+      password: "password123", // <-- VÍ DỤ MỚI
+      displayName: "Karaoke Chi Nhánh D", // <-- VÍ DỤ MỚI
+      employeeId: "", // <-- VÍ DỤ MỚI (Có thể để trống)
+      role: "Chi nhánh", // <-- VÍ DỤ MỚI
     },
   ];
 
@@ -3824,7 +3958,7 @@ function handleDownloadTemplate() {
   XLSX.utils.book_append_sheet(workbook, worksheet, "DanhSachTaiKhoan");
 
   // Trigger the download
-  XLSX.writeFile(workbook, "mau-tai-khoan.xlsx");
+  XLSX.writeFile(workbook, "mau-tai-khoan-updated.xlsx"); // Đổi tên file cho đỡ nhầm
 }
 
 function openDeleteAccountModal(uid, name) {

@@ -191,10 +191,18 @@
               <label class="font-medium text-sm">Tên người dùng:</label><input type="text" id="createAccountUsername"
                 class="input-field" />
             </div>
+            
             <div>
+              <label class="font-medium text-sm">Vai trò:</label>
+              <select id="createAccountRole" class="select-field">
+                </select>
+            </div>
+            
+            <div id="createAccountEmployeeIdContainer" class="md:col-span-2">
               <label class="font-medium text-sm">Mã nhân viên (MSNV):</label><input type="text"
                 id="createAccountEmployeeId" class="input-field" />
             </div>
+            
           </div>
           <button id="createAccountBtn" class="btn-primary mt-4">
             Tạo Tài Khoản
@@ -559,12 +567,25 @@
               <strong>Người báo cáo:</strong>
               <span id="detailReporterName"></span>
             </div>
-            <div>
+            <div><div class="pt-4 border-t"></div>
               <strong>Ngày báo cáo:</strong>
               <span id="detailReportDate"></span>
             </div>
             <div>
               <strong>Ưu tiên:</strong> <span id="detailIssuePriority"></span>
+            </div>
+            <div id="resolutionInfoContainer" class="hidden pt-3 border-t border-dashed border-slate-300">
+              <div class="font-semibold text-green-600 mb-2">
+                <i class="fas fa-check-circle mr-2"></i>ĐÃ GIẢI QUYẾT
+              </div>
+              <div>
+                <strong>Người giải quyết:</strong>
+                <span id="detailResolverName" class="font-medium"></span>
+              </div>
+              <div>
+                <strong>Ngày giải quyết:</strong>
+                <span id="detailResolvedDate" class="font-medium"></span>
+              </div>
             </div>
             <div class="pt-4 border-t">
               <h4 class="font-bold text-lg text-slate-800 border-b pb-2 mb-2">
@@ -746,7 +767,7 @@
     </div>
   </div>
 
-  
+
 </body>
 
 </html>
