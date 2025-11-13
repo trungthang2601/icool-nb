@@ -443,7 +443,7 @@
     ],
     "Chi nhánh": ["issueReportView", "issueHistoryView"],
   };
-  const ISSUE_STATUSES = ["Mới tạo", "Đang xử lý", "Đã giải quyết"];
+  const ISSUE_STATUSES = ["Chờ xử lý", "Đang xử lý", "Đã giải quyết", "Đã hủy"];
   const ISSUE_TYPES = ["Kỹ thuật", "Vận hành", "Hệ thống", "Con người", "Khác"];
 
   // --- Global State Variables ---
@@ -470,6 +470,7 @@
   let dashboardReportsCache = [];
   let activityLogsCache = [];
   let issueHistoryCache = [];
+  let issueHistoryFiltered = [];
   let myTasksCache = [];
   let activityLogCurrentPage = 1;
   let accountsCurrentPage = 1;
@@ -642,7 +643,7 @@
 
       const q = query(
         collection(db, `/artifacts/${canvasAppId}/public/data/issueReports`),
-        where("status", "==", "Mới tạo"),
+        where("status", "==", "Chờ xử lý"),
         where("assigneeId", "==", null),
         where("reportDate", "<", escalationThreshold.toISOString())
       );
@@ -873,6 +874,17 @@
     const unreadCount = notifications.filter((n) => !n.read).length;
     notificationBadge.textContent = unreadCount;
     notificationBadge.classList.toggle("show", unreadCount > 0);
+    
+    // Show/hide "Mark all as read" button
+    const markAllReadBtn = document.getElementById("markAllReadBtn");
+    if (markAllReadBtn) {
+      if (unreadCount > 0) {
+        markAllReadBtn.classList.remove("hidden");
+      } else {
+        markAllReadBtn.classList.add("hidden");
+      }
+    }
+    
     notificationList.innerHTML =
       notifications.length === 0
         ? `<div class="p-4 text-center text-sm text-slate-500">Không có thông báo mới.</div>`
@@ -881,29 +893,151 @@
               const timestamp = n.timestamp
                 ? new Date(n.timestamp.toDate()).toLocaleString("vi-VN")
                 : "Vừa xong";
-              return `<div class="notification-item p-3 cursor-pointer hover:bg-slate-50 ${
-                n.read ? "" : "unread"
-              }"><p class="text-sm">${
-                n.message
-              }</p><p class="text-xs text-slate-400 mt-1">${timestamp}</p></div>`;
+              const hasIssueId = n.issueId ? `data-issue-id="${n.issueId}"` : "";
+              const clickableClass = n.issueId ? "notification-clickable" : "";
+              const readButton = !n.read 
+                ? `<button class="mark-read-btn text-xs text-indigo-600 hover:text-indigo-700 ml-2" data-notification-id="${n.id}" title="Đánh dấu đã đọc">
+                    <i class="fas fa-check"></i>
+                   </button>`
+                : "";
+              return `<div class="notification-item p-3 hover:bg-slate-50 flex items-start justify-between ${
+                clickableClass
+              } ${n.read ? "" : "unread"}" ${hasIssueId} data-notification-id="${n.id}">
+                <div class="flex-1 ${n.issueId ? "cursor-pointer" : ""}">
+                  <p class="text-sm">${n.message}</p>
+                  <p class="text-xs text-slate-400 mt-1">${timestamp}</p>
+                </div>
+                ${readButton}
+              </div>`;
             })
             .join("");
+
+    // Add click handlers for notifications with issueId
+    notificationList.querySelectorAll(".notification-clickable").forEach((item) => {
+      const clickableContent = item.querySelector(".flex-1");
+      if (clickableContent) {
+        clickableContent.addEventListener("click", async () => {
+          const issueId = item.getAttribute("data-issue-id");
+          const notificationId = item.getAttribute("data-notification-id");
+          
+          if (issueId) {
+            // Mark as read
+            if (notificationId && !item.classList.contains("read")) {
+              await markNotificationAsRead(notificationId);
+            }
+            
+            // Open issue detail modal
+            openIssueDetailModal(issueId);
+            
+            // Close notification menu
+            notificationMenu.classList.remove("show");
+          }
+        });
+      }
+    });
+
+    // Add click handlers for mark as read buttons
+    notificationList.querySelectorAll(".mark-read-btn").forEach((btn) => {
+      btn.addEventListener("click", async (e) => {
+        e.stopPropagation();
+        const notificationId = btn.getAttribute("data-notification-id");
+        if (notificationId) {
+          await markNotificationAsRead(notificationId);
+          // Log to activity log
+          await logActivity("Mark Notification as Read", { 
+            notificationId: notificationId 
+          });
+        }
+      });
+    });
   }
 
-  async function sendNotification(userId, message) {
+  async function markAllNotificationsAsRead() {
+    if (!currentUser) return;
+    try {
+      const notificationsCol = collection(
+        db,
+        `/artifacts/${canvasAppId}/users/${currentUser.uid}/notifications`
+      );
+      const q = query(notificationsCol, where("read", "==", false));
+      const snapshot = await getDocs(q);
+      
+      const updatePromises = snapshot.docs.map((doc) =>
+        updateDoc(doc.ref, { read: true })
+      );
+      
+      await Promise.all(updatePromises);
+      
+      // Log to activity log
+      await logActivity("Mark All Notifications as Read", { 
+        count: snapshot.docs.length 
+      });
+    } catch (error) {
+      console.error("Error marking all notifications as read:", error);
+    }
+  }
+
+  async function sendNotification(userId, message, issueId = null) {
     if (!userId) return;
     try {
       const notificationsCol = collection(
         db,
         `/artifacts/${canvasAppId}/users/${userId}/notifications`
       );
-      await addDoc(notificationsCol, {
+      const notificationData = {
         message: message,
         read: false,
         timestamp: serverTimestamp(),
-      });
+      };
+      if (issueId) {
+        notificationData.issueId = issueId;
+      }
+      const docRef = await addDoc(notificationsCol, notificationData);
+      
+      // Log notification received to activity log for the recipient
+      // We need to get the recipient's profile to log as them
+      try {
+        const recipientDoc = await getDoc(doc(db, `/artifacts/${canvasAppId}/users/${userId}`));
+        if (recipientDoc.exists()) {
+          const recipientProfile = recipientDoc.data();
+          // Create a temporary activity log entry as the recipient
+          const logCollection = collection(
+            db,
+            `/artifacts/${canvasAppId}/public/data/activityLogs`
+          );
+          await addDoc(logCollection, {
+            action: "Received Notification",
+            details: {
+              message: message,
+              notificationId: docRef.id,
+              issueId: issueId || null,
+            },
+            timestamp: serverTimestamp(),
+            actor: {
+              uid: userId,
+              email: recipientProfile.email || "",
+              displayName: recipientProfile.displayName || "",
+            },
+          });
+        }
+      } catch (logError) {
+        console.warn("Could not log notification received to activity log:", logError);
+      }
     } catch (error) {
       console.error("Error sending notification:", error);
+    }
+  }
+
+  async function markNotificationAsRead(notificationId) {
+    if (!notificationId || !currentUser) return;
+    try {
+      const notificationRef = doc(
+        db,
+        `/artifacts/${canvasAppId}/users/${currentUser.uid}/notifications/${notificationId}`
+      );
+      await updateDoc(notificationRef, { read: true });
+    } catch (error) {
+      console.error("Error marking notification as read:", error);
     }
   }
 
@@ -963,6 +1097,19 @@
 
   window.setup_manageAccountsView = function () {
     if (!currentUserProfile) return;
+
+    // --- THÊM MỚI: Xóa trống các trường input để tránh autocomplete của trình duyệt ---
+    const emailInput = mainContentContainer.querySelector("#createAccountEmail");
+    const passwordInput = mainContentContainer.querySelector("#createAccountPassword");
+    const usernameInput = mainContentContainer.querySelector("#createAccountUsername");
+    const employeeIdInput = mainContentContainer.querySelector("#createAccountEmployeeId");
+
+    if (emailInput) emailInput.value = "";
+    if (passwordInput) passwordInput.value = "";
+    if (usernameInput) usernameInput.value = "";
+    if (employeeIdInput) employeeIdInput.value = "";
+    // --- KẾT THÚC THÊM MỚI ---
+
     accountsCurrentPage = 1; // Reset page
     // --- BỔ SUNG LOGIC CHO FORM TẠO TÀI KHOẢN MỚI ---
     const createRoleSelect =
@@ -1536,6 +1683,126 @@
     });
   };
 
+  // Populate reporter filter dropdown with unique reporter names
+  function populateReporterFilter() {
+    const reporterFilter = mainContentContainer.querySelector("#filterReporter");
+    if (!reporterFilter) return;
+
+    // Preserve current selection
+    const currentValue = reporterFilter.value;
+
+    // Get unique reporter names from cache
+    const uniqueReporters = [...new Set(
+      issueHistoryCache
+        .map(report => report.reporterName)
+        .filter(name => name && name.trim())
+    )].sort();
+
+    // Clear existing options except "Tất cả"
+    reporterFilter.innerHTML = '<option value="">Tất cả</option>';
+
+    // Add unique reporters
+    uniqueReporters.forEach(reporterName => {
+      const option = document.createElement("option");
+      option.value = reporterName;
+      option.textContent = reporterName;
+      reporterFilter.appendChild(option);
+    });
+
+    // Restore previous selection if it still exists
+    if (currentValue && uniqueReporters.includes(currentValue)) {
+      reporterFilter.value = currentValue;
+    }
+  }
+
+  // Update active filters count badge
+  function updateActiveFiltersCount() {
+    const activeFiltersCount = mainContentContainer.querySelector("#activeFiltersCount");
+    if (!activeFiltersCount) return;
+
+    const branchFilter = mainContentContainer.querySelector("#filterBranch")?.value || "";
+    const issueTypeFilter = mainContentContainer.querySelector("#filterIssueType")?.value || "";
+    const statusFilter = mainContentContainer.querySelector("#filterStatus")?.value || "";
+    const reporterFilter = mainContentContainer.querySelector("#filterReporter")?.value || "";
+    const dateFromFilter = mainContentContainer.querySelector("#filterDateFrom")?.value || "";
+    const dateToFilter = mainContentContainer.querySelector("#filterDateTo")?.value || "";
+
+    let count = 0;
+    if (branchFilter) count++;
+    if (issueTypeFilter) count++;
+    if (statusFilter) count++;
+    if (reporterFilter) count++;
+    if (dateFromFilter) count++;
+    if (dateToFilter) count++;
+
+    if (count > 0) {
+      activeFiltersCount.textContent = `${count} bộ lọc đang hoạt động`;
+      activeFiltersCount.classList.remove("hidden");
+    } else {
+      activeFiltersCount.classList.add("hidden");
+    }
+  }
+
+  // Filter function for issue history
+  function filterIssueHistory() {
+    const branchFilter = mainContentContainer.querySelector("#filterBranch")?.value || "";
+    const issueTypeFilter = mainContentContainer.querySelector("#filterIssueType")?.value || "";
+    const statusFilter = mainContentContainer.querySelector("#filterStatus")?.value || "";
+    const reporterFilter = mainContentContainer.querySelector("#filterReporter")?.value || "";
+    const dateFromFilter = mainContentContainer.querySelector("#filterDateFrom")?.value || "";
+    const dateToFilter = mainContentContainer.querySelector("#filterDateTo")?.value || "";
+
+    issueHistoryFiltered = issueHistoryCache.filter((report) => {
+      // Branch filter
+      if (branchFilter && report.issueBranch !== branchFilter) {
+        return false;
+      }
+
+      // Issue type filter
+      if (issueTypeFilter && report.issueType !== issueTypeFilter) {
+        return false;
+      }
+
+      // Status filter
+      if (statusFilter && report.status !== statusFilter) {
+        return false;
+      }
+
+      // Reporter filter (exact match)
+      if (reporterFilter && report.reporterName !== reporterFilter) {
+        return false;
+      }
+
+      // Date range filter
+      if (dateFromFilter || dateToFilter) {
+        const reportDate = new Date(report.reportDate);
+        reportDate.setHours(0, 0, 0, 0);
+
+        if (dateFromFilter) {
+          const fromDate = new Date(dateFromFilter);
+          fromDate.setHours(0, 0, 0, 0);
+          if (reportDate < fromDate) {
+            return false;
+          }
+        }
+
+        if (dateToFilter) {
+          const toDate = new Date(dateToFilter);
+          toDate.setHours(23, 59, 59, 999);
+          if (reportDate > toDate) {
+            return false;
+          }
+        }
+      }
+
+      return true;
+    });
+
+    issueHistoryCurrentPage = 1; // Reset to first page when filtering
+    updateActiveFiltersCount();
+    renderIssueHistoryTable(issueHistoryFiltered);
+  }
+
   window.setup_issueHistoryView = function () {
     if (!currentUserProfile) return;
     issueHistoryCurrentPage = 1; // Reset page
@@ -1544,6 +1811,115 @@
     );
     if (!tableBody) return;
     tableBody.innerHTML = `<tr><td colspan="7" class="text-center p-4">Đang tải...</td></tr>`;
+
+    // Populate branch filter dropdown
+    const branchFilter = mainContentContainer.querySelector("#filterBranch");
+    if (branchFilter) {
+      branchFilter.innerHTML = '<option value="">Tất cả</option>';
+      ALL_BRANCHES.forEach((branch) => {
+        const option = document.createElement("option");
+        option.value = branch;
+        option.textContent = branch;
+        branchFilter.appendChild(option);
+      });
+    }
+
+    // Populate status filter dropdown from ISSUE_STATUSES constant (excluding "Đã hủy")
+    const statusFilter = mainContentContainer.querySelector("#filterStatus");
+    if (statusFilter) {
+      const currentValue = statusFilter.value; // Preserve current selection
+      statusFilter.innerHTML = '<option value="">Tất cả</option>';
+      ISSUE_STATUSES.filter(status => status !== "Đã hủy").forEach((status) => {
+        const option = document.createElement("option");
+        option.value = status;
+        option.textContent = status;
+        statusFilter.appendChild(option);
+      });
+      // Restore previous selection if it still exists
+      if (currentValue && ISSUE_STATUSES.includes(currentValue) && currentValue !== "Đã hủy") {
+        statusFilter.value = currentValue;
+      }
+    }
+
+    // Populate reporter filter dropdown (will be updated when data loads)
+    populateReporterFilter();
+
+    // Set up toggle filter section
+    const toggleFiltersBtn = mainContentContainer.querySelector("#toggleFiltersBtn");
+    const filterSection = mainContentContainer.querySelector("#filterSection");
+    
+    if (toggleFiltersBtn && filterSection) {
+      toggleFiltersBtn.addEventListener("click", () => {
+        filterSection.classList.toggle("hidden");
+        const icon = toggleFiltersBtn.querySelector("i");
+        if (filterSection.classList.contains("hidden")) {
+          icon.className = "fas fa-filter mr-2";
+        } else {
+          icon.className = "fas fa-filter mr-2";
+          updateActiveFiltersCount();
+        }
+      });
+    }
+
+    // Set up filter event listeners
+    const applyFiltersBtn = mainContentContainer.querySelector("#applyFiltersBtn");
+    const clearFiltersBtn = mainContentContainer.querySelector("#clearFiltersBtn");
+    
+    if (applyFiltersBtn) {
+      applyFiltersBtn.addEventListener("click", filterIssueHistory);
+    }
+
+    if (clearFiltersBtn) {
+      clearFiltersBtn.addEventListener("click", () => {
+        // Clear all filter inputs
+        const branchFilter = mainContentContainer.querySelector("#filterBranch");
+        const issueTypeFilter = mainContentContainer.querySelector("#filterIssueType");
+        const statusFilter = mainContentContainer.querySelector("#filterStatus");
+        const reporterFilter = mainContentContainer.querySelector("#filterReporter");
+        const dateFromFilter = mainContentContainer.querySelector("#filterDateFrom");
+        const dateToFilter = mainContentContainer.querySelector("#filterDateTo");
+
+        if (branchFilter) branchFilter.value = "";
+        if (issueTypeFilter) issueTypeFilter.value = "";
+        if (statusFilter) statusFilter.value = "";
+        if (reporterFilter) reporterFilter.value = "";
+        if (dateFromFilter) dateFromFilter.value = "";
+        if (dateToFilter) dateToFilter.value = "";
+
+        // Reset filtered data to show all
+        issueHistoryFiltered = issueHistoryCache;
+        issueHistoryCurrentPage = 1;
+        updateActiveFiltersCount();
+        renderIssueHistoryTable(issueHistoryFiltered);
+      });
+    }
+
+    // Update filter count when filter inputs change
+    const filterSelects = [
+      mainContentContainer.querySelector("#filterBranch"),
+      mainContentContainer.querySelector("#filterIssueType"),
+      mainContentContainer.querySelector("#filterStatus"),
+      mainContentContainer.querySelector("#filterReporter")
+    ];
+
+    const filterInputs = [
+      mainContentContainer.querySelector("#filterDateFrom"),
+      mainContentContainer.querySelector("#filterDateTo")
+    ];
+
+    filterSelects.forEach((select) => {
+      if (select) {
+        select.addEventListener("change", updateActiveFiltersCount);
+      }
+    });
+
+    filterInputs.forEach((input) => {
+      if (input) {
+        input.addEventListener("change", updateActiveFiltersCount);
+        input.addEventListener("input", updateActiveFiltersCount);
+      }
+    });
+
 
     const q = getScopedIssuesQuery();
     const unsubscribe = onSnapshot(
@@ -1560,7 +1936,26 @@
         // Thêm dòng này để đảm bảo map được tạo
         buildRoomToLocationMap();
 
-        renderIssueHistoryTable(issueHistoryCache);
+        // Populate reporter filter with unique names from loaded data
+        populateReporterFilter();
+
+        // Check if filters are active, if so re-apply them, otherwise show all
+        const branchFilter = mainContentContainer.querySelector("#filterBranch")?.value || "";
+        const issueTypeFilter = mainContentContainer.querySelector("#filterIssueType")?.value || "";
+        const statusFilter = mainContentContainer.querySelector("#filterStatus")?.value || "";
+        const reporterFilter = mainContentContainer.querySelector("#filterReporter")?.value || "";
+        const dateFromFilter = mainContentContainer.querySelector("#filterDateFrom")?.value || "";
+        const dateToFilter = mainContentContainer.querySelector("#filterDateTo")?.value || "";
+        
+        const hasActiveFilters = branchFilter || issueTypeFilter || statusFilter || reporterFilter || dateFromFilter || dateToFilter;
+
+        if (hasActiveFilters) {
+          filterIssueHistory();
+        } else {
+          issueHistoryFiltered = issueHistoryCache;
+          updateActiveFiltersCount();
+          renderIssueHistoryTable(issueHistoryFiltered);
+        }
       },
       (error) => console.error("Issue history listener failed:", error)
     );
@@ -1731,7 +2126,7 @@
               // Logic mới để tạo chi tiết vị trí
               let locationDetail = "";
               if (report.issueScope === "all_rooms") {
-                locationDetail = `<span class="italic text-slate-500">Toàn bộ chi nhánh</span>`;
+                locationDetail = `<span class="italic text-slate-500">Tất cả phòng</span>`;
               } else if (report.specificRooms) {
                 const firstRoom = report.specificRooms.split(", ")[0];
                 const locationInfo = roomToLocationMap[firstRoom];
@@ -1818,7 +2213,7 @@
       .addEventListener("click", () => {
         if (issueHistoryCurrentPage > 1) {
           issueHistoryCurrentPage--;
-          renderIssueHistoryTable(issueHistoryCache);
+          renderIssueHistoryTable(issueHistoryFiltered);
         }
       });
     mainContentContainer
@@ -1826,7 +2221,7 @@
       .addEventListener("click", () => {
         if (issueHistoryCurrentPage < totalPages) {
           issueHistoryCurrentPage++;
-          renderIssueHistoryTable(issueHistoryCache);
+          renderIssueHistoryTable(issueHistoryFiltered);
         }
       });
   }
@@ -2454,9 +2849,10 @@
     const container = document.getElementById("statusSummary");
     if (!container) return;
     const statuses = {
-      "Mới tạo": "bg-blue-500",
+      "Chờ xử lý": "bg-blue-500",
       "Đang xử lý": "bg-yellow-500",
       "Đã giải quyết": "bg-green-500",
+      "Đã hủy": "bg-red-500",
     };
     container.innerHTML = Object.entries(statuses)
       .map(([status, color]) => {
@@ -2653,7 +3049,7 @@
       const scopeCounts = branchSpecificReports.reduce((acc, report) => {
         const scope =
           report.issueScope === "all_rooms"
-            ? "Toàn bộ chi nhánh"
+            ? "Tất cả phòng"
             : "Phòng cụ thể";
         acc[scope] = (acc[scope] || 0) + 1;
         return acc;
@@ -3294,7 +3690,7 @@
     }`;
 
     if (report.issueScope === "all_rooms") {
-      locationString += " / Toàn bộ chi nhánh";
+      locationString += " / Tất cả phòng";
     } else if (report.specificRooms) {
       const firstRoom = report.specificRooms.split(", ")[0];
       const locationInfo = roomToLocationMap[firstRoom];
@@ -3368,39 +3764,65 @@
       resolutionInfoContainer.classList.add("hidden");
     }
 
-    // 2. Điền dữ liệu cho Status
-    statusSelect.innerHTML = ISSUE_STATUSES.map(
-      (s) =>
-        `<option value="${s}" ${
-          report.status === s ? "selected" : ""
-        }>${s}</option>`
-    ).join("");
+    // 2. Điền dữ liệu cho Status (excluding "Đã hủy")
+    statusSelect.innerHTML = ISSUE_STATUSES
+      .filter((s) => s !== "Đã hủy")
+      .map(
+        (s) =>
+          `<option value="${s}" ${
+            report.status === s ? "selected" : ""
+          }>${s}</option>`
+      )
+      .join("");
 
     // 3. Điền dữ liệu cho Assignee
-    if (canManage) {
-      // Chỉ tải danh sách user nếu user là manager
-      const usersSnapshot = await getDocs(
-        collection(db, `/artifacts/${canvasAppId}/users`)
-      );
-      const users = usersSnapshot.docs.map((doc) => ({
-        uid: doc.id,
-        ...doc.data(),
-      }));
-      assigneeSelect.innerHTML =
-        `<option value="">Chưa giao</option>` +
-        users
-          .map(
-            (u) =>
-              `<option value="${u.uid}" ${
-                report.assigneeId === u.uid ? "selected" : ""
-              }>${u.displayName}</option>`
-          )
-          .join("");
+    // Ẩn field "Giao cho" nếu user có role "Chi nhánh"
+    const assigneeFieldContainer = assigneeSelect.closest("div");
+    if (currentUserProfile.role === "Chi nhánh") {
+      if (assigneeFieldContainer) {
+        assigneeFieldContainer.classList.add("hidden");
+      }
     } else {
-      // Nếu là nhân viên, chỉ hiển thị người được giao (nếu có)
-      assigneeSelect.innerHTML = `<option value="">${
-        report.assigneeName || "Chưa giao"
-      }</option>`;
+      if (assigneeFieldContainer) {
+        assigneeFieldContainer.classList.remove("hidden");
+      }
+      
+      if (canManage) {
+        // Chỉ tải danh sách user nếu user là manager
+        const usersSnapshot = await getDocs(
+          collection(db, `/artifacts/${canvasAppId}/users`)
+        );
+        const users = usersSnapshot.docs.map((doc) => ({
+          uid: doc.id,
+          ...doc.data(),
+        }))
+        // Filter out users with "Chi nhánh" role and users whose displayName matches a branch name
+        .filter((u) => {
+          const isBranchRole = u.role === "Chi nhánh";
+          const isBranchName = ALL_BRANCHES.includes(u.displayName);
+          return !isBranchRole && !isBranchName;
+        });
+        assigneeSelect.innerHTML =
+          `<option value="">Chưa giao</option>` +
+          users
+            .map(
+              (u) =>
+                `<option value="${u.uid}" ${
+                  report.assigneeId === u.uid ? "selected" : ""
+                }>${u.displayName}</option>`
+            )
+            .join("");
+      } else {
+        // Nếu là nhân viên, chỉ hiển thị người được giao (nếu có)
+        // Hide if assigneeName is a branch name
+        const assigneeName = report.assigneeName || "Chưa giao";
+        const isBranchName = ALL_BRANCHES.includes(assigneeName);
+        if (isBranchName) {
+          assigneeSelect.innerHTML = `<option value="">Chưa giao</option>`;
+        } else {
+          assigneeSelect.innerHTML = `<option value="">${assigneeName}</option>`;
+        }
+      }
     }
 
     // 4. KHÓA CÁC TRƯỜNG NẾU (KHÔNG THỂ QUẢN LÝ) HOẶC (ĐÃ GIẢI QUYẾT)
@@ -3443,9 +3865,12 @@
     const modal = document.getElementById("issueDetailModal");
     const issueId = modal.querySelector("#detailIssueId").value;
     const newStatus = modal.querySelector("#detailIssueStatus").value;
-    const newAssigneeId = modal.querySelector("#detailIssueAssignee").value;
     const assigneeSelect = modal.querySelector("#detailIssueAssignee");
-    const newAssigneeName = newAssigneeId
+    // Skip assignee if user has "Chi nhánh" role
+    const newAssigneeId = (currentUserProfile.role === "Chi nhánh" || !assigneeSelect || assigneeSelect.closest("div").classList.contains("hidden"))
+      ? null
+      : assigneeSelect.value;
+    const newAssigneeName = (newAssigneeId && assigneeSelect)
       ? assigneeSelect.options[assigneeSelect.selectedIndex].text
       : "";
     const repairedImageFile = modal.querySelector("#repairedImageInput").files[0];
@@ -3481,14 +3906,18 @@
 
       const updateData = {
         status: newStatus,
-        assigneeId: newAssigneeId || null,
-        assigneeName: newAssigneeName || null,
       };
-
-      if (newAssigneeId && originalData.assigneeId !== newAssigneeId) {
-        updateData.assignerId = currentUser.uid;
-        updateData.assignerName = currentUserProfile.displayName;
-        updateData.assignedDate = new Date().toISOString();
+      
+      // Only update assignee if user is not "Chi nhánh" role
+      if (currentUserProfile.role !== "Chi nhánh") {
+        updateData.assigneeId = newAssigneeId || null;
+        updateData.assigneeName = newAssigneeName || null;
+        
+        if (newAssigneeId && originalData.assigneeId !== newAssigneeId) {
+          updateData.assignerId = currentUser.uid;
+          updateData.assignerName = currentUserProfile.displayName;
+          updateData.assignedDate = new Date().toISOString();
+        }
       }
 
       // ▼▼▼ THAY ĐỔI QUAN TRỌNG ▼▼▼
@@ -3519,7 +3948,8 @@
       if (newAssigneeId && originalData.assigneeId !== newAssigneeId) {
         sendNotification(
           newAssigneeId,
-          `Bạn được giao một nhiệm vụ mới: ${originalData.issueType} tại ${originalData.issueBranch}`
+          `Bạn được giao một nhiệm vụ mới: ${originalData.issueType} tại ${originalData.issueBranch}`,
+          issueId
         );
       }
 
@@ -3706,9 +4136,9 @@
 
   async function handleCreateAccount() {
     // Lấy thêm vai trò (role) từ dropdown mới
-    const email = mainContentContainer.querySelector("#createAccountEmail").value;
+    const email = mainContentContainer.querySelector("#createAccountEmail").value.trim();
     const password = mainContentContainer.querySelector("#createAccountPassword").value;
-    const displayName = mainContentContainer.querySelector("#createAccountUsername").value;
+    const displayName = mainContentContainer.querySelector("#createAccountUsername").value.trim();
     const role = mainContentContainer.querySelector("#createAccountRole").value; // <-- BIẾN MỚI
     const employeeIdInput = mainContentContainer.querySelector("#createAccountEmployeeId");
     const messageEl = mainContentContainer.querySelector("#createAccountMessage");
@@ -3740,36 +4170,61 @@
     // --- KẾT THÚC VALIDATION MỚI ---
 
     try {
+      // --- GIẢI PHÁP: TẠO APP TẠM THỜI ---
+      // 1. Khởi tạo một app Firebase tạm thời với tên duy nhất
+      //    Hàm initializeApp và getAuth đã được import ở đầu tệp.
+      const tempAppName = `temp-create-user-${Date.now()}`;
+      const tempApp = initializeApp(firebaseConfig, tempAppName);
+      const tempAuth = getAuth(tempApp);
+
+      // 2. Tạo người dùng trên instance `tempAuth` này.
+      //    Hành động này sẽ đăng nhập người dùng MỚI vào `tempAuth`,
+      //    NHƯNG không ảnh hưởng đến `auth` (instance chính của Admin).
       const userCredential = await createUserWithEmailAndPassword(
-        auth,
+        tempAuth,
         email,
         password
       );
       const newUid = userCredential.user.uid;
 
-      // --- PROFILE MỚI (đã sửa) ---
+      // 3. Đăng xuất người dùng mới khỏi instance tạm thời (để dọn dẹp)
+      await signOut(tempAuth);
+      // (Không cần xóa `tempApp`, nó sẽ tự mất khi tải lại trang)
+      
+      // --- KẾT THÚC GIẢI PHÁP ---
+
+      // 4. Tạo hồ sơ người dùng trong Firestore (dùng `db` chính)
       const newUserProfile = {
         email: email,
         displayName: displayName,
-        employeeId: employeeId, // <-- Dùng biến employeeId đã qua xử lý
-        role: role, // <-- Lấy từ dropdown
-        allowedViews: DEFAULT_VIEWS[role] || DEFAULT_VIEWS["Nhân viên"], // <-- Lấy quyền động
+        employeeId: employeeId,
+        role: role,
+        allowedViews: DEFAULT_VIEWS[role] || DEFAULT_VIEWS["Nhân viên"],
         managedBranches: [],
         requiresPasswordChange: true,
       };
-      // --- KẾT THÚC PROFILE MỚI ---
 
       await setDoc(
         doc(db, `/artifacts/${canvasAppId}/users/${newUid}`),
         newUserProfile
       );
 
-      await logActivity("Admin Create User", { newEmail: email, newUid: newUid });
+      // 5. Xác minh hồ sơ đã được lưu
+      const verifyDoc = await getDoc(doc(db, `/artifacts/${canvasAppId}/users/${newUid}`));
+      if (!verifyDoc.exists()) {
+        throw new Error("Failed to create user profile in database");
+      }
 
-      messageEl.textContent = `Tạo tài khoản ${email} (vai trò: ${role}) thành công!`;
+      // 6. Ghi lại hoạt động (với tư cách là Admin - `currentUser` vẫn là Admin)
+      //    Hàm `logActivity` sẽ tự động sử dụng `currentUserProfile` CỦA ADMIN
+      //    vì phiên đăng nhập chính không hề bị thay đổi.
+      await logActivity("Admin Create User", { newEmail: email, newUid: newUid });
+      
+      // 7. Hiển thị thông báo thành công và xóa form
+      messageEl.textContent = `Tạo tài khoản ${email} (vai trò: ${role}) thành công! Tài khoản đã sẵn sàng. Người dùng có thể đăng nhập và sẽ được yêu cầu đổi mật khẩu lần đầu.`;
       messageEl.className = "p-3 rounded-lg text-sm text-center alert-success";
       messageEl.classList.remove("hidden");
-      // Xóa trống form
+      
       mainContentContainer.querySelector("#createAccountEmail").value = "";
       mainContentContainer.querySelector("#createAccountPassword").value = "";
       mainContentContainer.querySelector("#createAccountUsername").value = "";
@@ -3811,6 +4266,10 @@
         
         // --- ▼▼▼ LOGIC VALIDATION MỚI ĐÃ SỬA ▼▼▼ ---
         let { email, password, displayName, employeeId, role } = row;
+        
+        // Normalize email and displayName (trim whitespace)
+        email = email ? email.toString().trim() : "";
+        displayName = displayName ? displayName.toString().trim() : "";
 
         // 1. Kiểm tra các trường cơ bản
         if (!email || !displayName) {
@@ -3876,12 +4335,23 @@
           }
 
           try {
+            // --- GIẢI PHÁP: TẠO APP TẠM THỜI ---
+            // Tạo một app Firebase tạm thời để tạo user mà không ảnh hưởng đến phiên đăng nhập của Admin
+            const tempAppName = `temp-create-user-${Date.now()}-${Math.random()}`;
+            const tempApp = initializeApp(firebaseConfig, tempAppName);
+            const tempAuth = getAuth(tempApp);
+
+            // Tạo người dùng trên instance `tempAuth` này
             const userCredential = await createUserWithEmailAndPassword(
-              auth,
+              tempAuth,
               email,
               password
             );
             const newUid = userCredential.user.uid;
+
+            // Đăng xuất người dùng mới khỏi instance tạm thời
+            await signOut(tempAuth);
+            // --- KẾT THÚC GIẢI PHÁP ---
 
             const newUserProfile = {
               email: email,
@@ -3897,7 +4367,16 @@
               doc(db, `/artifacts/${canvasAppId}/users/${newUid}`),
               newUserProfile
             );
+            
+            // Verify the profile was saved successfully
+            const verifyDoc = await getDoc(doc(db, `/artifacts/${canvasAppId}/users/${newUid}`));
+            if (!verifyDoc.exists()) {
+              throw new Error("Failed to create user profile in database");
+            }
+            
+            // Log activity as the admin (currentUserProfile vẫn là Admin vì không bị đăng xuất)
             await logActivity("Admin Bulk Create User", { newEmail: email });
+            
             createCount++;
           } catch (error) {
             errorCount++;
@@ -3906,7 +4385,11 @@
         }
       }
 
-      messageEl.innerHTML = `Hoàn tất: <br> - ${createCount} tài khoản đã tạo. <br> - ${updateCount} tài khoản đã cập nhật. <br> - ${errorCount} lỗi.`;
+      const messageText = createCount > 0 
+        ? `Hoàn tất: <br> - ${createCount} tài khoản đã tạo. <br> - ${updateCount} tài khoản đã cập nhật. <br> - ${errorCount} lỗi.${createCount > 0 ? '<br><br><strong>Lưu ý: Các tài khoản mới đã sẵn sàng. Người dùng có thể đăng nhập và sẽ được yêu cầu đổi mật khẩu lần đầu.</strong>' : ''}`
+        : `Hoàn tất: <br> - ${createCount} tài khoản đã tạo. <br> - ${updateCount} tài khoản đã cập nhật. <br> - ${errorCount} lỗi.`;
+      
+      messageEl.innerHTML = messageText;
       if (errors.length > 0) {
         messageEl.innerHTML += `<br>Chi tiết lỗi: <br>${errors
           .slice(0, 5)
@@ -4093,7 +4576,7 @@
         issueDescription: issueDescription,
         issueImageUrl: imageUrl,
         reportDate: new Date().toISOString(),
-        status: "Mới tạo",
+        status: "Chờ xử lý",
         issueScope: issueScope,
         specificRooms: specificRooms,
         assigneeId: null,
@@ -4570,6 +5053,15 @@
       e.stopPropagation();
       notificationMenu.classList.toggle("show");
     });
+    
+    // Mark all notifications as read button
+    const markAllReadBtn = document.getElementById("markAllReadBtn");
+    if (markAllReadBtn) {
+      markAllReadBtn.addEventListener("click", async (e) => {
+        e.stopPropagation();
+        await markAllNotificationsAsRead();
+      });
+    }
 
     mobileMenuToggle.addEventListener("click", () => toggleMobileMenu(false));
     sidebarOverlay.addEventListener("click", () => toggleMobileMenu(true));

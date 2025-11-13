@@ -90,8 +90,11 @@
                 <div id="notificationBadge" class="notification-badge"></div>
               </button>
               <div id="notificationMenu" class="dropdown-menu !w-80 sm:!w-96 max-h-96 overflow-y-auto">
-                <div class="p-3 font-semibold border-b border-slate-200">
-                  Thông Báo
+                <div class="p-3 font-semibold border-b border-slate-200 flex justify-between items-center">
+                  <span>Thông Báo</span>
+                  <button id="markAllReadBtn" class="text-xs text-indigo-600 hover:text-indigo-700 font-medium hidden">
+                    Đánh dấu tất cả đã đọc
+                  </button>
                 </div>
                 <div id="notificationList"></div>
               </div>
@@ -176,20 +179,20 @@
         </div>
         <div class="card p-6 mb-6">
           <h3 class="text-xl font-bold text-slate-800 mb-4">
-            Tạo Tài Khoản Mới
+            Tạo Tài Khoản Mới 
           </h3>
           <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label class="font-medium text-sm">Email:</label><input type="email" id="createAccountEmail"
-                class="input-field" />
+                class="input-field" autocomplete="off" />
             </div>
             <div>
               <label class="font-medium text-sm">Mật khẩu (tối thiểu 6 ký tự):</label><input type="password"
-                id="createAccountPassword" class="input-field" />
+                id="createAccountPassword" class="input-field" autocomplete="new-password" />
             </div>
             <div>
               <label class="font-medium text-sm">Tên người dùng:</label><input type="text" id="createAccountUsername"
-                class="input-field" />
+                class="input-field" autocomplete="off" />
             </div>
             
             <div>
@@ -200,7 +203,7 @@
             
             <div id="createAccountEmployeeIdContainer" class="md:col-span-2">
               <label class="font-medium text-sm">Mã nhân viên (MSNV):</label><input type="text"
-                id="createAccountEmployeeId" class="input-field" />
+                id="createAccountEmployeeId" class="input-field" autocomplete="off" />
             </div>
             
           </div>
@@ -218,7 +221,7 @@
             `displayName`, `employeeId`, `role`. Nếu `email` đã tồn tại, thông
             tin tài khoản sẽ được cập nhật. Nếu chưa có, tài khoản mới sẽ được
             tạo (mật khẩu là bắt buộc cho tài khoản mới). Vai trò hợp lệ là
-            'Admin', 'Manager', 'Nhân viên'.
+            'Admin', 'Manager', 'Nhân viên', 'Chi nhánh'.
           </p>
           <input type="file" id="excelFileInput" class="input-field mb-3" accept=".xlsx, .xls" />
           <div class="flex space-x-2">
@@ -328,7 +331,7 @@
                 <label class="flex items-center space-x-2 cursor-pointer">
                   <input type="radio" name="issueScope" value="all_rooms" class="form-radio h-4 w-4 text-indigo-600"
                     checked />
-                  <span class="text-sm">Toàn bộ chi nhánh</span>
+                  <span class="text-sm">Tất cả phòng</span>
                 </label>
                 <label class="flex items-center space-x-2 cursor-pointer">
                   <input type="radio" name="issueScope" value="specific_rooms"
@@ -375,9 +378,75 @@
       </div>
       <div id="issueHistoryView">
         <div class="card p-6">
-          <h2 class="text-2xl font-bold text-slate-800 mb-4">
-            Lịch Sử Báo Cáo
-          </h2>
+          <div class="flex flex-wrap justify-between items-center mb-6 gap-4">
+            <h2 class="text-2xl font-bold text-slate-800">
+              Lịch Sử Báo Cáo
+            </h2>
+            <button id="toggleFiltersBtn" class="btn-secondary text-sm">
+              <i class="fas fa-filter mr-2"></i>Bộ Lọc
+            </button>
+          </div>
+          
+          <!-- Filter Section -->
+          <div id="filterSection" class="mb-6 p-5 bg-gradient-to-br from-slate-50 to-slate-100 rounded-lg border border-slate-200 shadow-sm hidden">
+            <div class="flex items-center justify-between mb-4">
+              <h3 class="text-base font-semibold text-slate-700 flex items-center">
+                <i class="fas fa-sliders-h mr-2 text-indigo-600"></i>Lọc dữ liệu
+              </h3>
+              <span id="activeFiltersCount" class="text-xs font-medium text-indigo-600 bg-indigo-50 px-2 py-1 rounded-full hidden"></span>
+            </div>
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              <div>
+                <label for="filterBranch" class="block text-slate-600 text-sm font-medium mb-1.5">Chi nhánh</label>
+                <select id="filterBranch" class="select-field">
+                  <option value="">Tất cả</option>
+                </select>
+              </div>
+              <div>
+                <label for="filterIssueType" class="block text-slate-600 text-sm font-medium mb-1.5">Loại sự cố</label>
+                <select id="filterIssueType" class="select-field">
+                  <option value="">Tất cả</option>
+                  <option value="Kỹ thuật">Kỹ thuật</option>
+                  <option value="Vận hành">Vận hành</option>
+                  <option value="Hệ thống">Hệ thống</option>
+                  <option value="Con người">Con người</option>
+                  <option value="Khác">Khác</option>
+                </select>
+              </div>
+              <div>
+                <label for="filterStatus" class="block text-slate-600 text-sm font-medium mb-1.5">Trạng thái</label>
+                <select id="filterStatus" class="select-field">
+                  <option value="">Tất cả</option>
+                  <option value="Chờ xử lý">Chờ xử lý</option>
+                  <option value="Đang xử lý">Đang xử lý</option>
+                  <option value="Đã giải quyết">Đã giải quyết</option>
+                </select>
+              </div>
+              <div>
+                <label for="filterReporter" class="block text-slate-600 text-sm font-medium mb-1.5">Người gửi</label>
+                <select id="filterReporter" class="select-field">
+                  <option value="">Tất cả</option>
+                </select>
+              </div>
+              <div>
+                <label for="filterDateFrom" class="block text-slate-600 text-sm font-medium mb-1.5">Từ ngày</label>
+                <input type="date" id="filterDateFrom" class="input-field" />
+              </div>
+              <div>
+                <label for="filterDateTo" class="block text-slate-600 text-sm font-medium mb-1.5">Đến ngày</label>
+                <input type="date" id="filterDateTo" class="input-field" />
+              </div>
+            </div>
+            <div class="flex flex-wrap justify-end items-center gap-2 mt-4 pt-4 border-t border-slate-200">
+              <button id="clearFiltersBtn" class="btn-secondary text-sm">
+                <i class="fas fa-redo mr-1.5"></i>Xóa bộ lọc
+              </button>
+              <button id="applyFiltersBtn" class="btn-primary text-sm">
+                <i class="fas fa-search mr-1.5"></i>Áp dụng
+              </button>
+            </div>
+          </div>
+          
           <div class="overflow-x-auto">
             <table class="min-w-full divide-y divide-slate-200 responsive-table">
               <thead class="bg-slate-50">
