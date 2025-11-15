@@ -12,6 +12,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/browser-image-compression@2.0.2/dist/browser-image-compression.js"></script>
   <link rel="stylesheet" href="style.css" />
 </head>
 <script src="app.js" type="module"></script>
@@ -83,6 +84,11 @@
           </button>
           <div class="flex-1"></div>
           <div class="flex items-center space-x-4">
+            <!-- Online/Offline Status Indicator -->
+            <div id="onlineStatusIndicator" class="flex items-center space-x-2 px-3 py-1.5 rounded-full text-sm font-medium hidden">
+              <i id="onlineStatusIcon" class="fas fa-circle text-xs"></i>
+              <span id="onlineStatusText">Đang tải...</span>
+            </div>
             <div class="relative">
               <button id="notificationToggle"
                 class="text-xl text-slate-600 hover:text-indigo-600 transition-colors notification-badge-container">
@@ -110,6 +116,9 @@
                   <p id="dropdownUserName" class="truncate font-semibold"></p>
                   <p id="dropdownUserRole" class="truncate text-xs text-slate-500"></p>
                 </div>
+                <a href="#" id="myProfileDropdownBtn"
+                  class="flex items-center p-2 hover:bg-slate-100"><i
+                    class="fas fa-user fa-fw mr-2"></i>Hồ sơ của tôi</a>
                 <a href="#" id="logoutDropdownBtn"
                   class="flex items-center p-2 text-red-600 hover:bg-slate-100 rounded-b-md"><i
                     class="fas fa-sign-out-alt fa-fw mr-2"></i>Thoát</a>
@@ -206,6 +215,13 @@
                 id="createAccountEmployeeId" class="input-field" autocomplete="off" />
             </div>
             
+            <div id="createAccountBranchContainer" class="md:col-span-2 hidden">
+              <label class="font-medium text-sm">Chi nhánh <span class="text-red-500">*</span>:</label>
+              <select id="createAccountBranch" class="select-field">
+                <option value="">-- Chọn chi nhánh --</option>
+              </select>
+            </div>
+            
           </div>
           <button id="createAccountBtn" class="btn-primary mt-4">
             Tạo Tài Khoản
@@ -293,87 +309,169 @@
             Lỗi & Sự Cố
           </h2>
 
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
-
-            <div>
-              <label for="reporterName" class="block text-slate-600 text-sm font-medium mb-2">Người báo
-                cáo:</label><input type="text" id="reporterName" class="input-field bg-slate-100" disabled />
-            </div>
-
-            <div>
-              <label for="issueType" class="block text-slate-600 text-sm font-medium mb-2">Loại sự cố:</label><select
-                id="issueType" class="select-field">
-                <option value="Kỹ thuật">Kỹ thuật</option>
-                <option value="Vận hành">Vận hành</option>
-                <option value="Hệ thống">Hệ thống</option>
-                <option value="Con người">Con người</option>
-                <option value="Khác">Khác</option>
-              </select>
-            </div>
-
-            <div>
-              <label for="issuePriority" class="block text-slate-600 text-sm font-medium mb-2">Mức độ ưu
-                tiên:</label><select id="issuePriority" class="select-field">
-                <option value="Thấp">Thấp</option>
-                <option value="Trung bình">Trung bình</option>
-                <option value="Nghiêm trọng">Nghiêm trọng</option>
-              </select>
-            </div>
-
-            <div>
-              <label for="issueBranch" class="block text-slate-600 text-sm font-medium mb-2">Chi nhánh:</label><select
-                id="issueBranch" class="select-field"></select>
-            </div>
-
-            <div class="md:col-span-2 pt-2">
-              <label class="block text-slate-600 text-sm font-medium mb-2">Phạm vi sự cố:</label>
-              <div class="flex items-center space-x-6 mt-1">
-                <label class="flex items-center space-x-2 cursor-pointer">
-                  <input type="radio" name="issueScope" value="all_rooms" class="form-radio h-4 w-4 text-indigo-600"
-                    checked />
-                  <span class="text-sm">Tất cả phòng</span>
-                </label>
-                <label class="flex items-center space-x-2 cursor-pointer">
-                  <input type="radio" name="issueScope" value="specific_rooms"
-                    class="form-radio h-4 w-4 text-indigo-600" />
-                  <span class="text-sm">Phòng cụ thể</span>
-                </label>
-              </div>
-            </div>
-
-            <div id="floorSelectorContainer" class="hidden md:col-span-1">
-              <div>
-                <label for="issueFloor" class="block text-slate-600 text-sm font-medium mb-2">Tầng:</label>
-                <select id="issueFloor" class="select-field"></select>
-              </div>
-            </div>
-
-            <div id="specificRoomsContainer" class="hidden md:col-span-1">
-              <label for="specificRoomsTrigger" class="block text-slate-600 text-sm font-medium mb-2">Chọn phòng cụ
-                thể:</label>
-              <div class="custom-select-container">
-                <div id="specificRoomsTrigger" class="custom-select-trigger" tabindex="0">
+          <form id="issueReportForm" class="space-y-6">
+            <!-- Nhóm 1: Thông tin cơ bản -->
+            <div class="bg-slate-50 rounded-lg p-4 border border-slate-200">
+              <h3 class="text-lg font-semibold text-slate-700 mb-4 flex items-center">
+                <i class="fas fa-info-circle mr-2 text-indigo-600"></i>Thông tin cơ bản
+              </h3>
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label for="reporterName" class="block text-slate-600 text-sm font-medium mb-2">
+                    Người báo cáo <span class="text-red-500">*</span>
+                  </label>
+                  <input type="text" id="reporterName" class="input-field bg-slate-100" disabled />
                 </div>
-                <div id="specificRoomsOptions" class="custom-select-options">
+
+                <div>
+                  <label for="issueType" class="block text-slate-600 text-sm font-medium mb-2">
+                    Loại sự cố <span class="text-red-500">*</span>
+                  </label>
+                  <select id="issueType" class="select-field">
+                    <option value="">-- Chọn loại sự cố --</option>
+                    <option value="Kỹ thuật">Kỹ thuật</option>
+                    <option value="Vận hành">Vận hành</option>
+                    <option value="Hệ thống">Hệ thống</option>
+                    <option value="Con người">Con người</option>
+                    <option value="Khác">Khác</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label for="issuePriority" class="block text-slate-600 text-sm font-medium mb-2">
+                    Mức độ ưu tiên <span class="text-red-500">*</span>
+                  </label>
+                  <select id="issuePriority" class="select-field">
+                    <option value="Trung bình" selected>Trung bình</option>
+                    <option value="Thấp">Thấp</option>
+                    <option value="Nghiêm trọng">Nghiêm trọng</option>
+                  </select>
                 </div>
               </div>
             </div>
 
-            <div class="md:col-span-2 pt-2">
-              <label for="issueImage" class="block text-slate-600 text-sm font-medium mb-2">Ảnh mô tả lỗi:</label><input
-                type="file" id="issueImage" accept="image/*" class="input-field" />
+            <!-- Nhóm 2: Vị trí sự cố -->
+            <div class="bg-slate-50 rounded-lg p-4 border border-slate-200">
+              <h3 class="text-lg font-semibold text-slate-700 mb-4 flex items-center">
+                <i class="fas fa-map-marker-alt mr-2 text-indigo-600"></i>Vị trí sự cố
+              </h3>
+              
+              <!-- Tìm kiếm vị trí nhanh -->
+              <div class="mb-4">
+                <label for="locationSearch" class="block text-slate-600 text-sm font-medium mb-2">
+                  <i class="fas fa-search mr-1 text-indigo-600"></i>Tìm kiếm nhanh (Khuyến nghị)
+                </label>
+                <div class="relative">
+                  <input type="text" id="locationSearch" class="input-field pr-10" 
+                    placeholder="Gõ tên phòng (ví dụ: P.201, P.102) hoặc tên chi nhánh..."
+                    autocomplete="off" />
+                  <i class="fas fa-magic absolute right-3 top-1/2 transform -translate-y-1/2 text-slate-400 pointer-events-none"></i>
+                  <div id="locationSearchResults" class="hidden mt-2 bg-white border border-slate-200 rounded-lg shadow-lg max-h-60 overflow-y-auto absolute w-full top-full left-0 z-50"></div>
+                </div>
+                <p class="text-xs text-slate-500 mt-1.5 flex items-center">
+                  <i class="fas fa-lightbulb mr-1.5 text-yellow-500"></i>
+                  <span>Gõ tên phòng để tự động điền Chi nhánh và Tầng</span>
+                </p>
+              </div>
+
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label for="issueBranch" class="block text-slate-600 text-sm font-medium mb-2">
+                    Chi nhánh <span class="text-red-500">*</span>
+                  </label>
+                  <select id="issueBranch" class="select-field">
+                    <option value="">-- Chọn chi nhánh --</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label class="block text-slate-600 text-sm font-medium mb-2">
+                    Phạm vi sự cố <span class="text-red-500">*</span>
+                  </label>
+                  <div class="flex items-center space-x-6 mt-1 bg-white p-3 rounded-md border border-slate-200">
+                    <label class="flex items-center space-x-2 cursor-pointer">
+                      <input type="radio" name="issueScope" value="all_rooms" class="form-radio h-4 w-4 text-indigo-600"
+                        checked />
+                      <span class="text-sm font-medium">Tất cả phòng</span>
+                    </label>
+                    <label class="flex items-center space-x-2 cursor-pointer">
+                      <input type="radio" name="issueScope" value="specific_rooms"
+                        class="form-radio h-4 w-4 text-indigo-600" />
+                      <span class="text-sm font-medium">Phòng cụ thể</span>
+                    </label>
+                  </div>
+                </div>
+
+                <div id="floorSelectorContainer" class="hidden">
+                  <label for="issueFloor" class="block text-slate-600 text-sm font-medium mb-2">
+                    Tầng <span class="text-red-500">*</span>
+                  </label>
+                  <select id="issueFloor" class="select-field">
+                    <option value="">-- Chọn tầng --</option>
+                  </select>
+                </div>
+
+                <div id="specificRoomsContainer" class="hidden">
+                  <label for="specificRoomsTrigger" class="block text-slate-600 text-sm font-medium mb-2">
+                    Chọn phòng cụ thể <span class="text-red-500">*</span>
+                  </label>
+                  <div class="custom-select-container">
+                    <div id="specificRoomsTrigger" class="custom-select-trigger" tabindex="0">
+                    </div>
+                    <div id="specificRoomsOptions" class="custom-select-options">
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
 
-            <div class="md:col-span-2">
-              <label for="issueDescription" class="block text-slate-600 text-sm font-medium mb-2">Mô tả chi
-                tiết:</label><textarea id="issueDescription" class="textarea-field h-28"
-                placeholder="Mô tả sự cố..."></textarea>
+            <!-- Nhóm 3: Mô tả và hình ảnh -->
+            <div class="bg-slate-50 rounded-lg p-4 border border-slate-200">
+              <h3 class="text-lg font-semibold text-slate-700 mb-4 flex items-center">
+                <i class="fas fa-file-alt mr-2 text-indigo-600"></i>Mô tả và hình ảnh
+              </h3>
+              <div class="space-y-4">
+                <div>
+                  <label for="issueDescription" class="block text-slate-600 text-sm font-medium mb-2">
+                    Mô tả chi tiết <span class="text-red-500">*</span>
+                  </label>
+                  <textarea id="issueDescription" class="textarea-field h-32"
+                    placeholder="Mô tả chi tiết về sự cố, nguyên nhân (nếu biết), và các thông tin liên quan..."></textarea>
+                  <p class="text-xs text-slate-500 mt-1.5">
+                    <i class="fas fa-info-circle mr-1"></i>Vui lòng mô tả rõ ràng để hỗ trợ xử lý nhanh chóng
+                  </p>
+                </div>
+
+                <div>
+                  <label for="issueImage" class="block text-slate-600 text-sm font-medium mb-2">
+                    <i class="fas fa-image mr-1"></i>Ảnh mô tả lỗi (Tùy chọn)
+                  </label>
+                  <div class="flex items-center space-x-3">
+                    <input type="file" id="issueImage" accept="image/*" class="input-field flex-1" />
+                    <span class="text-xs text-slate-500 whitespace-nowrap">
+                      <i class="fas fa-compress mr-1"></i>Ảnh sẽ được nén tự động
+                    </span>
+                  </div>
+                  <p class="text-xs text-slate-500 mt-1.5">
+                    <i class="fas fa-lightbulb mr-1"></i>Hình ảnh giúp mô tả sự cố rõ ràng hơn
+                  </p>
+                </div>
+              </div>
             </div>
-          </div>
-          <button id="reportIssueBtn" class="btn-primary mt-6">
-            <i class="fas fa-paper-plane mr-2"></i>Gửi Báo Cáo
-          </button>
-          <div id="issueMessage" class="hidden mt-4 p-3 rounded-lg text-sm"></div>
+
+            <!-- Nút gửi -->
+            <div class="flex items-center justify-between pt-4 border-t border-slate-200">
+              <p class="text-xs text-slate-500">
+                <span class="text-red-500">*</span> Trường bắt buộc
+              </p>
+              <button type="button" id="reportIssueBtn" class="btn-primary px-8 py-3 text-base">
+                <i class="fas fa-paper-plane mr-2"></i>Gửi Báo Cáo
+              </button>
+            </div>
+
+            <!-- Thông báo -->
+            <div id="issueMessage" class="hidden p-3 rounded-lg text-sm"></div>
+          </form>
         </div>
       </div>
       <div id="issueHistoryView">
@@ -382,9 +480,14 @@
             <h2 class="text-2xl font-bold text-slate-800">
               Lịch Sử Báo Cáo
             </h2>
-            <button id="toggleFiltersBtn" class="btn-secondary text-sm">
-              <i class="fas fa-filter mr-2"></i>Bộ Lọc
-            </button>
+            <div class="flex items-center gap-2">
+              <button id="exportIssueHistoryBtn" class="btn-primary text-sm">
+                <i class="fas fa-file-excel mr-2"></i>Xuất Excel
+              </button>
+              <button id="toggleFiltersBtn" class="btn-secondary text-sm">
+                <i class="fas fa-filter mr-2"></i>Bộ Lọc
+              </button>
+            </div>
           </div>
           
           <!-- Filter Section -->
@@ -512,6 +615,194 @@
           <div id="myTasksPagination" class="flex justify-between items-center mt-4"></div>
         </div>
       </div>
+      
+      <!-- Quản Lý Ca Làm Việc (Admin only) -->
+      <div id="manageShiftsView">
+        <div class="card p-6">
+          <h2 class="text-2xl font-bold text-slate-800 mb-6 flex items-center">
+            <i class="fas fa-calendar-alt mr-3 text-indigo-600"></i>Quản Lý Ca Làm Việc
+          </h2>
+          
+          <!-- Tạo ca mới -->
+          <div class="card p-5 mb-6 bg-slate-50 border border-slate-200">
+            <h3 class="text-lg font-semibold text-slate-700 mb-4">
+              <i class="fas fa-plus-circle mr-2 text-indigo-600"></i>Tạo Ca Làm Việc Mới
+            </h3>
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              <div>
+                <label for="shiftName" class="block text-slate-600 text-sm font-medium mb-2">
+                  Tên ca <span class="text-red-500">*</span>
+                </label>
+                <input type="text" id="shiftName" class="input-field" placeholder="VD: Ca Sáng, Ca Chiều" />
+              </div>
+              <div>
+                <label for="shiftStartTime" class="block text-slate-600 text-sm font-medium mb-2">
+                  Giờ bắt đầu <span class="text-red-500">*</span>
+                </label>
+                <input type="time" id="shiftStartTime" class="input-field" />
+              </div>
+              <div>
+                <label for="shiftEndTime" class="block text-slate-600 text-sm font-medium mb-2">
+                  Giờ kết thúc <span class="text-red-500">*</span>
+                </label>
+                <input type="time" id="shiftEndTime" class="input-field" />
+              </div>
+              <div>
+                <label for="shiftBreakDuration" class="block text-slate-600 text-sm font-medium mb-2">
+                  Thời gian nghỉ (phút)
+                </label>
+                <input type="number" id="shiftBreakDuration" class="input-field" value="0" min="0" />
+              </div>
+            </div>
+            <button id="createShiftBtn" class="btn-primary mt-4">
+              <i class="fas fa-plus mr-2"></i>Tạo Ca
+            </button>
+            <div id="shiftMessage" class="hidden mt-4 p-3 rounded-lg text-sm"></div>
+          </div>
+
+          <!-- Danh sách ca -->
+          <div class="mb-6">
+            <h3 class="text-lg font-semibold text-slate-700 mb-4">
+              <i class="fas fa-list mr-2 text-indigo-600"></i>Danh Sách Ca Làm Việc
+            </h3>
+            <div class="overflow-x-auto">
+              <table class="min-w-full divide-y divide-slate-200 responsive-table">
+                <thead class="bg-slate-50">
+                  <tr>
+                    <th class="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase">Tên ca</th>
+                    <th class="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase">Giờ bắt đầu</th>
+                    <th class="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase">Giờ kết thúc</th>
+                    <th class="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase">Thời gian nghỉ</th>
+                    <th class="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase">Tổng giờ</th>
+                    <th class="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase">Số nhân viên</th>
+                    <th class="px-4 py-3 text-right text-xs font-semibold text-slate-500 uppercase">Hành động</th>
+                  </tr>
+                </thead>
+                <tbody id="shiftsTableBody" class="bg-white divide-y divide-slate-200">
+                  <tr><td colspan="7" class="text-center p-4 text-slate-500">Đang tải...</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- Gán ca cho nhân viên -->
+          <div class="card p-5 bg-slate-50 border border-slate-200">
+            <h3 class="text-lg font-semibold text-slate-700 mb-4">
+              <i class="fas fa-user-plus mr-2 text-indigo-600"></i>Gán Ca Cho Nhân Viên
+            </h3>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div>
+                <label for="assignShiftEmployee" class="block text-slate-600 text-sm font-medium mb-2">
+                  Chọn nhân viên <span class="text-red-500">*</span>
+                </label>
+                <select id="assignShiftEmployee" class="select-field">
+                  <option value="">-- Chọn nhân viên --</option>
+                </select>
+              </div>
+              <div>
+                <label for="assignShiftName" class="block text-slate-600 text-sm font-medium mb-2">
+                  Chọn ca <span class="text-red-500">*</span>
+                </label>
+                <select id="assignShiftName" class="select-field">
+                  <option value="">-- Chọn ca --</option>
+                </select>
+              </div>
+              <div class="flex items-end">
+                <button id="assignShiftBtn" class="btn-primary w-full">
+                  <i class="fas fa-check mr-2"></i>Gán Ca
+                </button>
+              </div>
+            </div>
+            <div id="assignShiftMessage" class="hidden mt-4 p-3 rounded-lg text-sm"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Bảng Chấm Công (Admin & Manager) -->
+      <div id="attendanceReportView">
+        <div class="card p-6">
+          <h2 class="text-2xl font-bold text-slate-800 mb-6 flex items-center">
+            <i class="fas fa-file-invoice mr-3 text-indigo-600"></i>Bảng Chấm Công
+          </h2>
+          
+          <!-- Bộ lọc -->
+          <div class="card p-5 mb-6 bg-slate-50 border border-slate-200">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div>
+                <label for="attendanceReportMonth" class="block text-slate-600 text-sm font-medium mb-2">
+                  <i class="fas fa-calendar mr-1"></i>Tháng/Năm
+                </label>
+                <input type="month" id="attendanceReportMonth" class="input-field" />
+              </div>
+              <div>
+                <label for="attendanceReportEmployee" class="block text-slate-600 text-sm font-medium mb-2">
+                  <i class="fas fa-user mr-1"></i>Nhân viên
+                </label>
+                <select id="attendanceReportEmployee" class="select-field">
+                  <option value="">Tất cả nhân viên</option>
+                </select>
+              </div>
+              <div class="flex items-end">
+                <button id="generateAttendanceReportBtn" class="btn-primary w-full">
+                  <i class="fas fa-search mr-2"></i>Tạo Báo Cáo
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Kết quả báo cáo -->
+          <div id="attendanceReportResults" class="hidden">
+            <!-- Tổng quan -->
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+              <div class="card p-4 bg-blue-50 border border-blue-200">
+                <p class="text-sm text-blue-600 font-medium">Tổng số giờ</p>
+                <p id="reportTotalHours" class="text-2xl font-bold text-blue-700">0</p>
+              </div>
+              <div class="card p-4 bg-green-50 border border-green-200">
+                <p class="text-sm text-green-600 font-medium">Số ngày làm việc</p>
+                <p id="reportWorkingDays" class="text-2xl font-bold text-green-700">0</p>
+              </div>
+              <div class="card p-4 bg-yellow-50 border border-yellow-200">
+                <p class="text-sm text-yellow-600 font-medium">Số ngày nghỉ</p>
+                <p id="reportAbsentDays" class="text-2xl font-bold text-yellow-700">0</p>
+              </div>
+              <div class="card p-4 bg-purple-50 border border-purple-200">
+                <p class="text-sm text-purple-600 font-medium">Số lần check-in</p>
+                <p id="reportCheckIns" class="text-2xl font-bold text-purple-700">0</p>
+              </div>
+            </div>
+
+            <!-- Bảng chi tiết -->
+            <div class="overflow-x-auto">
+              <table class="min-w-full divide-y divide-slate-200 responsive-table">
+                <thead class="bg-slate-50">
+                  <tr>
+                    <th class="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase">Ngày</th>
+                    <th class="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase">Nhân viên</th>
+                    <th class="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase">Ca</th>
+                    <th class="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase">Check-in</th>
+                    <th class="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase">Check-out</th>
+                    <th class="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase">Số giờ</th>
+                    <th class="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase">Trạng thái</th>
+                  </tr>
+                </thead>
+                <tbody id="attendanceReportTableBody" class="bg-white divide-y divide-slate-200">
+                </tbody>
+              </table>
+            </div>
+
+            <!-- Nút xuất Excel -->
+            <div class="mt-4 flex justify-end">
+              <button id="exportAttendanceReportBtn" class="btn-primary">
+                <i class="fas fa-file-excel mr-2"></i>Xuất Excel
+              </button>
+            </div>
+          </div>
+
+          <div id="attendanceReportMessage" class="hidden mt-4 p-3 rounded-lg text-sm"></div>
+        </div>
+      </div>
+
       <div id="activityLogView">
         <div class="card p-6">
           <h2 class="text-2xl font-bold text-slate-800 mb-4">
@@ -569,6 +860,12 @@
               <label class="font-medium">Tên người dùng:</label><input type="text" id="editAccountUsername"
                 class="input-field" />
             </div>
+            <div id="editAccountBranchContainer" class="md:col-span-2 hidden">
+              <label class="font-medium">Chi nhánh <span class="text-red-500">*</span>:</label>
+              <select id="editAccountBranch" class="select-field">
+                <option value="">-- Chọn chi nhánh --</option>
+              </select>
+            </div>
           </div>
           <div id="managedBranchesContainer" class="hidden pt-4 border-t">
             <h4 class="font-semibold mb-2">Phân Quyền Quản Lý Chi Nhánh</h4>
@@ -622,8 +919,11 @@
               <h4 class="font-semibold text-slate-700 mb-2">Thảo luận</h4>
               <div id="detailIssueComments"
                 class="space-y-3 max-h-60 overflow-y-auto pr-2 mb-4 bg-slate-50 p-2 rounded-md"></div>
-              <div class="flex space-x-2">
-                <input type="text" id="newCommentInput" class="input-field flex-grow" placeholder="Thêm bình luận..." />
+              <div class="flex space-x-2 relative">
+                <div class="flex-grow relative">
+                  <input type="text" id="newCommentInput" class="input-field w-full pr-10" placeholder="Thêm bình luận... (Gõ @ để tag người dùng)" />
+                  <div id="mentionSuggestions" class="hidden absolute top-full left-0 right-0 mt-1 bg-white border border-slate-200 rounded-lg shadow-lg max-h-48 overflow-y-auto z-50"></div>
+                </div>
                 <button id="addCommentBtn" class="btn-primary">Gửi</button>
               </div>
             </div>
@@ -678,6 +978,119 @@
               <div id="detailIssueMessage" class="hidden mt-4 p-3 rounded-lg text-sm"></div>
             </div>
           </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- My Profile Modal -->
+    <div id="myProfileModal" class="modal">
+      <div class="modal-content w-[95%] !max-w-2xl">
+        <div class="flex justify-between items-center mb-6">
+          <h3 class="text-2xl font-bold text-slate-800 flex items-center">
+            <i class="fas fa-user mr-3 text-indigo-600"></i>Hồ sơ của tôi
+          </h3>
+          <span id="closeMyProfileModalBtn" class="cursor-pointer text-2xl">&times;</span>
+        </div>
+        
+        <div class="space-y-6">
+          <!-- Thông tin cá nhân -->
+          <div class="border-b border-slate-200 pb-6">
+            <h3 class="text-xl font-semibold text-slate-800 mb-4">
+              Thông tin cá nhân
+            </h3>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label for="profileEmail" class="block text-slate-600 text-sm font-medium mb-2">
+                  Email:
+                </label>
+                <input type="email" id="profileEmail" class="input-field bg-slate-100" disabled />
+              </div>
+              <div>
+                <label for="profileEmployeeId" class="block text-slate-600 text-sm font-medium mb-2">
+                  Mã nhân viên (MSNV):
+                </label>
+                <input type="text" id="profileEmployeeId" class="input-field bg-slate-100" disabled />
+              </div>
+              <div>
+                <label for="profileRole" class="block text-slate-600 text-sm font-medium mb-2">
+                  Vai trò:
+                </label>
+                <input type="text" id="profileRole" class="input-field bg-slate-100" disabled />
+              </div>
+              <div>
+                <label for="profileDisplayName" class="block text-slate-600 text-sm font-medium mb-2">
+                  Tên hiển thị:
+                </label>
+                <input type="text" id="profileDisplayName" class="input-field" />
+              </div>
+            </div>
+            <button id="updateProfileBtn" class="btn-primary mt-4">
+              <i class="fas fa-save mr-2"></i>Cập nhật thông tin
+            </button>
+            <div id="profileUpdateMessage" class="hidden mt-4 p-3 rounded-lg text-sm"></div>
+          </div>
+
+          <!-- Đổi mật khẩu -->
+          <div>
+            <h3 class="text-xl font-semibold text-slate-800 mb-4">
+              Đổi mật khẩu
+            </h3>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label for="profileCurrentPassword" class="block text-slate-600 text-sm font-medium mb-2">
+                  Mật khẩu hiện tại:
+                </label>
+                <input type="password" id="profileCurrentPassword" class="input-field" placeholder="••••••••" />
+              </div>
+              <div>
+                <label for="profileNewPassword" class="block text-slate-600 text-sm font-medium mb-2">
+                  Mật khẩu mới (tối thiểu 6 ký tự):
+                </label>
+                <input type="password" id="profileNewPassword" class="input-field" placeholder="••••••••" />
+              </div>
+              <div>
+                <label for="profileConfirmPassword" class="block text-slate-600 text-sm font-medium mb-2">
+                  Xác nhận mật khẩu mới:
+                </label>
+                <input type="password" id="profileConfirmPassword" class="input-field" placeholder="••••••••" />
+              </div>
+            </div>
+            <button id="changePasswordBtn" class="btn-primary mt-4">
+              <i class="fas fa-key mr-2"></i>Đổi mật khẩu
+            </button>
+            <div id="passwordChangeMessage" class="hidden mt-4 p-3 rounded-lg text-sm"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Confirmation Modal for Cancel/Delete Actions -->
+    <div id="confirmCancelModal" class="modal">
+      <div class="modal-content !max-w-lg">
+        <div class="flex justify-between items-start mb-4">
+          <h3 class="text-xl font-bold text-slate-800">
+            <i class="fas fa-exclamation-triangle text-yellow-500 mr-2"></i>Xác nhận Hủy
+          </h3>
+          <span id="closeConfirmCancelModalBtn" class="cursor-pointer text-2xl">&times;</span>
+        </div>
+        <div class="mb-6">
+          <p class="text-slate-700 mb-4" id="confirmCancelMessage">
+            Bạn có chắc chắn muốn hủy sự cố này không?
+          </p>
+          <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+            <p class="text-sm text-yellow-800">
+              <i class="fas fa-info-circle mr-2"></i>
+              <strong>Lưu ý:</strong> Hành động này sẽ đánh dấu sự cố là "Đã hủy" và không thể hoàn tác.
+            </p>
+          </div>
+        </div>
+        <div class="flex justify-end space-x-3">
+          <button id="cancelConfirmCancelBtn" class="btn-secondary">
+            <i class="fas fa-times mr-2"></i>Không
+          </button>
+          <button id="confirmCancelBtn" class="btn-danger">
+            <i class="fas fa-check mr-2"></i>Có, hủy sự cố
+          </button>
         </div>
       </div>
     </div>

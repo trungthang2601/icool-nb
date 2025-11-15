@@ -8,9 +8,12 @@
     signOut,
     signInWithCustomToken,
     createUserWithEmailAndPassword,
+    EmailAuthProvider,
+    reauthenticateWithCredential,
   } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
   import {
     getFirestore,
+    enableIndexedDbPersistence,
     doc,
     collection,
     query,
@@ -25,6 +28,7 @@
     serverTimestamp,
     limit,
     deleteDoc,
+    startAfter,
   } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
   import {
     getStorage,
@@ -422,26 +426,45 @@
     myTasksView: "Nhiệm Vụ Của Tôi",
     manageAccountsView: "Quản Lý Tài Khoản",
     activityLogView: "Nhật Ký Hoạt Động",
+    myProfileView: "Hồ sơ của tôi",
+    manageShiftsView: "Quản Lý Ca Làm Việc",
+    attendanceReportView: "Bảng Chấm Công",
   };
   const ROLES = ["Admin", "Manager", "Nhân viên", "Chi nhánh"];
+    // Thứ tự menu hợp lý: Dashboard -> Chấm công -> Báo lỗi -> Công việc -> Quản lý
+    // Lưu ý: "Hồ sơ của tôi" đã được chuyển thành modal, không còn trong sidebar
   const DEFAULT_VIEWS = {
-    Admin: Object.keys(ALL_VIEWS),
+    Admin: [
+      "dashboardView",              // 1. Tổng quan
+      "attendanceView",             // 2. Điểm danh
+      "attendanceReportView",        // 3. Bảng chấm công
+      "manageShiftsView",           // 4. Quản lý ca làm việc
+      "issueReportView",            // 5. Báo lỗi
+      "issueHistoryView",           // 6. Lịch sử báo cáo
+      "myTasksView",                // 7. Nhiệm vụ của tôi
+      "manageAccountsView",         // 8. Quản lý tài khoản
+      "activityLogView",            // 9. Nhật ký hoạt động
+    ],
     Manager: [
-      "dashboardView",
-      "attendanceView",
-      "issueReportView",
-      "issueHistoryView",
-      "myTasksView",
-      "activityLogView",
+      "dashboardView",              // 1. Tổng quan
+      "attendanceView",             // 2. Điểm danh
+      "attendanceReportView",       // 3. Bảng chấm công
+      "issueReportView",            // 4. Báo lỗi
+      "issueHistoryView",           // 5. Lịch sử báo cáo
+      "myTasksView",                // 6. Nhiệm vụ của tôi
+      "activityLogView",            // 7. Nhật ký hoạt động
     ],
     "Nhân viên": [
-      "dashboardView",
-      "attendanceView",
-      "issueReportView",
-      "issueHistoryView",
-      "myTasksView",
+      "dashboardView",              // 1. Tổng quan
+      "attendanceView",             // 2. Điểm danh
+      "issueReportView",            // 3. Báo lỗi
+      "issueHistoryView",          // 4. Lịch sử báo cáo
+      "myTasksView",                // 5. Nhiệm vụ của tôi
     ],
-    "Chi nhánh": ["issueReportView", "issueHistoryView"],
+    "Chi nhánh": [
+      "issueReportView",            // 1. Báo lỗi
+      "issueHistoryView",          // 2. Lịch sử báo cáo
+    ],
   };
   const ISSUE_STATUSES = ["Chờ xử lý", "Đang xử lý", "Đã giải quyết", "Đã hủy"];
   const ISSUE_TYPES = ["Kỹ thuật", "Vận hành", "Hệ thống", "Con người", "Khác"];
@@ -477,6 +500,16 @@
   let issueHistoryCurrentPage = 1;
   let myTasksCurrentPage = 1;
   const ITEMS_PER_PAGE = 10;
+  // Server-side pagination state
+  let issueHistoryLastVisible = null;
+  let issueHistoryHasMore = false;
+  let issueHistoryTotalCount = 0;
+  let activityLogLastVisible = null;
+  let activityLogHasMore = false;
+  let accountsLastVisible = null;
+  let accountsHasMore = false;
+  let myTasksLastVisible = null;
+  let myTasksHasMore = false;
 
   // --- DOM Element References ---
   let skeletonLoader,
@@ -495,8 +528,11 @@
     deleteAccountModal,
     resetPasswordModal,
     forceChangePasswordModal,
-    drillDownModal;
+    drillDownModal,
+    confirmCancelModal,
+    myProfileModal;
   let sidebar, mobileMenuToggle;
+  let onlineStatusIndicator, onlineStatusIcon, onlineStatusText;
 
   // --- App Initialization ---
   document.addEventListener("DOMContentLoaded", async () => {
@@ -510,6 +546,25 @@
       db = getFirestore(app);
       storage = getStorage(app);
 
+      // Enable offline persistence for Firestore
+      // This allows the app to work offline and sync when connection is restored
+      try {
+        await enableIndexedDbPersistence(db);
+        console.log("✅ Offline persistence enabled");
+      } catch (persistenceError) {
+        // Handle errors (e.g., multiple tabs open, browser doesn't support it)
+        if (persistenceError.code === "failed-precondition") {
+          console.warn("⚠️ Offline persistence failed: Multiple tabs open. Persistence can only be enabled in one tab at a time.");
+        } else if (persistenceError.code === "unimplemented") {
+          console.warn("⚠️ Offline persistence not supported in this browser.");
+        } else {
+          console.warn("⚠️ Offline persistence error:", persistenceError);
+        }
+      }
+
+      // Set up online/offline status monitoring
+      setupOnlineStatusMonitoring();
+
       onAuthStateChanged(auth, handleAuthStateChange);
 
       if (initialAuthToken) {
@@ -522,6 +577,65 @@
       authSection.classList.remove("hidden");
     }
   });
+
+  /**
+   * Sets up online/offline status monitoring and UI updates
+   */
+  function setupOnlineStatusMonitoring() {
+    if (!onlineStatusIndicator || !onlineStatusIcon || !onlineStatusText) {
+      return; // Elements not available yet
+    }
+
+    // Update status based on current connection state
+    const updateOnlineStatus = (isOnline) => {
+      if (!onlineStatusIndicator || !onlineStatusIcon || !onlineStatusText) return;
+
+      onlineStatusIndicator.classList.remove("hidden");
+      
+      if (isOnline) {
+        // Online state
+        onlineStatusIndicator.className = "flex items-center space-x-2 px-3 py-1.5 rounded-full text-sm font-medium bg-green-100 text-green-700";
+        onlineStatusIcon.className = "fas fa-circle text-xs text-green-500";
+        onlineStatusText.textContent = "Trực tuyến";
+        onlineStatusIcon.title = "Kết nối mạng hoạt động bình thường";
+      } else {
+        // Offline state
+        onlineStatusIndicator.className = "flex items-center space-x-2 px-3 py-1.5 rounded-full text-sm font-medium bg-yellow-100 text-yellow-700";
+        onlineStatusIcon.className = "fas fa-circle text-xs text-yellow-500";
+        onlineStatusText.textContent = "Ngoại tuyến";
+        onlineStatusIcon.title = "Không có kết nối mạng. Dữ liệu sẽ được đồng bộ khi có mạng trở lại.";
+      }
+    };
+
+    // Initial status
+    updateOnlineStatus(navigator.onLine);
+
+    // Listen for online/offline events
+    window.addEventListener("online", () => {
+      console.log("✅ Connection restored");
+      updateOnlineStatus(true);
+      
+      // Show a brief notification that sync is happening
+      if (onlineStatusText) {
+        const originalText = onlineStatusText.textContent;
+        onlineStatusText.textContent = "Đang đồng bộ...";
+        setTimeout(() => {
+          if (onlineStatusText) {
+            onlineStatusText.textContent = originalText;
+          }
+        }, 2000);
+      }
+    });
+
+    window.addEventListener("offline", () => {
+      console.log("⚠️ Connection lost - Offline mode activated");
+      updateOnlineStatus(false);
+    });
+
+    // Also monitor Firestore connection state if available
+    // Note: Firestore doesn't expose connection state directly in v9+,
+    // but offline persistence handles sync automatically
+  }
 
   // --- Escalation & Settings Functions (Admin only) ---
   async function handleSaveSettings() {
@@ -742,6 +856,13 @@
       userDoc = await getDoc(userDocRef);
     }
     currentUserProfile = userDoc.data();
+    
+    // Filter out myProfileView from allowedViews (it's now a modal, not a sidebar view)
+    if (currentUserProfile.allowedViews && Array.isArray(currentUserProfile.allowedViews)) {
+      currentUserProfile.allowedViews = currentUserProfile.allowedViews.filter(
+        (viewId) => viewId !== "myProfileView"
+      );
+    }
   }
 
   async function handleLogin() {
@@ -794,7 +915,12 @@
 
   function renderSidebarNav() {
     sidebarNav.innerHTML = "";
-    currentUserProfile.allowedViews.forEach((viewId) => {
+    // Filter out myProfileView (it's now a modal, not a sidebar view)
+    const filteredViews = (currentUserProfile.allowedViews || []).filter(
+      (viewId) => viewId !== "myProfileView"
+    );
+    
+    filteredViews.forEach((viewId) => {
       if (ALL_VIEWS[viewId]) {
         const button = document.createElement("button");
         button.className = "sidebar-nav-link w-full text-left p-3 rounded-md";
@@ -807,6 +933,9 @@
           myTasksView: "fa-tasks",
           manageAccountsView: "fa-users-cog",
           activityLogView: "fa-clipboard-list",
+          myProfileView: "fa-user",
+          manageShiftsView: "fa-calendar-alt",
+          attendanceReportView: "fa-file-invoice",
         };
         button.innerHTML = `<i class="fas ${icons[viewId]} fa-fw mr-3"></i>${ALL_VIEWS[viewId]}`;
         button.addEventListener("click", () => showView(viewId));
@@ -1095,6 +1224,62 @@
     listenToAttendance();
   };
 
+  /**
+   * Setup Quản Lý Ca Làm Việc view (Admin only)
+   */
+  window.setup_manageShiftsView = function () {
+    if (!currentUserProfile || currentUserProfile.role !== "Admin") return;
+
+    // Initialize default shifts if none exist
+    initializeDefaultShifts().then(() => {
+      // Load shifts and populate dropdowns
+      loadShifts();
+      loadEmployeesForShiftAssignment();
+    });
+
+    // Create shift button
+    const createShiftBtn = mainContentContainer.querySelector("#createShiftBtn");
+    if (createShiftBtn) {
+      createShiftBtn.addEventListener("click", handleCreateShift);
+    }
+
+    // Assign shift button
+    const assignShiftBtn = mainContentContainer.querySelector("#assignShiftBtn");
+    if (assignShiftBtn) {
+      assignShiftBtn.addEventListener("click", handleAssignShift);
+    }
+  };
+
+  /**
+   * Setup Bảng Chấm Công view (Admin & Manager)
+   */
+  window.setup_attendanceReportView = function () {
+    if (!currentUserProfile) return;
+    if (currentUserProfile.role !== "Admin" && currentUserProfile.role !== "Manager") return;
+
+    // Set default month to current month
+    const monthInput = mainContentContainer.querySelector("#attendanceReportMonth");
+    if (monthInput) {
+      const now = new Date();
+      monthInput.value = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+    }
+
+    // Load employees for filter
+    loadEmployeesForAttendanceReport();
+
+    // Generate report button
+    const generateBtn = mainContentContainer.querySelector("#generateAttendanceReportBtn");
+    if (generateBtn) {
+      generateBtn.addEventListener("click", generateAttendanceReport);
+    }
+
+    // Export button
+    const exportBtn = mainContentContainer.querySelector("#exportAttendanceReportBtn");
+    if (exportBtn) {
+      exportBtn.addEventListener("click", handleExportAttendanceReport);
+    }
+  };
+
   window.setup_manageAccountsView = function () {
     if (!currentUserProfile) return;
 
@@ -1127,21 +1312,34 @@
           }>${r}</option>`
       ).join("");
 
-      // 2. Hàm ẩn/hiện MSNV
-      const toggleEmployeeIdField = () => {
+      // 2. Populate branch dropdown
+      const branchContainer = mainContentContainer.querySelector("#createAccountBranchContainer");
+      const branchSelect = mainContentContainer.querySelector("#createAccountBranch");
+      if (branchSelect) {
+        branchSelect.innerHTML = '<option value="">-- Chọn chi nhánh --</option>' + 
+          ALL_BRANCHES.map(b => `<option value="${b}">${b}</option>`).join("");
+      }
+
+      // 3. Hàm ẩn/hiện MSNV và Branch
+      const toggleEmployeeFields = () => {
         const selectedRole = createRoleSelect.value;
         if (selectedRole === "Chi nhánh") {
           employeeIdContainer.classList.add("hidden");
+          if (branchContainer) branchContainer.classList.add("hidden");
+        } else if (selectedRole === "Nhân viên") {
+          employeeIdContainer.classList.remove("hidden");
+          if (branchContainer) branchContainer.classList.remove("hidden");
         } else {
           employeeIdContainer.classList.remove("hidden");
+          if (branchContainer) branchContainer.classList.add("hidden");
         }
       };
 
-      // 3. Gắn event listener
-      createRoleSelect.addEventListener("change", toggleEmployeeIdField);
+      // 4. Gắn event listener
+      createRoleSelect.addEventListener("change", toggleEmployeeFields);
 
-      // 4. Chạy 1 lần lúc ban đầu để set trạng thái đúng
-      toggleEmployeeIdField();
+      // 5. Chạy 1 lần lúc ban đầu để set trạng thái đúng
+      toggleEmployeeFields();
     }
     // --- KẾT THÚC BỔ SUNG ---
     mainContentContainer
@@ -1161,7 +1359,7 @@
     showDisabledToggle.addEventListener("change", () => {
       showDisabledAccounts = showDisabledToggle.checked;
       accountsCurrentPage = 1;
-      renderAccountsTable(allUsersCache); // Re-render from cache when toggling
+      loadAccountsPage(true); // Reload from server when toggling
     });
 
     const exportAllBtn = mainContentContainer.querySelector(
@@ -1187,28 +1385,77 @@
       }
     }
 
-    const q = query(collection(db, `/artifacts/${canvasAppId}/users`));
-    const unsubscribe = onSnapshot(
-      q,
-      (snapshot) => {
-        allUsersCache = snapshot.docs.map((doc) => ({
+    // Load initial page with server-side pagination
+    loadAccountsPage(true);
+  };
+
+  /**
+   * Loads accounts page with server-side pagination
+   * @param {boolean} resetPage - Whether to reset to page 1
+   * @param {boolean} loadNext - Whether to load next page
+   */
+  async function loadAccountsPage(resetPage = false, loadNext = false) {
+    const tableBody = mainContentContainer.querySelector("#accountsTableBody");
+    if (!tableBody) return;
+
+    if (resetPage) {
+      accountsCurrentPage = 1;
+      accountsLastVisible = null;
+      allUsersCache = [];
+    }
+
+    // Show loading state
+    tableBody.innerHTML = `<tr><td colspan="5" class="text-center p-4">Đang tải...</td></tr>`;
+
+    try {
+      // Build query - filter disabled accounts if needed
+      let q = query(collection(db, `/artifacts/${canvasAppId}/users`));
+      
+      // Note: Firestore doesn't have a direct "disabled" field check
+      // We'll filter client-side for disabled accounts
+      // For now, load all and filter client-side
+      
+      // Add ordering and pagination
+      q = query(q, orderBy("displayName"), limit(ITEMS_PER_PAGE));
+
+      // Add startAfter for pagination
+      if (loadNext && accountsLastVisible) {
+        q = query(q, startAfter(accountsLastVisible));
+      }
+
+      // Execute query
+      const snapshot = await getDocs(q);
+      const users = snapshot.docs.map((doc) => ({
           uid: doc.id,
           ...doc.data(),
         }));
-        renderAccountsTable(allUsersCache); // This is the main render call with fresh data
-      },
-      (error) => {
-        console.error("Error listening for account changes:", error);
-        const tableBody =
-          mainContentContainer.querySelector("#accountsTableBody");
-        if (tableBody) {
-          tableBody.innerHTML = `<tr><td colspan="5" class="text-center p-4 text-red-500">Lỗi tải danh sách người dùng.</td></tr>`;
+
+      // Filter disabled accounts client-side
+      let filteredUsers = users;
+      if (!showDisabledAccounts) {
+        filteredUsers = users.filter((user) => !user.disabled);
+      }
+
+      // Update cache and state
+      if (resetPage) {
+        allUsersCache = filteredUsers;
+      } else if (loadNext) {
+        allUsersCache = [...allUsersCache, ...filteredUsers];
+      } else {
+        allUsersCache = filteredUsers;
+      }
+
+      // Update pagination state
+      accountsLastVisible = snapshot.docs[snapshot.docs.length - 1] || null;
+      accountsHasMore = snapshot.docs.length === ITEMS_PER_PAGE;
+
+      // Update UI
+      renderAccountsTable(allUsersCache);
+    } catch (error) {
+      console.error("Error loading accounts:", error);
+      tableBody.innerHTML = `<tr><td colspan="5" class="text-center p-4 text-red-500">Lỗi tải dữ liệu: ${error.message}</td></tr>`;
         }
       }
-    );
-
-    unsubscribeListeners.push(unsubscribe);
-  };
 
   window.setup_dashboardView = function () {
     if (!currentUserProfile) return;
@@ -1236,6 +1483,18 @@
                           <div><label for="filterStartDate" class="text-sm font-medium text-slate-600">Từ ngày</label><input type="date" id="filterStartDate" class="input-field text-sm mt-1"></div>
                           <div><label for="filterEndDate" class="text-sm font-medium text-slate-600">Đến ngày</label><input type="date" id="filterEndDate" class="input-field text-sm mt-1"></div>
                           <div class="flex items-end space-x-2"><button id="applyFiltersBtn" class="btn-primary flex-grow">Lọc</button><button id="resetFiltersBtn" class="btn-secondary"><i class="fas fa-undo"></i></button></div>
+                      </div>
+                      <div class="mt-3 flex flex-wrap items-center gap-2">
+                          <span class="text-sm font-medium text-slate-600">Lọc nhanh:</span>
+                          <button id="quickFilterToday" class="btn-secondary text-sm px-3 py-1.5">
+                              <i class="fas fa-calendar-day mr-1.5"></i>Hôm nay
+                          </button>
+                          <button id="quickFilter7Days" class="btn-secondary text-sm px-3 py-1.5">
+                              <i class="fas fa-calendar-week mr-1.5"></i>7 ngày qua
+                          </button>
+                          <button id="quickFilter30Days" class="btn-secondary text-sm px-3 py-1.5">
+                              <i class="fas fa-calendar-alt mr-1.5"></i>30 ngày qua
+                          </button>
                       </div>
                   </div>
                   
@@ -1452,9 +1711,9 @@
 
     mainContentContainer
       .querySelector("#applyFiltersBtn")
-      .addEventListener("click", () =>
-        applyFiltersAndRender(dashboardReportsCache)
-      );
+      .addEventListener("click", () => {
+        loadDashboardWithFilters();
+      });
     mainContentContainer
       .querySelector("#resetFiltersBtn")
       .addEventListener("click", () => {
@@ -1464,6 +1723,60 @@
         mainContentContainer.querySelector("#filterStartDate").value = "";
         mainContentContainer.querySelector("#filterEndDate").value = "";
         applyFiltersAndRender(dashboardReportsCache);
+      });
+
+    // Quick Date Filter Buttons
+    const formatDateForInput = (date) => {
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, "0");
+      const day = String(date.getDate()).padStart(2, "0");
+      return `${year}-${month}-${day}`;
+    };
+
+    // Today filter
+    mainContentContainer
+      .querySelector("#quickFilterToday")
+      .addEventListener("click", () => {
+        const today = new Date();
+        const startDateInput = mainContentContainer.querySelector("#filterStartDate");
+        const endDateInput = mainContentContainer.querySelector("#filterEndDate");
+        if (startDateInput && endDateInput) {
+          startDateInput.value = formatDateForInput(today);
+          endDateInput.value = formatDateForInput(today);
+          loadDashboardWithFilters();
+        }
+      });
+
+    // 7 days ago filter
+    mainContentContainer
+      .querySelector("#quickFilter7Days")
+      .addEventListener("click", () => {
+        const today = new Date();
+        const sevenDaysAgo = new Date(today);
+        sevenDaysAgo.setDate(today.getDate() - 7);
+        const startDateInput = mainContentContainer.querySelector("#filterStartDate");
+        const endDateInput = mainContentContainer.querySelector("#filterEndDate");
+        if (startDateInput && endDateInput) {
+          startDateInput.value = formatDateForInput(sevenDaysAgo);
+          endDateInput.value = formatDateForInput(today);
+          loadDashboardWithFilters();
+        }
+      });
+
+    // 30 days ago filter
+    mainContentContainer
+      .querySelector("#quickFilter30Days")
+      .addEventListener("click", () => {
+        const today = new Date();
+        const thirtyDaysAgo = new Date(today);
+        thirtyDaysAgo.setDate(today.getDate() - 30);
+        const startDateInput = mainContentContainer.querySelector("#filterStartDate");
+        const endDateInput = mainContentContainer.querySelector("#filterEndDate");
+        if (startDateInput && endDateInput) {
+          startDateInput.value = formatDateForInput(thirtyDaysAgo);
+          endDateInput.value = formatDateForInput(today);
+          loadDashboardWithFilters();
+        }
       });
 
     // Performance Sub-tab logic
@@ -1518,6 +1831,66 @@
       );
     }
 
+    // Try to load aggregated data first (optimized path)
+    loadDashboardAggregatedData();
+  };
+
+  /**
+   * Loads dashboard data from aggregated document (optimized)
+   * Falls back to loading all reports if aggregated data is not available
+   */
+  async function loadDashboardAggregatedData() {
+    try {
+      // Try to get aggregated data
+      const aggregationDocRef = doc(
+        db,
+        `/artifacts/${canvasAppId}/public/data/dashboardAggregation`
+      );
+      const aggregationDoc = await getDoc(aggregationDocRef);
+
+      if (aggregationDoc.exists()) {
+        const aggregatedData = aggregationDoc.data();
+        console.log("Using aggregated dashboard data");
+
+        // Use aggregated data for initial render
+        renderDashboardFromAggregatedData(aggregatedData);
+
+        // Set up real-time listener for aggregated data updates
+        const unsubscribe = onSnapshot(
+          aggregationDocRef,
+          (snapshot) => {
+            if (snapshot.exists()) {
+              renderDashboardFromAggregatedData(snapshot.data());
+            }
+          },
+          (error) => {
+            console.error("Error listening to aggregated data:", error);
+            // Fallback to loading all reports
+            loadDashboardAllReports();
+          }
+        );
+        unsubscribeListeners.push(unsubscribe);
+
+        // For filtering, we still need to load reports (but can be optimized later)
+        // For now, load reports in background for filtering functionality
+        loadDashboardReportsForFiltering();
+      } else {
+        console.log("Aggregated data not found, loading all reports (fallback)");
+        // Fallback: load all reports if aggregated data doesn't exist
+        loadDashboardAllReports();
+      }
+    } catch (error) {
+      console.error("Error loading aggregated data:", error);
+      // Fallback to loading all reports
+      loadDashboardAllReports();
+    }
+  }
+
+  /**
+   * Loads all reports for dashboard (fallback method)
+   * This is used when aggregated data is not available
+   */
+  function loadDashboardAllReports() {
     const q = getScopedIssuesQuery();
     const unsubscribe = onSnapshot(
       q,
@@ -1532,7 +1905,381 @@
     );
 
     unsubscribeListeners.push(unsubscribe);
-  };
+  }
+
+  /**
+   * Loads reports for filtering purposes (can be paginated later)
+   * This is a lighter load than loading everything
+   */
+  function loadDashboardReportsForFiltering() {
+    // For now, load a limited set for filtering
+    // Can be optimized to load only when filters are applied
+    const q = query(
+      getScopedIssuesQuery(),
+      orderBy("reportDate", "desc"),
+      limit(1000) // Limit to recent 1000 reports for filtering
+    );
+
+    const unsubscribe = onSnapshot(
+      q,
+      (snapshot) => {
+        dashboardReportsCache = snapshot.docs.map((doc) => ({
+          id: doc.id,
+          ...doc.data(),
+        }));
+        // Don't auto-render, wait for filter application
+      },
+      (error) => console.error("Dashboard filtering data listener failed:", error)
+    );
+
+    unsubscribeListeners.push(unsubscribe);
+  }
+
+  /**
+   * Renders dashboard using aggregated data
+   * @param {Object} aggregatedData - The aggregated statistics from Firestore
+   */
+  function renderDashboardFromAggregatedData(aggregatedData) {
+    // Update quick stats
+    const errorsTodayEl = document.getElementById("errorsToday");
+    const errorsThisWeekEl = document.getElementById("errorsThisWeek");
+    const errorsThisMonthEl = document.getElementById("errorsThisMonth");
+
+    if (errorsTodayEl) errorsTodayEl.textContent = aggregatedData.errorsToday || 0;
+    if (errorsThisWeekEl) errorsThisWeekEl.textContent = aggregatedData.errorsThisWeek || 0;
+    if (errorsThisMonthEl) errorsThisMonthEl.textContent = aggregatedData.errorsThisMonth || 0;
+
+    // Render charts from aggregated data
+    if (aggregatedData.typeCounts) {
+      renderIssueTypePieChart(aggregatedData.typeCounts);
+    }
+
+    if (aggregatedData.statusCounts) {
+      renderStatusSummary(
+        aggregatedData.statusCounts,
+        aggregatedData.totalReports || 0
+      );
+    }
+
+    // Update comparative analysis
+    if (aggregatedData.comparative) {
+      renderComparisonCard(
+        "compareWeek",
+        "Tuần Này vs Tuần Trước",
+        aggregatedData.comparative.thisWeek || 0,
+        aggregatedData.comparative.lastWeek || 0
+      );
+      renderComparisonCard(
+        "compareMonth",
+        "Tháng Này vs Tháng Trước",
+        aggregatedData.comparative.thisMonth || 0,
+        aggregatedData.comparative.lastMonth || 0
+      );
+      renderComparisonCard(
+        "compareYear",
+        "Năm Này vs Năm Trước",
+        aggregatedData.comparative.thisYear || 0,
+        aggregatedData.comparative.lastYear || 0
+      );
+    }
+
+    // Update warnings
+    if (aggregatedData.employeeBacklog || aggregatedData.branchBacklog) {
+      updateDashboardWarningsFromAggregated(aggregatedData);
+    }
+
+    // Render trend chart if available
+    if (aggregatedData.trendData) {
+      renderIncidentTrendChartFromAggregated(aggregatedData.trendData);
+    }
+
+    // Render heatmap if available
+    if (aggregatedData.heatmapData) {
+      renderIncidentHeatmapFromAggregated(aggregatedData.heatmapData);
+    }
+
+    // Render scope analysis if available
+    if (aggregatedData.scopeAnalysis) {
+      renderScopeAnalysisFromAggregated(aggregatedData.scopeAnalysis);
+    }
+
+    // Note: Performance analysis (employee, manager, branch) still needs full data
+    // These can be added to aggregation later if needed
+  }
+
+  /**
+   * Updates dashboard warnings from aggregated data
+   */
+  function updateDashboardWarningsFromAggregated(aggregatedData) {
+    const dailySpikeEl = document.getElementById("dailySpikeWarning");
+    const backlogEl = document.getElementById("backlogWarning");
+
+    if (!dailySpikeEl || !backlogEl) return;
+
+    // Daily spike warning (simplified - can be enhanced)
+    const errorsToday = aggregatedData.errorsToday || 0;
+    const avgDaily = aggregatedData.totalReports
+      ? Math.round(aggregatedData.totalReports / 30)
+      : 0;
+    const spikeThreshold = avgDaily * 2;
+
+    if (errorsToday > spikeThreshold && errorsToday > 10) {
+      dailySpikeEl.className =
+        "alert-warning p-4 rounded-lg flex items-start";
+      dailySpikeEl.innerHTML = `
+              <i class="fas fa-exclamation-triangle fa-lg mr-3 mt-1"></i>
+              <div>
+                  <h4 class="font-bold">Cảnh báo: Sự cố tăng đột biến hôm nay</h4>
+                  <p class="text-sm mt-1">Hôm nay có <strong>${errorsToday}</strong> sự cố được báo cáo, cao hơn mức trung bình (${avgDaily}/ngày).</p>
+              </div>
+          `;
+      dailySpikeEl.classList.remove("hidden");
+    } else {
+      dailySpikeEl.classList.add("hidden");
+    }
+
+    // Backlog warning
+    const EMPLOYEE_BACKLOG_THRESHOLD = 5;
+    const BRANCH_BACKLOG_THRESHOLD = 10;
+
+    const highBacklogEmployees =
+      aggregatedData.employeeBacklog?.filter(
+        (e) => e.count >= EMPLOYEE_BACKLOG_THRESHOLD
+      ) || [];
+    const highBacklogBranches =
+      aggregatedData.branchBacklog?.filter(
+        (b) => b.count >= BRANCH_BACKLOG_THRESHOLD
+      ) || [];
+
+    if (highBacklogEmployees.length > 0 || highBacklogBranches.length > 0) {
+      let warningHTML = `
+              <i class="fas fa-exclamation-circle fa-lg mr-3 mt-1"></i>
+              <div>
+                  <h4 class="font-bold">Cảnh báo: Tồn đọng công việc</h4>`;
+
+      if (highBacklogEmployees.length > 0) {
+        warningHTML += `<p class="text-sm mt-1">Các nhân viên sau có nhiều công việc chưa hoàn thành:</p><ul class="list-disc pl-5 text-sm">`;
+        highBacklogEmployees.forEach(({ name, count }) => {
+          warningHTML += `<li><strong>${name}</strong>: ${count} công việc tồn đọng</li>`;
+        });
+        warningHTML += `</ul>`;
+      }
+
+      if (highBacklogBranches.length > 0) {
+        warningHTML += `<p class="text-sm mt-2">Các chi nhánh sau có nhiều sự cố chưa được giải quyết:</p><ul class="list-disc pl-5 text-sm">`;
+        highBacklogBranches.forEach(({ branch, count }) => {
+          warningHTML += `<li><strong>${branch}</strong>: ${count} sự cố tồn đọng</li>`;
+        });
+        warningHTML += `</ul>`;
+      }
+
+      warningHTML += `</div>`;
+
+      backlogEl.className = "alert-info p-4 rounded-lg flex items-start";
+      backlogEl.innerHTML = warningHTML;
+      backlogEl.classList.remove("hidden");
+    } else {
+      backlogEl.classList.add("hidden");
+    }
+  }
+
+  /**
+   * Renders trend chart from aggregated data
+   */
+  function renderIncidentTrendChartFromAggregated(trendData) {
+    const canvas = document.getElementById("incidentTrendChart");
+    if (!canvas) return;
+    if (incidentTrendChart) incidentTrendChart.destroy();
+
+    const sortedDates = Object.keys(trendData).sort(
+      (a, b) => new Date(a) - new Date(b)
+    );
+
+    if (sortedDates.length === 0) {
+      const ctx = canvas.getContext("2d");
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.textAlign = "center";
+      ctx.fillText(
+        "Không có dữ liệu để hiển thị.",
+        canvas.width / 2,
+        canvas.height / 2
+      );
+      return;
+    }
+
+    const labels = sortedDates.map((date) =>
+      new Date(date).toLocaleDateString("vi-VN", {
+        day: "2-digit",
+        month: "2-digit",
+      })
+    );
+    const data = sortedDates.map((date) => trendData[date]);
+
+    incidentTrendChart = new Chart(canvas.getContext("2d"), {
+      type: "line",
+      data: {
+        labels: labels,
+        datasets: [
+          {
+            label: "Số lượng sự cố",
+            data: data,
+            borderColor: "var(--primary-color)",
+            backgroundColor: "rgba(79, 70, 229, 0.1)",
+            fill: true,
+            tension: 0.3,
+          },
+        ],
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        scales: {
+          y: {
+            beginAtZero: true,
+            ticks: {
+              stepSize: 1,
+            },
+          },
+        },
+        plugins: {
+          legend: {
+            display: false,
+          },
+        },
+      },
+    });
+  }
+
+  /**
+   * Renders heatmap from aggregated data
+   */
+  function renderIncidentHeatmapFromAggregated(heatmapData) {
+    const container = document.getElementById("incidentHeatmapContainer");
+    if (!container) return;
+
+    const heatmap = Array(7)
+      .fill(0)
+      .map(() => Array(24).fill(0));
+    let maxCount = 0;
+
+    // Parse aggregated heatmap data
+    Object.entries(heatmapData).forEach(([key, count]) => {
+      const [dayOfWeek, hour] = key.split("-").map(Number);
+      if (dayOfWeek >= 0 && dayOfWeek < 7 && hour >= 0 && hour < 24) {
+        heatmap[dayOfWeek][hour] = count;
+        if (count > maxCount) {
+          maxCount = count;
+        }
+      }
+    });
+
+    const days = ["CN", "T2", "T3", "T4", "T5", "T6", "T7"];
+
+    let html = '<div class="heatmap">';
+    // Header Row for hours
+    html += "<div></div>"; // Empty corner
+    for (let i = 0; i < 24; i++) {
+      html += `<div class="heatmap-header">${i}</div>`;
+    }
+
+    // Data Rows (Day labels + cells)
+    days.forEach((dayLabel, dayIndex) => {
+      html += `<div class="heatmap-label">${dayLabel}</div>`;
+      for (let hour = 0; hour < 24; hour++) {
+        const count = heatmap[dayIndex][hour];
+        // Non-linear scale to make smaller values more visible
+        const opacity = maxCount > 0 ? Math.sqrt(count / maxCount) : 0;
+        const style = `background-color: rgba(79, 70, 229, ${opacity.toFixed(
+          2
+        )});`;
+        const tooltipText = `${count} sự cố`;
+        html += `<div class="heatmap-cell" style="${style}"><span class="tooltip">${tooltipText}</span></div>`;
+      }
+    });
+
+    html += "</div>";
+    container.innerHTML = html;
+  }
+
+  /**
+   * Renders scope analysis from aggregated data
+   */
+  function renderScopeAnalysisFromAggregated(scopeAnalysis) {
+    const tableContainer = document.getElementById(
+      "problematicRoomsTableContainer"
+    );
+    const scopeCanvas = document.getElementById("scopeAnalysisChart");
+
+    if (!tableContainer || !scopeCanvas) return;
+
+    // Render pie chart for scope distribution
+    const allRoomsCount = scopeAnalysis.allRooms || 0;
+    const specificRoomsCount = scopeAnalysis.specificRooms || 0;
+    const total = allRoomsCount + specificRoomsCount;
+
+    if (scopeAnalysisChart) scopeAnalysisChart.destroy();
+
+    if (total > 0) {
+      scopeAnalysisChart = new Chart(scopeCanvas.getContext("2d"), {
+        type: "doughnut",
+        data: {
+          labels: ["Tất cả phòng", "Phòng cụ thể"],
+          datasets: [
+            {
+              data: [allRoomsCount, specificRoomsCount],
+              backgroundColor: ["#3B82F6", "#10B981"],
+            },
+          ],
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+        },
+      });
+    }
+
+    // Render problematic rooms table
+    const roomCountsByBranch = scopeAnalysis.roomCountsByBranch || {};
+    const allRooms = [];
+
+    Object.entries(roomCountsByBranch).forEach(([branch, rooms]) => {
+      Object.entries(rooms).forEach(([room, count]) => {
+        allRooms.push({ branch, room, count });
+      });
+    });
+
+    allRooms.sort((a, b) => b.count - a.count);
+    const topRooms = allRooms.slice(0, 10);
+
+    if (topRooms.length > 0) {
+      tableContainer.innerHTML = `
+              <table class="min-w-full responsive-table">
+                  <thead class="bg-slate-50 sticky top-0">
+                      <tr>
+                          <th class="px-4 py-2 text-left text-xs font-semibold text-slate-500 uppercase">Chi nhánh</th>
+                          <th class="px-4 py-2 text-left text-xs font-semibold text-slate-500 uppercase">Phòng</th>
+                          <th class="px-4 py-2 text-left text-xs font-semibold text-slate-500 uppercase">Số lần</th>
+                      </tr>
+                  </thead>
+                  <tbody class="bg-white divide-y divide-slate-200">
+                      ${topRooms
+                        .map(
+                          (item) => `
+                          <tr>
+                              <td class="px-4 py-2">${item.branch}</td>
+                              <td class="px-4 py-2">${item.room}</td>
+                              <td class="px-4 py-2 font-semibold">${item.count}</td>
+                          </tr>
+                      `
+                        )
+                        .join("")}
+                  </tbody>
+              </table>
+          `;
+    } else {
+      tableContainer.innerHTML = `<p class="text-center text-slate-500 p-4">Không có dữ liệu phòng cụ thể.</p>`;
+    }
+  }
 
   window.setup_issueReportView = function () {
     if (!currentUserProfile) return;
@@ -1557,13 +2304,24 @@
     const roomsOptions = mainContentContainer.querySelector(
       "#specificRoomsOptions"
     );
+    const locationSearchInput = mainContentContainer.querySelector("#locationSearch");
+    const locationSearchResults = mainContentContainer.querySelector("#locationSearchResults");
 
     // --- Thiết lập ban đầu ---
     reporterNameInput.value = currentUserProfile.displayName;
-    branchSelect.innerHTML = ALL_BRANCHES.map(
+    branchSelect.innerHTML = '<option value="">-- Chọn chi nhánh --</option>' + ALL_BRANCHES.map(
       (b) => `<option value="${b}">${b}</option>`
     ).join("");
     reportBtn.addEventListener("click", handleReportIssue);
+    
+    // Prevent form submission on Enter key
+    const issueReportForm = mainContentContainer.querySelector("#issueReportForm");
+    if (issueReportForm) {
+      issueReportForm.addEventListener("submit", (e) => {
+        e.preventDefault();
+        handleReportIssue();
+      });
+    }
 
     // --- Logic ẩn/hiện mục chọn Tầng và Phòng ---
     const updateScopeVisibility = () => {
@@ -1680,23 +2438,223 @@
       ) {
         roomsOptions.classList.remove("show");
       }
+      // Close location search results when clicking outside
+      if (
+        locationSearchResults &&
+        locationSearchInput &&
+        !locationSearchResults.contains(event.target) &&
+        !locationSearchInput.contains(event.target)
+      ) {
+        locationSearchResults.classList.add("hidden");
+      }
     });
+
+    // --- Tìm kiếm vị trí thông minh ---
+    if (locationSearchInput && locationSearchResults) {
+      // Lưu kết quả tìm kiếm hiện tại để truy cập khi click
+      let currentSearchResults = [];
+
+      /**
+       * Tìm kiếm phòng hoặc chi nhánh trong BRANCH_DATA
+       * @param {string} searchTerm - Từ khóa tìm kiếm (tên phòng hoặc chi nhánh)
+       * @returns {Array} Mảng các kết quả tìm thấy
+       */
+      const searchLocation = (searchTerm) => {
+        if (!searchTerm || searchTerm.trim().length < 2) return [];
+
+        const term = searchTerm.trim().toLowerCase();
+        const results = [];
+
+        // Tìm kiếm theo tên phòng
+        Object.entries(BRANCH_DATA).forEach(([branchName, floors]) => {
+          Object.entries(floors).forEach(([floorName, rooms]) => {
+            rooms.forEach((room) => {
+              if (room.toLowerCase().includes(term)) {
+                results.push({
+                  type: "room",
+                  room: room,
+                  floor: floorName,
+                  branch: branchName,
+                  displayText: `${room} - ${floorName} - ${branchName}`,
+                });
+              }
+            });
+          });
+        });
+
+        // Tìm kiếm theo tên chi nhánh
+        Object.keys(BRANCH_DATA).forEach((branchName) => {
+          if (branchName.toLowerCase().includes(term)) {
+            results.push({
+              type: "branch",
+              branch: branchName,
+              displayText: `${branchName} (Chi nhánh)`,
+            });
+          }
+        });
+
+        // Sắp xếp: phòng trước, chi nhánh sau
+        results.sort((a, b) => {
+          if (a.type === "room" && b.type === "branch") return -1;
+          if (a.type === "branch" && b.type === "room") return 1;
+          return 0;
+        });
+
+        return results.slice(0, 10); // Giới hạn 10 kết quả
+      };
+
+      /**
+       * Áp dụng kết quả tìm kiếm: tự động điền branch và floor
+       */
+      const applySearchResult = (result) => {
+        if (!result) return;
+
+        if (result.type === "room") {
+          // Tự động điền branch và floor
+          branchSelect.value = result.branch;
+          populateFloors(result.branch);
+          
+          // Đợi một chút để floor select được cập nhật
+          setTimeout(() => {
+            floorSelect.value = result.floor;
+            populateRooms(result.branch, result.floor);
+            
+            // Tự động chọn phòng cụ thể và check phòng đã tìm
+            const specificRoomsRadio = mainContentContainer.querySelector(
+              'input[name="issueScope"][value="specific_rooms"]'
+            );
+            if (specificRoomsRadio) {
+              specificRoomsRadio.checked = true;
+              updateScopeVisibility();
+              
+              // Check phòng đã tìm
+              setTimeout(() => {
+                const roomCheckbox = roomsOptions.querySelector(
+                  `input[value="${result.room}"]`
+                );
+                if (roomCheckbox) {
+                  roomCheckbox.checked = true;
+                  updateSelectedRoomsUI();
+                }
+              }, 100);
+            }
+          }, 50);
+
+          // Hiển thị thông báo thành công
+          locationSearchInput.value = result.room;
+          locationSearchResults.classList.add("hidden");
+        } else if (result.type === "branch") {
+          // Chỉ điền branch
+          branchSelect.value = result.branch;
+          populateFloors(result.branch);
+          
+          locationSearchInput.value = result.branch;
+          locationSearchResults.classList.add("hidden");
+        }
+      };
+
+      // Sử dụng event delegation cho dropdown results
+      locationSearchResults.addEventListener("click", (e) => {
+        e.stopPropagation(); // Ngăn event bubbling
+        
+        const resultElement = e.target.closest("[data-result-index]");
+        if (resultElement) {
+          const index = parseInt(resultElement.dataset.resultIndex);
+          if (currentSearchResults[index]) {
+            applySearchResult(currentSearchResults[index]);
+          }
+        }
+      });
+
+      // Event listener cho input tìm kiếm
+      let searchTimeout;
+      locationSearchInput.addEventListener("input", (e) => {
+        const searchTerm = e.target.value.trim();
+        
+        clearTimeout(searchTimeout);
+        
+        if (searchTerm.length < 2) {
+          locationSearchResults.classList.add("hidden");
+          currentSearchResults = [];
+          return;
+        }
+
+        // Debounce để tránh tìm kiếm quá nhiều
+        searchTimeout = setTimeout(() => {
+          const results = searchLocation(searchTerm);
+          currentSearchResults = results; // Lưu kết quả để dùng khi click
+          
+          if (results.length === 0) {
+            locationSearchResults.innerHTML = `
+              <div class="p-3 text-sm text-slate-500 text-center">
+                <i class="fas fa-search mr-2"></i>Không tìm thấy kết quả
+              </div>
+            `;
+            locationSearchResults.classList.remove("hidden");
+            return;
+          }
+
+          // Hiển thị kết quả
+          locationSearchResults.innerHTML = results
+            .map(
+              (result, index) => `
+                <div class="p-3 hover:bg-indigo-50 cursor-pointer border-b border-slate-100 last:border-b-0 transition-colors" 
+                     data-result-index="${index}">
+                  <div class="flex items-center space-x-2">
+                    <i class="fas ${result.type === "room" ? "fa-door-open" : "fa-building"} text-indigo-600"></i>
+                    <div class="flex-1">
+                      <div class="font-medium text-slate-800">${result.displayText}</div>
+                      ${result.type === "room" ? `
+                        <div class="text-xs text-slate-500 mt-0.5">
+                          <i class="fas fa-layer-group mr-1"></i>${result.floor} • 
+                          <i class="fas fa-building mr-1"></i>${result.branch.replace("ICOOL ", "")}
+                        </div>
+                      ` : ""}
+                    </div>
+                    <i class="fas fa-arrow-left text-xs text-slate-400"></i>
+                  </div>
+                </div>
+              `
+            )
+            .join("");
+
+          locationSearchResults.classList.remove("hidden");
+        }, 300); // Debounce 300ms
+      });
+
+      // Xử lý Enter key để chọn kết quả đầu tiên
+      locationSearchInput.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") {
+          e.preventDefault();
+          if (currentSearchResults.length > 0) {
+            applySearchResult(currentSearchResults[0]);
+          }
+        } else if (e.key === "Escape") {
+          locationSearchResults.classList.add("hidden");
+        }
+      });
+    }
   };
 
   // Populate reporter filter dropdown with unique reporter names
-  function populateReporterFilter() {
+  // Note: With server-side pagination, this only shows reporters from loaded data
+  // For a complete list, would need a separate query to get all unique reporters
+  async function populateReporterFilter() {
     const reporterFilter = mainContentContainer.querySelector("#filterReporter");
     if (!reporterFilter) return;
 
     // Preserve current selection
     const currentValue = reporterFilter.value;
 
-    // Get unique reporter names from cache
+    // Get unique reporter names from currently loaded/filtered data
     const uniqueReporters = [...new Set(
-      issueHistoryCache
+      issueHistoryFiltered
         .map(report => report.reporterName)
         .filter(name => name && name.trim())
     )].sort();
+    
+    // Optionally: Load all unique reporters from server for complete filter
+    // This would require a separate query, but for now we use loaded data only
 
     // Clear existing options except "Tất cả"
     reporterFilter.innerHTML = '<option value="">Tất cả</option>';
@@ -1743,8 +2701,25 @@
     }
   }
 
-  // Filter function for issue history
-  function filterIssueHistory() {
+  /**
+   * Loads issue history page with server-side pagination and filtering
+   * @param {boolean} resetPage - Whether to reset to page 1
+   * @param {boolean} loadNext - Whether to load next page (for pagination)
+   */
+  async function loadIssueHistoryPage(resetPage = false, loadNext = false) {
+    const tableBody = mainContentContainer.querySelector("#issueHistoryTableBody");
+    if (!tableBody) return;
+
+    if (resetPage) {
+      issueHistoryCurrentPage = 1;
+      issueHistoryLastVisible = null;
+    }
+
+    // Show loading state
+    tableBody.innerHTML = `<tr><td colspan="7" class="text-center p-4">Đang tải...</td></tr>`;
+
+    try {
+      // Get filter values
     const branchFilter = mainContentContainer.querySelector("#filterBranch")?.value || "";
     const issueTypeFilter = mainContentContainer.querySelector("#filterIssueType")?.value || "";
     const statusFilter = mainContentContainer.querySelector("#filterStatus")?.value || "";
@@ -1752,55 +2727,97 @@
     const dateFromFilter = mainContentContainer.querySelector("#filterDateFrom")?.value || "";
     const dateToFilter = mainContentContainer.querySelector("#filterDateTo")?.value || "";
 
-    issueHistoryFiltered = issueHistoryCache.filter((report) => {
-      // Branch filter
-      if (branchFilter && report.issueBranch !== branchFilter) {
-        return false;
+      // Build base query with scope restrictions
+      let q = getScopedIssuesQuery();
+
+      // Apply filters at server-side
+      if (branchFilter) {
+        q = query(q, where("issueBranch", "==", branchFilter));
+      }
+      if (issueTypeFilter) {
+        q = query(q, where("issueType", "==", issueTypeFilter));
+      }
+      if (statusFilter) {
+        q = query(q, where("status", "==", statusFilter));
+      }
+      // Note: reporterName filter cannot be done server-side, will filter client-side
+      // Date filters will be handled client-side for now (Firestore date range queries are complex)
+
+      // Add ordering and pagination
+      q = query(q, orderBy("reportDate", "desc"), limit(ITEMS_PER_PAGE));
+
+      // Add startAfter for pagination
+      if (loadNext && issueHistoryLastVisible) {
+        q = query(q, startAfter(issueHistoryLastVisible));
       }
 
-      // Issue type filter
-      if (issueTypeFilter && report.issueType !== issueTypeFilter) {
-        return false;
-      }
+      // Execute query
+      const snapshot = await getDocs(q);
+      
+      // Convert to array
+      const reports = snapshot.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+      }));
 
-      // Status filter
-      if (statusFilter && report.status !== statusFilter) {
-        return false;
-      }
-
-      // Reporter filter (exact match)
+      // Client-side filtering for reporterName and date range (not supported server-side)
+      let filteredReports = reports;
+      if (reporterFilter || dateFromFilter || dateToFilter) {
+        filteredReports = reports.filter((report) => {
       if (reporterFilter && report.reporterName !== reporterFilter) {
         return false;
       }
-
-      // Date range filter
       if (dateFromFilter || dateToFilter) {
         const reportDate = new Date(report.reportDate);
         reportDate.setHours(0, 0, 0, 0);
-
         if (dateFromFilter) {
           const fromDate = new Date(dateFromFilter);
           fromDate.setHours(0, 0, 0, 0);
-          if (reportDate < fromDate) {
-            return false;
+              if (reportDate < fromDate) return false;
           }
-        }
-
         if (dateToFilter) {
           const toDate = new Date(dateToFilter);
           toDate.setHours(23, 59, 59, 999);
-          if (reportDate > toDate) {
-            return false;
+              if (reportDate > toDate) return false;
           }
         }
-      }
-
       return true;
     });
+      }
 
-    issueHistoryCurrentPage = 1; // Reset to first page when filtering
+      // Update cache and state
+      if (resetPage) {
+        issueHistoryFiltered = filteredReports;
+      } else if (loadNext) {
+        issueHistoryFiltered = [...issueHistoryFiltered, ...filteredReports];
+      } else {
+        issueHistoryFiltered = filteredReports;
+      }
+
+      // Update pagination state
+      issueHistoryLastVisible = snapshot.docs[snapshot.docs.length - 1] || null;
+      issueHistoryHasMore = snapshot.docs.length === ITEMS_PER_PAGE;
+
+      // Update UI
     updateActiveFiltersCount();
     renderIssueHistoryTable(issueHistoryFiltered);
+      
+      // Build room map if needed
+      buildRoomToLocationMap();
+      
+      // Update reporter filter dropdown (load all unique reporters for filter)
+      if (resetPage) {
+        populateReporterFilter();
+      }
+    } catch (error) {
+      console.error("Error loading issue history:", error);
+      tableBody.innerHTML = `<tr><td colspan="7" class="text-center p-4 text-red-500">Lỗi tải dữ liệu: ${error.message}</td></tr>`;
+    }
+  }
+
+  // Filter function for issue history (now triggers server-side load)
+  function filterIssueHistory() {
+    loadIssueHistoryPage(true); // Reset to page 1 and reload
   }
 
   window.setup_issueHistoryView = function () {
@@ -1886,12 +2903,15 @@
         if (dateFromFilter) dateFromFilter.value = "";
         if (dateToFilter) dateToFilter.value = "";
 
-        // Reset filtered data to show all
-        issueHistoryFiltered = issueHistoryCache;
-        issueHistoryCurrentPage = 1;
-        updateActiveFiltersCount();
-        renderIssueHistoryTable(issueHistoryFiltered);
+        // Reload from server with cleared filters
+        loadIssueHistoryPage(true);
       });
+    }
+
+    // Export to Excel button
+    const exportIssueHistoryBtn = mainContentContainer.querySelector("#exportIssueHistoryBtn");
+    if (exportIssueHistoryBtn) {
+      exportIssueHistoryBtn.addEventListener("click", handleExportIssueHistory);
     }
 
     // Update filter count when filter inputs change
@@ -1920,113 +2940,270 @@
       }
     });
 
+    // Load initial page with server-side pagination
+    loadIssueHistoryPage(true);
+  };
 
-    const q = getScopedIssuesQuery();
-    const unsubscribe = onSnapshot(
-      q,
-      (snapshot) => {
-        issueHistoryCache = snapshot.docs.map((doc) => ({
+  /**
+   * Loads my tasks page with server-side pagination
+   * @param {boolean} resetPage - Whether to reset to page 1
+   * @param {boolean} loadNext - Whether to load next page
+   */
+  async function loadMyTasksPage(resetPage = false, loadNext = false) {
+    if (!currentUser || !currentUserProfile) return;
+    
+    const tableBody = mainContentContainer.querySelector("#myTasksTableBody");
+    if (!tableBody) return;
+
+    if (resetPage) {
+      myTasksCurrentPage = 1;
+      myTasksLastVisible = null;
+      myTasksCache = [];
+    }
+
+    // Show loading state
+    tableBody.innerHTML = `<tr><td colspan="5" class="text-center p-4">Đang tải...</td></tr>`;
+
+    try {
+      // Build query with server-side pagination
+      let q = query(
+        collection(db, `/artifacts/${canvasAppId}/public/data/issueReports`),
+        where("assigneeId", "==", currentUser.uid),
+        orderBy("reportDate", "desc"),
+        limit(ITEMS_PER_PAGE)
+      );
+
+      // Add startAfter for pagination
+      if (loadNext && myTasksLastVisible) {
+        q = query(q, startAfter(myTasksLastVisible));
+      }
+
+      // Execute query
+      const snapshot = await getDocs(q);
+      const tasks = snapshot.docs.map((doc) => ({
           id: doc.id,
           ...doc.data(),
         }));
-        issueHistoryCache.sort(
-          (a, b) => new Date(b.reportDate) - new Date(a.reportDate)
-        );
 
-        // Thêm dòng này để đảm bảo map được tạo
-        buildRoomToLocationMap();
+      // Update cache and state
+      if (resetPage) {
+        myTasksCache = tasks;
+      } else if (loadNext) {
+        myTasksCache = [...myTasksCache, ...tasks];
+      } else {
+        myTasksCache = tasks;
+      }
 
-        // Populate reporter filter with unique names from loaded data
-        populateReporterFilter();
+      // Update pagination state
+      myTasksLastVisible = snapshot.docs[snapshot.docs.length - 1] || null;
+      myTasksHasMore = snapshot.docs.length === ITEMS_PER_PAGE;
 
-        // Check if filters are active, if so re-apply them, otherwise show all
-        const branchFilter = mainContentContainer.querySelector("#filterBranch")?.value || "";
-        const issueTypeFilter = mainContentContainer.querySelector("#filterIssueType")?.value || "";
-        const statusFilter = mainContentContainer.querySelector("#filterStatus")?.value || "";
-        const reporterFilter = mainContentContainer.querySelector("#filterReporter")?.value || "";
-        const dateFromFilter = mainContentContainer.querySelector("#filterDateFrom")?.value || "";
-        const dateToFilter = mainContentContainer.querySelector("#filterDateTo")?.value || "";
+      // Update UI
+      renderMyTasksTable(myTasksCache);
+    } catch (error) {
+      console.error("Error loading my tasks:", error);
+
+      // Check if error is about missing index
+      if (error.code === "failed-precondition" && error.message.includes("index")) {
+        // Extract index creation URL if available
+        const indexUrlMatch = error.message.match(/https:\/\/[^\s]+/);
+        const indexUrl = indexUrlMatch ? indexUrlMatch[0] : null;
         
-        const hasActiveFilters = branchFilter || issueTypeFilter || statusFilter || reporterFilter || dateFromFilter || dateToFilter;
-
-        if (hasActiveFilters) {
-          filterIssueHistory();
+        tableBody.innerHTML = `
+          <tr>
+            <td colspan="5" class="text-center p-6">
+              <div class="max-w-md mx-auto">
+                <i class="fas fa-exclamation-triangle text-yellow-500 text-4xl mb-4"></i>
+                <h3 class="text-lg font-semibold text-slate-800 mb-2">Cần tạo Index cho Firestore</h3>
+                <p class="text-sm text-slate-600 mb-4">
+                  Query này cần composite index để hoạt động. Vui lòng tạo index trong Firebase Console.
+                </p>
+                ${indexUrl ? `
+                  <a href="${indexUrl}" target="_blank" class="btn-primary inline-block mb-2">
+                    <i class="fas fa-external-link-alt mr-2"></i>Tạo Index (Tự động)
+                  </a>
+                  <p class="text-xs text-slate-500 mt-2">
+                    Sau khi tạo index, đợi 1-5 phút rồi refresh trang này.
+                  </p>
+                ` : `
+                  <p class="text-xs text-slate-500">
+                    Vào Firebase Console > Firestore > Indexes để tạo index thủ công.
+                  </p>
+                `}
+              </div>
+            </td>
+          </tr>
+        `;
         } else {
-          issueHistoryFiltered = issueHistoryCache;
-          updateActiveFiltersCount();
-          renderIssueHistoryTable(issueHistoryFiltered);
-        }
-      },
-      (error) => console.error("Issue history listener failed:", error)
-    );
-    unsubscribeListeners.push(unsubscribe);
-  };
+        // Other errors
+        tableBody.innerHTML = `
+          <tr>
+            <td colspan="5" class="text-center p-4 text-red-500">
+              <i class="fas fa-exclamation-circle mr-2"></i>
+              Lỗi tải dữ liệu: ${error.message}
+            </td>
+          </tr>
+        `;
+      }
+    }
+  }
 
   window.setup_myTasksView = function () {
     if (!currentUser || !currentUserProfile) return;
     myTasksCurrentPage = 1; // Reset page
-    const tableBody = mainContentContainer.querySelector("#myTasksTableBody");
-    if (!tableBody) return;
-    tableBody.innerHTML = `<tr><td colspan="5" class="text-center p-4">Đang tải...</td></tr>`;
-
-    const q = query(
-      collection(db, `/artifacts/${canvasAppId}/public/data/issueReports`),
-      where("assigneeId", "==", currentUser.uid)
-    );
-
-    const unsubscribe = onSnapshot(
-      q,
-      (snapshot) => {
-        myTasksCache = snapshot.docs.map((doc) => ({
-          id: doc.id,
-          ...doc.data(),
-        }));
-        myTasksCache.sort(
-          (a, b) => new Date(b.reportDate) - new Date(a.reportDate)
-        );
-        renderMyTasksTable(myTasksCache);
-      },
-      (error) => console.error("My Tasks listener failed:", error)
-    );
-    unsubscribeListeners.push(unsubscribe);
+    
+    // Load initial page with server-side pagination
+    loadMyTasksPage(true);
   };
+
+  /**
+   * Loads activity log page with server-side pagination
+   * @param {boolean} resetPage - Whether to reset to page 1
+   * @param {boolean} loadNext - Whether to load next page
+   */
+  async function loadActivityLogPage(resetPage = false, loadNext = false) {
+    const tableBody = mainContentContainer.querySelector("#activityLogTableBody");
+    if (!tableBody) return;
+
+    if (resetPage) {
+      activityLogCurrentPage = 1;
+      activityLogLastVisible = null;
+      activityLogsCache = [];
+    }
+
+    // Show loading state
+    tableBody.innerHTML = `<tr><td colspan="4" class="text-center p-4">Đang tải...</td></tr>`;
+
+    try {
+      // Build query with pagination
+      let q = query(
+      collection(db, `/artifacts/${canvasAppId}/public/data/activityLogs`),
+        orderBy("timestamp", "desc"),
+        limit(ITEMS_PER_PAGE)
+      );
+
+      // Add startAfter for pagination
+      if (loadNext && activityLogLastVisible) {
+        q = query(q, startAfter(activityLogLastVisible));
+      }
+
+      // Execute query
+      const snapshot = await getDocs(q);
+      const logs = snapshot.docs.map((doc) => doc.data());
+
+      // Update cache and state
+      if (resetPage) {
+        activityLogsCache = logs;
+      } else if (loadNext) {
+        activityLogsCache = [...activityLogsCache, ...logs];
+      } else {
+        activityLogsCache = logs;
+      }
+
+      // Update pagination state
+      activityLogLastVisible = snapshot.docs[snapshot.docs.length - 1] || null;
+      activityLogHasMore = snapshot.docs.length === ITEMS_PER_PAGE;
+
+      // Update UI
+      renderActivityLogTable(activityLogsCache);
+    } catch (error) {
+      console.error("Error loading activity logs:", error);
+      tableBody.innerHTML = `<tr><td colspan="4" class="text-center p-4 text-red-500">Lỗi tải dữ liệu: ${error.message}</td></tr>`;
+    }
+  }
 
   window.setup_activityLogView = function () {
     if (!currentUserProfile) return;
-    const tableBody = mainContentContainer.querySelector("#activityLogTableBody");
-    if (!tableBody) return;
-    tableBody.innerHTML = `<tr><td colspan="4" class="text-center p-4">Đang tải...</td></tr>`;
-
     activityLogCurrentPage = 1; // Reset page
-
-    // No limit, get all logs for client-side pagination
-    const q = query(
-      collection(db, `/artifacts/${canvasAppId}/public/data/activityLogs`),
-      orderBy("timestamp", "desc")
-    );
-    const unsubscribe = onSnapshot(
-      q,
-      (snapshot) => {
-        activityLogsCache = snapshot.docs.map((doc) => doc.data()); // Update cache
-        renderActivityLogTable(activityLogsCache); // Render from cache
-      },
-      (error) => console.error("Activity log listener failed:", error)
-    );
-    unsubscribeListeners.push(unsubscribe);
+    
+    // Load initial page with server-side pagination
+    loadActivityLogPage(true);
   };
+
+  /**
+   * Opens the My Profile modal and populates it with current user data
+   */
+  function openMyProfileModal() {
+    if (!currentUserProfile || !currentUser || !myProfileModal) return;
+
+    // Populate profile fields
+    const emailInput = myProfileModal.querySelector("#profileEmail");
+    const employeeIdInput = myProfileModal.querySelector("#profileEmployeeId");
+    const roleInput = myProfileModal.querySelector("#profileRole");
+    const displayNameInput = myProfileModal.querySelector("#profileDisplayName");
+
+    if (emailInput) emailInput.value = currentUserProfile.email || currentUser.email || "";
+    if (employeeIdInput) employeeIdInput.value = currentUserProfile.employeeId || "N/A";
+    if (roleInput) roleInput.value = currentUserProfile.role || "N/A";
+    if (displayNameInput) displayNameInput.value = currentUserProfile.displayName || "";
+
+    // Clear password fields
+    const currentPasswordInput = myProfileModal.querySelector("#profileCurrentPassword");
+    const newPasswordInput = myProfileModal.querySelector("#profileNewPassword");
+    const confirmPasswordInput = myProfileModal.querySelector("#profileConfirmPassword");
+    if (currentPasswordInput) currentPasswordInput.value = "";
+    if (newPasswordInput) newPasswordInput.value = "";
+    if (confirmPasswordInput) confirmPasswordInput.value = "";
+
+    // Clear messages
+    const profileUpdateMessage = myProfileModal.querySelector("#profileUpdateMessage");
+    const passwordChangeMessage = myProfileModal.querySelector("#passwordChangeMessage");
+    if (profileUpdateMessage) {
+      profileUpdateMessage.classList.add("hidden");
+      profileUpdateMessage.textContent = "";
+    }
+    if (passwordChangeMessage) {
+      passwordChangeMessage.classList.add("hidden");
+      passwordChangeMessage.textContent = "";
+    }
+
+    // Setup event listeners
+    setupMyProfileModalListeners();
+
+    // Show modal
+    myProfileModal.style.display = "block";
+    document.body.style.overflow = "hidden";
+  }
+
+  /**
+   * Closes the My Profile modal
+   */
+  function closeMyProfileModal() {
+    if (!myProfileModal) return;
+    myProfileModal.style.display = "none";
+    document.body.style.overflow = "";
+  }
+
+  /**
+   * Sets up event listeners for My Profile modal buttons
+   */
+  function setupMyProfileModalListeners() {
+    if (!myProfileModal) return;
+
+    // Update Profile button
+    const updateProfileBtn = myProfileModal.querySelector("#updateProfileBtn");
+    if (updateProfileBtn) {
+      updateProfileBtn.replaceWith(updateProfileBtn.cloneNode(true)); // Remove old listeners
+      myProfileModal.querySelector("#updateProfileBtn").addEventListener("click", handleUpdateProfile);
+    }
+
+    // Change Password button
+    const changePasswordBtn = myProfileModal.querySelector("#changePasswordBtn");
+    if (changePasswordBtn) {
+      changePasswordBtn.replaceWith(changePasswordBtn.cloneNode(true)); // Remove old listeners
+      myProfileModal.querySelector("#changePasswordBtn").addEventListener("click", handleChangePassword);
+    }
+  }
 
   // --- Table Rendering ---
   function renderActivityLogTable(logs) {
     const tableBody = mainContentContainer.querySelector("#activityLogTableBody");
     if (!tableBody) return;
 
-    const startIndex = (activityLogCurrentPage - 1) * ITEMS_PER_PAGE;
-    const endIndex = startIndex + ITEMS_PER_PAGE;
-    const paginatedLogs = logs.slice(startIndex, endIndex);
-
+    // With server-side pagination, show all loaded logs (no client-side slicing)
     tableBody.innerHTML =
-      paginatedLogs.length > 0
-        ? paginatedLogs
+      logs.length > 0
+        ? logs
             .map(
               (log) => `
           <tr class="hover:bg-gray-50">
@@ -2057,55 +3234,33 @@
     );
     if (!paginationContainer) return;
 
-    const totalPages = Math.ceil(totalLogs / ITEMS_PER_PAGE);
-    if (totalPages <= 1) {
-      paginationContainer.innerHTML = "";
-      return;
-    }
-
-    const startItem = (activityLogCurrentPage - 1) * ITEMS_PER_PAGE + 1;
-    const endItem = Math.min(activityLogCurrentPage * ITEMS_PER_PAGE, totalLogs);
-
-    let paginationHTML = `
+    // Server-side pagination with Load More button
+    if (activityLogHasMore) {
+      paginationContainer.innerHTML = `
           <div class="text-sm text-slate-600">
-              Hiển thị <strong>${startItem}</strong> - <strong>${endItem}</strong> trên <strong>${totalLogs}</strong> kết quả
+              Hiển thị <strong>${totalLogs}</strong> kết quả (còn thêm dữ liệu)
           </div>
           <div class="flex items-center space-x-2">
-              <button id="prevLogPage" class="btn-secondary !py-1 !px-3 disabled:opacity-50 disabled:cursor-not-allowed" ${
-                activityLogCurrentPage === 1 ? "disabled" : ""
-              }>
-                  <i class="fas fa-chevron-left"></i>
+              <button id="loadMoreActivityLogBtn" class="btn-primary !py-1 !px-3">
+                  <i class="fas fa-chevron-down mr-1"></i>Tải thêm
               </button>
-              <span class="text-sm font-medium">Trang ${activityLogCurrentPage} / ${totalPages}</span>
-              <button id="nextLogPage" class="btn-secondary !py-1 !px-3 disabled:opacity-50 disabled:cursor-not-allowed" ${
-                activityLogCurrentPage === totalPages ? "disabled" : ""
-              }>
-                  <i class="fas fa-chevron-right"></i>
-              </button>
-          </div>
-      `;
-    paginationContainer.innerHTML = paginationHTML;
+          </div>`;
 
-    // Add event listeners
-    const prevBtn = mainContentContainer.querySelector("#prevLogPage");
-    const nextBtn = mainContentContainer.querySelector("#nextLogPage");
-
-    if (prevBtn) {
-      prevBtn.addEventListener("click", () => {
-        if (activityLogCurrentPage > 1) {
-          activityLogCurrentPage--;
-          renderActivityLogTable(activityLogsCache); // Re-render from cache
-        }
+      const loadMoreBtn = mainContentContainer.querySelector("#loadMoreActivityLogBtn");
+      if (loadMoreBtn) {
+        loadMoreBtn.addEventListener("click", async () => {
+          loadMoreBtn.disabled = true;
+          loadMoreBtn.innerHTML = `<i class="fas fa-spinner fa-spin mr-1"></i>Đang tải...`;
+          await loadActivityLogPage(false, true);
+          loadMoreBtn.disabled = false;
+          loadMoreBtn.innerHTML = `<i class="fas fa-chevron-down mr-1"></i>Tải thêm`;
       });
     }
-
-    if (nextBtn) {
-      nextBtn.addEventListener("click", () => {
-        if (activityLogCurrentPage < totalPages) {
-          activityLogCurrentPage++;
-          renderActivityLogTable(activityLogsCache); // Re-render from cache
-        }
-      });
+    } else {
+      paginationContainer.innerHTML = `
+          <div class="text-sm text-slate-600">
+              Hiển thị <strong>${totalLogs}</strong> kết quả
+          </div>`;
     }
   }
 
@@ -2115,13 +3270,10 @@
     );
     if (!tableBody) return;
 
-    const startIndex = (issueHistoryCurrentPage - 1) * ITEMS_PER_PAGE;
-    const endIndex = startIndex + ITEMS_PER_PAGE;
-    const paginatedReports = reports.slice(startIndex, endIndex);
-
+    // With server-side pagination, show all loaded reports (no client-side slicing)
     tableBody.innerHTML =
-      paginatedReports.length > 0
-        ? paginatedReports
+      reports.length > 0
+        ? reports
             .map((report) => {
               // Logic mới để tạo chi tiết vị trí
               let locationDetail = "";
@@ -2184,75 +3336,58 @@
     );
     if (!paginationContainer) return;
 
-    const totalPages = Math.ceil(totalItems / ITEMS_PER_PAGE);
-    if (totalPages <= 1) {
-      paginationContainer.innerHTML = "";
-      return;
-    }
-
-    const startItem = (issueHistoryCurrentPage - 1) * ITEMS_PER_PAGE + 1;
-    const endItem = Math.min(
-      issueHistoryCurrentPage * ITEMS_PER_PAGE,
-      totalItems
-    );
-
     paginationContainer.innerHTML = `
-          <div class="text-sm text-slate-600">Hiển thị <strong>${startItem}</strong> - <strong>${endItem}</strong> trên <strong>${totalItems}</strong> kết quả</div>
+          <div class="text-sm text-slate-600">
+              Hiển thị <strong>${totalItems}</strong> kết quả
+              ${issueHistoryHasMore ? `(còn thêm dữ liệu)` : ``}
+          </div>
           <div class="flex items-center space-x-2">
-              <button id="prevIssueHistoryPage" class="btn-secondary !py-1 !px-3 disabled:opacity-50" ${
-                issueHistoryCurrentPage === 1 ? "disabled" : ""
-              }><i class="fas fa-chevron-left"></i></button>
-              <span class="text-sm font-medium">Trang ${issueHistoryCurrentPage} / ${totalPages}</span>
-              <button id="nextIssueHistoryPage" class="btn-secondary !py-1 !px-3 disabled:opacity-50" ${
-                issueHistoryCurrentPage === totalPages ? "disabled" : ""
-              }><i class="fas fa-chevron-right"></i></button>
+              ${issueHistoryHasMore ? `
+              <button id="loadMoreIssueHistoryBtn" class="btn-primary !py-1 !px-3">
+                  <i class="fas fa-chevron-down mr-1"></i>Tải thêm
+              </button>
+              ` : ``}
           </div>`;
 
-    mainContentContainer
-      .querySelector("#prevIssueHistoryPage")
-      .addEventListener("click", () => {
-        if (issueHistoryCurrentPage > 1) {
-          issueHistoryCurrentPage--;
-          renderIssueHistoryTable(issueHistoryFiltered);
+    // Add event listener for Load More button
+    if (issueHistoryHasMore) {
+      const loadMoreBtn = mainContentContainer.querySelector("#loadMoreIssueHistoryBtn");
+      if (loadMoreBtn) {
+        loadMoreBtn.addEventListener("click", async () => {
+          loadMoreBtn.disabled = true;
+          loadMoreBtn.innerHTML = `<i class="fas fa-spinner fa-spin mr-1"></i>Đang tải...`;
+          await loadIssueHistoryPage(false, true); // Load next page
+          loadMoreBtn.disabled = false;
+          loadMoreBtn.innerHTML = `<i class="fas fa-chevron-down mr-1"></i>Tải thêm`;
+        });
         }
-      });
-    mainContentContainer
-      .querySelector("#nextIssueHistoryPage")
-      .addEventListener("click", () => {
-        if (issueHistoryCurrentPage < totalPages) {
-          issueHistoryCurrentPage++;
-          renderIssueHistoryTable(issueHistoryFiltered);
-        }
-      });
+    }
   }
 
-  function renderMyTasksTable(reports) {
+  function renderMyTasksTable(tasks) {
     const tableBody = mainContentContainer.querySelector("#myTasksTableBody");
     if (!tableBody) return;
 
-    const startIndex = (myTasksCurrentPage - 1) * ITEMS_PER_PAGE;
-    const endIndex = startIndex + ITEMS_PER_PAGE;
-    const paginatedReports = reports.slice(startIndex, endIndex);
-
+    // With server-side pagination, show all loaded tasks (no client-side slicing)
     tableBody.innerHTML =
-      paginatedReports.length > 0
-        ? paginatedReports
+      tasks.length > 0
+        ? tasks
             .map(
-              (report) => `
+              (task) => `
           <tr class="hover:bg-gray-50">
               <td data-label="Chi nhánh" class="px-4 py-3">${
-                report.issueBranch
+                task.issueBranch
               }</td>
               <td data-label="Loại sự cố" class="px-4 py-3">${
-                report.issueType
+                task.issueType
               }</td>
               <td data-label="Ngày báo cáo" class="px-4 py-3">${new Date(
-                report.reportDate
+                task.reportDate
               ).toLocaleString("vi-VN")}</td>
-              <td data-label="Trạng thái" class="px-4 py-3">${report.status}</td>
+              <td data-label="Trạng thái" class="px-4 py-3">${task.status}</td>
               <td data-label="Hành động" class="px-4 py-3 text-right">
                   <button class="detail-issue-btn btn-secondary !text-sm !py-1 !px-2" data-id="${
-                    report.id
+                    task.id
                   }">Chi tiết</button>
               </td>
           </tr>
@@ -2264,51 +3399,43 @@
     tableBody.querySelectorAll(".detail-issue-btn").forEach((btn) => {
       btn.addEventListener("click", () => openIssueDetailModal(btn.dataset.id));
     });
-    renderMyTasksPagination(reports.length);
+    renderMyTasksPagination(tasks.length);
   }
 
-  function renderMyTasksPagination(totalItems) {
-    const paginationContainer =
-      mainContentContainer.querySelector("#myTasksPagination");
+  function renderMyTasksPagination(totalTasks) {
+    const paginationContainer = mainContentContainer.querySelector(
+      "#myTasksPagination"
+    );
     if (!paginationContainer) return;
 
-    const totalPages = Math.ceil(totalItems / ITEMS_PER_PAGE);
-    if (totalPages <= 1) {
-      paginationContainer.innerHTML = "";
-      return;
-    }
-
-    const startItem = (myTasksCurrentPage - 1) * ITEMS_PER_PAGE + 1;
-    const endItem = Math.min(myTasksCurrentPage * ITEMS_PER_PAGE, totalItems);
-
+    // Server-side pagination with Load More button
+    if (myTasksHasMore) {
     paginationContainer.innerHTML = `
-          <div class="text-sm text-slate-600">Hiển thị <strong>${startItem}</strong> - <strong>${endItem}</strong> trên <strong>${totalItems}</strong> kết quả</div>
+          <div class="text-sm text-slate-600">
+              Hiển thị <strong>${totalTasks}</strong> kết quả (còn thêm dữ liệu)
+          </div>
           <div class="flex items-center space-x-2">
-              <button id="prevMyTasksPage" class="btn-secondary !py-1 !px-3 disabled:opacity-50" ${
-                myTasksCurrentPage === 1 ? "disabled" : ""
-              }><i class="fas fa-chevron-left"></i></button>
-              <span class="text-sm font-medium">Trang ${myTasksCurrentPage} / ${totalPages}</span>
-              <button id="nextMyTasksPage" class="btn-secondary !py-1 !px-3 disabled:opacity-50" ${
-                myTasksCurrentPage === totalPages ? "disabled" : ""
-              }><i class="fas fa-chevron-right"></i></button>
+              <button id="loadMoreMyTasksBtn" class="btn-primary !py-1 !px-3">
+                  <i class="fas fa-chevron-down mr-1"></i>Tải thêm
+              </button>
           </div>`;
 
-    mainContentContainer
-      .querySelector("#prevMyTasksPage")
-      .addEventListener("click", () => {
-        if (myTasksCurrentPage > 1) {
-          myTasksCurrentPage--;
-          renderMyTasksTable(myTasksCache);
+      const loadMoreBtn = mainContentContainer.querySelector("#loadMoreMyTasksBtn");
+      if (loadMoreBtn) {
+        loadMoreBtn.addEventListener("click", async () => {
+          loadMoreBtn.disabled = true;
+          loadMoreBtn.innerHTML = `<i class="fas fa-spinner fa-spin mr-1"></i>Đang tải...`;
+          await loadMyTasksPage(false, true);
+          loadMoreBtn.disabled = false;
+          loadMoreBtn.innerHTML = `<i class="fas fa-chevron-down mr-1"></i>Tải thêm`;
+        });
         }
-      });
-    mainContentContainer
-      .querySelector("#nextMyTasksPage")
-      .addEventListener("click", () => {
-        if (myTasksCurrentPage < totalPages) {
-          myTasksCurrentPage++;
-          renderMyTasksTable(myTasksCache);
+    } else {
+      paginationContainer.innerHTML = `
+          <div class="text-sm text-slate-600">
+              Hiển thị <strong>${totalTasks}</strong> kết quả
+          </div>`;
         }
-      });
   }
 
   // TÌM VÀ THAY THẾ TOÀN BỘ HÀM NÀY TRONG app.js
@@ -2317,17 +3444,16 @@
     const tableBody = mainContentContainer.querySelector("#accountsTableBody");
     if (!tableBody) return;
 
+    // Filter disabled accounts if needed (already filtered in loadAccountsPage, but double-check)
     const filteredUsers = showDisabledAccounts
       ? users
-      : users.filter((user) => user.status !== "disabled");
+      : users.filter((user) => user.status !== "disabled" && !user.disabled);
 
-    const startIndex = (accountsCurrentPage - 1) * ITEMS_PER_PAGE;
-    const endIndex = startIndex + ITEMS_PER_PAGE;
-    const paginatedUsers = filteredUsers.slice(startIndex, endIndex);
+    // With server-side pagination, show all loaded users (no client-side slicing)
 
     tableBody.innerHTML =
-      paginatedUsers
-        .map((user) => {
+      filteredUsers.length > 0
+        ? filteredUsers.map((user) => {
           const isDisabled = user.status === "disabled";
           // Thêm ': '' vào cuối để hoàn thiện biểu thức điều kiện
           const exportButtonHTML =
@@ -2370,8 +3496,8 @@
               </tr>
           `;
         })
-        .join("") ||
-      `<tr><td colspan="5" class="text-center p-4">Không có tài khoản nào.</td></tr>`;
+        .join("")
+        : `<tr><td colspan="5" class="text-center p-4">Không có tài khoản nào.</td></tr>`;
 
     // Gắn sự kiện cho các nút Sửa, Xóa...
     tableBody.querySelectorAll(".edit-user-btn").forEach((btn) => {
@@ -2410,43 +3536,34 @@
     );
     if (!paginationContainer) return;
 
-    const totalPages = Math.ceil(totalItems / ITEMS_PER_PAGE);
-    if (totalPages <= 1) {
-      paginationContainer.innerHTML = "";
-      return;
-    }
-
-    const startItem = (accountsCurrentPage - 1) * ITEMS_PER_PAGE + 1;
-    const endItem = Math.min(accountsCurrentPage * ITEMS_PER_PAGE, totalItems);
-
+    // Server-side pagination with Load More button
+    if (accountsHasMore) {
     paginationContainer.innerHTML = `
-          <div class="text-sm text-slate-600">Hiển thị <strong>${startItem}</strong> - <strong>${endItem}</strong> trên <strong>${totalItems}</strong> kết quả</div>
+          <div class="text-sm text-slate-600">
+              Hiển thị <strong>${totalItems}</strong> kết quả (còn thêm dữ liệu)
+          </div>
           <div class="flex items-center space-x-2">
-              <button id="prevAccountPage" class="btn-secondary !py-1 !px-3 disabled:opacity-50" ${
-                accountsCurrentPage === 1 ? "disabled" : ""
-              }><i class="fas fa-chevron-left"></i></button>
-              <span class="text-sm font-medium">Trang ${accountsCurrentPage} / ${totalPages}</span>
-              <button id="nextAccountPage" class="btn-secondary !py-1 !px-3 disabled:opacity-50" ${
-                accountsCurrentPage === totalPages ? "disabled" : ""
-              }><i class="fas fa-chevron-right"></i></button>
+              <button id="loadMoreAccountsBtn" class="btn-primary !py-1 !px-3">
+                  <i class="fas fa-chevron-down mr-1"></i>Tải thêm
+              </button>
           </div>`;
 
-    mainContentContainer
-      .querySelector("#prevAccountPage")
-      .addEventListener("click", () => {
-        if (accountsCurrentPage > 1) {
-          accountsCurrentPage--;
-          renderAccountsTable(allUsersCache);
+      const loadMoreBtn = mainContentContainer.querySelector("#loadMoreAccountsBtn");
+      if (loadMoreBtn) {
+        loadMoreBtn.addEventListener("click", async () => {
+          loadMoreBtn.disabled = true;
+          loadMoreBtn.innerHTML = `<i class="fas fa-spinner fa-spin mr-1"></i>Đang tải...`;
+          await loadAccountsPage(false, true);
+          loadMoreBtn.disabled = false;
+          loadMoreBtn.innerHTML = `<i class="fas fa-chevron-down mr-1"></i>Tải thêm`;
+        });
         }
-      });
-    mainContentContainer
-      .querySelector("#nextAccountPage")
-      .addEventListener("click", () => {
-        if (accountsCurrentPage < totalPages) {
-          accountsCurrentPage++;
-          renderAccountsTable(allUsersCache);
+    } else {
+      paginationContainer.innerHTML = `
+          <div class="text-sm text-slate-600">
+              Hiển thị <strong>${totalItems}</strong> kết quả
+          </div>`;
         }
-      });
   }
 
   // --- Dashboard & Analytics ---
@@ -2565,7 +3682,113 @@
     }
   }
 
-  function applyFiltersAndRender(allReports) {
+  /**
+   * Loads dashboard data with server-side filtering
+   * Similar to loadIssueHistoryPage but for dashboard
+   */
+  async function loadDashboardWithFilters() {
+    const branch = mainContentContainer.querySelector("#filterBranch")?.value || "";
+    const issueType = mainContentContainer.querySelector("#filterIssueType")?.value || "";
+    const employeeId = mainContentContainer.querySelector("#filterEmployee")?.value || "";
+    const startDate = mainContentContainer.querySelector("#filterStartDate")?.value || "";
+    const endDate = mainContentContainer.querySelector("#filterEndDate")?.value || "";
+
+    // Check if any filters are applied
+    const hasFilters = branch || issueType || employeeId || startDate || endDate;
+
+    if (!hasFilters) {
+      // No filters: use aggregated data or cached data
+      const aggregationDocRef = doc(
+        db,
+        `/artifacts/${canvasAppId}/public/data/dashboardAggregation`
+      );
+      try {
+        const aggregationDoc = await getDoc(aggregationDocRef);
+        if (aggregationDoc.exists()) {
+          renderDashboardFromAggregatedData(aggregationDoc.data());
+          // Still load warnings from full cache
+          updateDashboardWarnings(dashboardReportsCache);
+          return;
+        }
+      } catch (error) {
+        console.error("Error loading aggregated data:", error);
+      }
+      
+      // Fallback: use cached data if no aggregation
+      if (dashboardReportsCache && dashboardReportsCache.length > 0) {
+        applyFiltersAndRenderClientSide(dashboardReportsCache);
+        return;
+      }
+    }
+
+    // Has filters: query from Firestore with server-side filtering
+    try {
+      // Build base query with scope restrictions
+      let q = getScopedIssuesQuery();
+
+      // Apply server-side filters
+      if (branch) {
+        q = query(q, where("issueBranch", "==", branch));
+      }
+      if (issueType) {
+        q = query(q, where("issueType", "==", issueType));
+      }
+      if (employeeId) {
+        // For employee filter, we need to check both reporterId and assigneeId
+        // Firestore doesn't support OR queries easily, so we'll do two queries and merge
+        // Or we can filter client-side for employeeId
+      }
+      // Note: Firestore date queries work with ISO strings or Timestamp
+      // Since reportDate is stored as ISO string, we can query directly
+      // But we need orderBy before where for date range queries
+      // So we'll add orderBy first, then where clauses
+      q = query(q, orderBy("reportDate", "desc"));
+      
+      if (startDate) {
+        const start = new Date(startDate);
+        start.setHours(0, 0, 0, 0);
+        // reportDate is stored as ISO string, so compare as string
+        q = query(q, where("reportDate", ">=", start.toISOString()));
+      }
+      if (endDate) {
+        const end = new Date(endDate);
+        end.setHours(23, 59, 59, 999);
+        q = query(q, where("reportDate", "<=", end.toISOString()));
+      }
+
+      // Limit to reasonable amount for dashboard (e.g., 5000 most recent)
+      q = query(q, limit(5000));
+
+      // Execute query
+      const snapshot = await getDocs(q);
+      let filteredReports = snapshot.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+      }));
+
+      // Client-side filtering for employeeId (can't do OR query server-side easily)
+      if (employeeId) {
+        filteredReports = filteredReports.filter(
+          (report) =>
+            report.reporterId === employeeId || report.assigneeId === employeeId
+        );
+      }
+
+      // Use filtered reports for dashboard rendering
+      applyFiltersAndRenderClientSide(filteredReports, dashboardReportsCache);
+    } catch (error) {
+      console.error("Error loading dashboard with filters:", error);
+      // Fallback to client-side filtering if server-side fails
+      if (dashboardReportsCache && dashboardReportsCache.length > 0) {
+        applyFiltersAndRenderClientSide(dashboardReportsCache);
+      }
+    }
+  }
+
+  /**
+   * Client-side filtering and rendering (used when no filters or as fallback)
+   */
+  function applyFiltersAndRenderClientSide(allReports, fullReportsForWarnings = null) {
     const branch = mainContentContainer.querySelector("#filterBranch")?.value;
     const issueType =
       mainContentContainer.querySelector("#filterIssueType")?.value;
@@ -2577,11 +3800,23 @@
 
     // If elements don't exist (because the tab isn't active), don't filter
     if (branch === undefined) {
-      updateDashboardWarnings(allReports);
+      // Try to use aggregated data if available
+      const aggregationDocRef = doc(
+        db,
+        `/artifacts/${canvasAppId}/public/data/dashboardAggregation`
+      );
+      getDoc(aggregationDocRef).then((doc) => {
+        if (doc.exists()) {
+          updateDashboardWarningsFromAggregated(doc.data());
+        } else if (allReports && allReports.length > 0) {
+          updateDashboardWarnings(allReports);
+        }
+      });
       return;
     }
 
-    const filteredReports = allReports.filter((report) => {
+    // If we have filters applied, filter the reports
+    const filteredReports = (allReports || []).filter((report) => {
       const reportDate = new Date(report.reportDate);
       const start = startDate ? new Date(startDate) : null;
       const end = endDate ? new Date(endDate) : null;
@@ -2606,8 +3841,9 @@
       );
     });
 
-    // We use the global `dashboardReportsCache` so warnings are not affected by filters
-    updateDashboardWarnings(dashboardReportsCache);
+    // Use full reports for warnings (not affected by filters)
+    const reportsForWarnings = fullReportsForWarnings || dashboardReportsCache;
+    updateDashboardWarnings(reportsForWarnings);
 
     updateDashboardUI(filteredReports);
     updateComparativeAnalysis(allReports);
@@ -2619,6 +3855,28 @@
     renderBranchPerformanceAnalysis(filteredReports);
     renderScopeAnalysis(filteredReports);
     renderLocationAnalysis(filteredReports);
+  }
+
+  /**
+   * Main filter function - checks if filters are applied and routes accordingly
+   */
+  function applyFiltersAndRender(allReports) {
+    // Check if any filters are applied
+    const branch = mainContentContainer.querySelector("#filterBranch")?.value || "";
+    const issueType = mainContentContainer.querySelector("#filterIssueType")?.value || "";
+    const employeeId = mainContentContainer.querySelector("#filterEmployee")?.value || "";
+    const startDate = mainContentContainer.querySelector("#filterStartDate")?.value || "";
+    const endDate = mainContentContainer.querySelector("#filterEndDate")?.value || "";
+
+    const hasFilters = branch || issueType || employeeId || startDate || endDate;
+
+    if (hasFilters) {
+      // Has filters: use server-side filtering
+      loadDashboardWithFilters();
+    } else {
+      // No filters: use aggregated data or client-side with cached data
+      applyFiltersAndRenderClientSide(allReports || dashboardReportsCache);
+    }
   }
 
   function updateDashboardUI(reports) {
@@ -3278,11 +4536,18 @@
       .slice(0, 5);
     const chartLabels = sortedByResolved.map((s) => s.name);
     const chartData = sortedByResolved.map((s) => s.resolved);
+    // Create mapping from employee name to resolverId for drill-down
+    const employeeNameToIdMap = {};
+    reports.forEach((report) => {
+      if (report.resolverId && report.resolverName) {
+        employeeNameToIdMap[report.resolverName] = report.resolverId;
+      }
+    });
 
-    renderTopEmployeesChart(chartLabels, chartData);
+    renderTopEmployeesChart(chartLabels, chartData, employeeNameToIdMap);
   }
 
-  function renderTopEmployeesChart(labels, data) {
+  function renderTopEmployeesChart(labels, data, nameToIdMap = {}) {
     const canvas = document.getElementById("topEmployeesChart");
     if (!canvas) return;
     if (topEmployeesChart) topEmployeesChart.destroy();
@@ -3304,6 +4569,30 @@
         responsive: true,
         maintainAspectRatio: false,
         plugins: { legend: { display: false } },
+        onClick: (event, elements) => {
+          if (elements.length > 0) {
+            const chartElement = elements[0];
+            const employeeName = labels[chartElement.index];
+            // Try to find by resolverId first, then fallback to resolverName
+            const resolverId = nameToIdMap[employeeName];
+            if (resolverId) {
+              showDrillDownModal(
+                "resolverId",
+                resolverId,
+                `Chi tiết Sự cố đã giải quyết bởi: ${employeeName}`,
+                "resolved"
+              );
+            } else {
+              // Fallback: filter by resolverName
+              showDrillDownModal(
+                "resolverName",
+                employeeName,
+                `Chi tiết Sự cố đã giải quyết bởi: ${employeeName}`,
+                "resolved"
+              );
+            }
+          }
+        },
       },
     });
   }
@@ -3436,9 +4725,10 @@
       .sort((a, b) => b.total - a.total)
       .slice(0, 10);
     const statusLabels = sortedByTotal.map((s) => s.name.replace("ICOOL ", ""));
+    const fullBranchNames = sortedByTotal.map((s) => s.name); // Keep full names for filtering
     const resolvedData = sortedByTotal.map((s) => s.resolved);
     const unresolvedData = sortedByTotal.map((s) => s.total - s.resolved);
-    renderBranchStatusChart(statusLabels, resolvedData, unresolvedData);
+    renderBranchStatusChart(statusLabels, resolvedData, unresolvedData, fullBranchNames);
 
     const sortedByTime = [...statsArray]
       .filter((s) => s.resolvedForTimeCalc > 0)
@@ -3449,13 +4739,14 @@
       )
       .slice(0, 10);
     const timeLabels = sortedByTime.map((s) => s.name.replace("ICOOL ", ""));
+    const fullTimeBranchNames = sortedByTime.map((s) => s.name); // Keep full names for filtering
     const timeData = sortedByTime.map((s) =>
       parseFloat((s.totalProcessingHours / s.resolvedForTimeCalc).toFixed(2))
     );
-    renderBranchTimeChart(timeLabels, timeData);
+    renderBranchTimeChart(timeLabels, timeData, fullTimeBranchNames);
   }
 
-  function renderBranchStatusChart(labels, resolvedData, unresolvedData) {
+  function renderBranchStatusChart(labels, resolvedData, unresolvedData, fullBranchNames = []) {
     const canvas = document.getElementById("branchStatusChart");
     if (!canvas) return;
     if (branchStatusChart) branchStatusChart.destroy();
@@ -3485,11 +4776,39 @@
           y: { stacked: true, beginAtZero: true, ticks: { stepSize: 1 } },
         },
         plugins: { legend: { position: "bottom" } },
+        onClick: (event, elements) => {
+          if (elements.length > 0) {
+            const chartElement = elements[0];
+            const barIndex = chartElement.index;
+            const datasetIndex = chartElement.datasetIndex;
+            const branchLabel = labels[barIndex];
+            const fullBranchName = fullBranchNames[barIndex] || branchLabel;
+            
+            // datasetIndex 0 = "Đã giải quyết", 1 = "Chưa giải quyết"
+            if (datasetIndex === 0) {
+              // Resolved issues
+              showDrillDownModal(
+                "issueBranch",
+                fullBranchName,
+                `Chi tiết Sự cố đã giải quyết tại: ${fullBranchName}`,
+                "resolved"
+              );
+            } else if (datasetIndex === 1) {
+              // Unresolved issues
+              showDrillDownModal(
+                "issueBranch",
+                fullBranchName,
+                `Chi tiết Sự cố chưa giải quyết tại: ${fullBranchName}`,
+                "unresolved"
+              );
+            }
+          }
+        },
       },
     });
   }
 
-  function renderBranchTimeChart(labels, data) {
+  function renderBranchTimeChart(labels, data, fullBranchNames = []) {
     const canvas = document.getElementById("branchTimeChart");
     if (!canvas) return;
     if (branchTimeChart) branchTimeChart.destroy();
@@ -3511,6 +4830,21 @@
         maintainAspectRatio: false,
         scales: { y: { beginAtZero: true } },
         plugins: { legend: { display: false } },
+        onClick: (event, elements) => {
+          if (elements.length > 0) {
+            const chartElement = elements[0];
+            const barIndex = chartElement.index;
+            const branchLabel = labels[barIndex];
+            const fullBranchName = fullBranchNames[barIndex] || branchLabel;
+            
+            showDrillDownModal(
+              "issueBranch",
+              fullBranchName,
+              `Chi tiết Sự cố tại: ${fullBranchName}`,
+              "resolved" // Show only resolved issues since this chart is about processing time
+            );
+          }
+        },
       },
     });
   }
@@ -3764,9 +5098,12 @@
       resolutionInfoContainer.classList.add("hidden");
     }
 
-    // 2. Điền dữ liệu cho Status (excluding "Đã hủy")
-    statusSelect.innerHTML = ISSUE_STATUSES
-      .filter((s) => s !== "Đã hủy")
+    // 2. Điền dữ liệu cho Status (bao gồm "Đã hủy" nếu status hiện tại là "Đã hủy")
+    const statusOptions = report.status === "Đã hủy" 
+      ? ISSUE_STATUSES 
+      : ISSUE_STATUSES.filter((s) => s !== "Đã hủy");
+    
+    statusSelect.innerHTML = statusOptions
       .map(
         (s) =>
           `<option value="${s}" ${
@@ -3796,11 +5133,27 @@
           uid: doc.id,
           ...doc.data(),
         }))
-        // Filter out users with "Chi nhánh" role and users whose displayName matches a branch name
+        // Filter: Loại bỏ "Chi nhánh", disabled users
+        // Và nếu là Manager, chỉ hiển thị Nhân viên trong các chi nhánh được quản lý
         .filter((u) => {
-          const isBranchRole = u.role === "Chi nhánh";
-          const isBranchName = ALL_BRANCHES.includes(u.displayName);
-          return !isBranchRole && !isBranchName;
+          // Loại bỏ tài khoản "Chi nhánh" và tài khoản bị disabled
+          if (u.role === "Chi nhánh" || u.status === "disabled" || u.disabled) {
+            return false;
+          }
+          
+          // Nếu là Manager, chỉ hiển thị Nhân viên trong các chi nhánh được quản lý
+          if (currentUserProfile.role === "Manager") {
+            const managedBranches = currentUserProfile.managedBranches || [];
+            if (u.role === "Nhân viên") {
+              // Nhân viên phải có branch và branch phải nằm trong managedBranches
+              return u.branch && managedBranches.includes(u.branch);
+            }
+            // Manager và Admin vẫn hiển thị (để Manager có thể gán cho Manager khác nếu cần)
+            return true;
+          }
+          
+          // Admin thấy tất cả (trừ Chi nhánh và disabled)
+          return true;
         });
         assigneeSelect.innerHTML =
           `<option value="">Chưa giao</option>` +
@@ -3814,10 +5167,10 @@
             .join("");
       } else {
         // Nếu là nhân viên, chỉ hiển thị người được giao (nếu có)
-        // Hide if assigneeName is a branch name
+        // Nếu assignee là "Chi nhánh", hiển thị "Chưa giao"
         const assigneeName = report.assigneeName || "Chưa giao";
         const isBranchName = ALL_BRANCHES.includes(assigneeName);
-        if (isBranchName) {
+        if (isBranchName || report.assigneeId === null) {
           assigneeSelect.innerHTML = `<option value="">Chưa giao</option>`;
         } else {
           assigneeSelect.innerHTML = `<option value="">${assigneeName}</option>`;
@@ -3858,7 +5211,72 @@
 
     // 5. Mở listener cho comment
     listenToIssueComments(issueId);
+    
+    // 6. Setup mention autocomplete
+    setupMentionAutocomplete(issueId);
     // --- KẾT THÚC LOGIC QUẢN LÝ ---
+  }
+
+  /**
+   * Mở modal xác nhận hủy sự cố
+   */
+  function openConfirmCancelModal(issueId, issueType, issueBranch) {
+    const modal = document.getElementById("confirmCancelModal");
+    const messageEl = modal.querySelector("#confirmCancelMessage");
+    
+    messageEl.textContent = `Bạn có chắc chắn muốn hủy sự cố "${issueType}" tại "${issueBranch}" không?`;
+    
+    // Lưu issueId vào modal để dùng khi confirm
+    modal.dataset.issueId = issueId;
+    modal.style.display = "flex";
+  }
+
+  /**
+   * Xử lý xác nhận hủy sự cố
+   */
+  async function handleConfirmCancelIssue() {
+    const modal = document.getElementById("confirmCancelModal");
+    const issueId = modal.dataset.issueId;
+    
+    if (!issueId) return;
+
+    const confirmBtn = modal.querySelector("#confirmCancelBtn");
+    confirmBtn.disabled = true;
+    confirmBtn.innerHTML = `<i class="fas fa-spinner fa-spin mr-2"></i>Đang xử lý...`;
+
+    try {
+      const docRef = doc(
+        db,
+        `/artifacts/${canvasAppId}/public/data/issueReports`,
+        issueId
+      );
+      
+      await updateDoc(docRef, {
+        status: "Đã hủy",
+      });
+
+      await logActivity("Cancel Issue", { issueId });
+
+      // Đóng modal xác nhận
+      modal.style.display = "none";
+      
+      // Đóng modal chi tiết sự cố
+      closeIssueDetailModal();
+      
+      // Hiển thị thông báo thành công
+      const issueDetailModal = document.getElementById("issueDetailModal");
+      const messageEl = issueDetailModal.querySelector("#detailIssueMessage");
+      messageEl.textContent = "Sự cố đã được hủy thành công!";
+      messageEl.className = "p-3 rounded-lg text-sm text-center alert-success";
+      messageEl.classList.remove("hidden");
+      
+    } catch (error) {
+      console.error("Cancel Issue Error: ", error);
+      alert(`Lỗi khi hủy sự cố: ${error.message}`);
+    } finally {
+      confirmBtn.disabled = false;
+      confirmBtn.innerHTML = `<i class="fas fa-check mr-2"></i>Có, hủy sự cố`;
+    }
   }
 
   async function handleUpdateIssueDetails() {
@@ -3877,6 +5295,29 @@
 
     const messageEl = modal.querySelector("#detailIssueMessage");
     const saveBtn = modal.querySelector("#updateIssueBtn");
+
+    // Kiểm tra nếu đang chọn "Đã hủy" và status hiện tại chưa phải "Đã hủy"
+    if (newStatus === "Đã hủy") {
+      try {
+        const docRef = doc(
+          db,
+          `/artifacts/${canvasAppId}/public/data/issueReports`,
+          issueId
+        );
+        const originalDoc = await getDoc(docRef);
+        const originalData = originalDoc.data();
+        
+        // Nếu status hiện tại chưa phải "Đã hủy", hiển thị modal xác nhận
+        if (originalData.status !== "Đã hủy") {
+          openConfirmCancelModal(issueId, originalData.issueType, originalData.issueBranch);
+          // Reset status select về giá trị cũ
+          modal.querySelector("#detailIssueStatus").value = originalData.status;
+          return;
+        }
+      } catch (error) {
+        console.error("Error checking issue status:", error);
+      }
+    }
 
     saveBtn.disabled = true;
     saveBtn.innerHTML = `<i class="fas fa-spinner fa-spin mr-2"></i>Đang lưu...`;
@@ -3933,11 +5374,14 @@
       // ▲▲▲ KẾT THÚC THAY ĐỔI ▲▲▲
 
       if (repairedImageFile) {
+        // Compress repaired image before upload
+        const compressedRepairedImage = await compressImage(repairedImageFile);
+        
         const storageRef = ref(
           storage,
-          `repaired_images/${issueId}/${Date.now()}-${repairedImageFile.name}`
+          `repaired_images/${issueId}/${Date.now()}-${compressedRepairedImage.name || repairedImageFile.name}`
         );
-        const snapshot = await uploadBytes(storageRef, repairedImageFile);
+        const snapshot = await uploadBytes(storageRef, compressedRepairedImage);
         updateData.repairedImageUrl = await getDownloadURL(snapshot.ref);
       }
 
@@ -3982,20 +5426,42 @@
       orderBy("timestamp", "asc")
     );
 
-    issueCommentsUnsubscribe = onSnapshot(q, (snapshot) => {
+    issueCommentsUnsubscribe = onSnapshot(q, async (snapshot) => {
       if (snapshot.empty) {
         commentsContainer.innerHTML = `<p class="text-sm text-slate-500 italic">Chưa có bình luận nào.</p>`;
         return;
       }
+      
+      // Get all users for mention display
+      const usersRef = collection(db, `/artifacts/${canvasAppId}/users`);
+      const usersSnapshot = await getDocs(usersRef);
+      const usersMap = {};
+      usersSnapshot.docs.forEach((doc) => {
+        usersMap[doc.id] = doc.data();
+      });
+
       commentsContainer.innerHTML = snapshot.docs
         .map((doc) => {
           const comment = doc.data();
           const timestamp = comment.timestamp
             ? new Date(comment.timestamp.toDate()).toLocaleString("vi-VN")
             : "";
+          
+          // Render comment text with mentions highlighted
+          let renderedText = escapeHtml(comment.text);
+          if (comment.mentions && comment.mentions.length > 0) {
+            comment.mentions.forEach((mention) => {
+              const mentionPattern = new RegExp(`@${escapeRegex(mention.name)}`, "gi");
+              const mentionDisplay = mention.uid && usersMap[mention.uid]
+                ? `<span class="mention-tag bg-indigo-100 text-indigo-700 px-1.5 py-0.5 rounded font-medium" data-user-id="${mention.uid}">@${escapeHtml(mention.name)}</span>`
+                : `@${escapeHtml(mention.name)}`;
+              renderedText = renderedText.replace(mentionPattern, mentionDisplay);
+            });
+          }
+          
           return `
                   <div class="text-sm">
-                      <p><strong>${comment.authorName}:</strong> ${comment.text}</p>
+                      <p><strong>${escapeHtml(comment.authorName)}:</strong> ${renderedText}</p>
                       <p class="text-xs text-slate-400">${timestamp}</p>
                   </div>
               `;
@@ -4003,6 +5469,17 @@
         .join("");
       commentsContainer.scrollTop = commentsContainer.scrollHeight;
     });
+  }
+
+  // Helper functions for HTML escaping
+  function escapeHtml(text) {
+    const div = document.createElement("div");
+    div.textContent = text;
+    return div.innerHTML;
+  }
+
+  function escapeRegex(text) {
+    return text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
   }
 
   async function handleAddComment() {
@@ -4014,20 +5491,270 @@
     if (!issueId || !commentText) return;
 
     try {
+      // Parse mentions from comment text
+      const mentions = await parseMentionsAsync(commentText);
+      
       const commentsCol = collection(
         db,
         `/artifacts/${canvasAppId}/public/data/issueReports/${issueId}/comments`
       );
-      await addDoc(commentsCol, {
+      
+      const commentData = {
         text: commentText,
         authorId: currentUser.uid,
         authorName: currentUserProfile.displayName,
         timestamp: serverTimestamp(),
-      });
+      };
+      
+      if (mentions.length > 0) {
+        commentData.mentions = mentions;
+      }
+      
+      await addDoc(commentsCol, commentData);
+      
+      // Send notifications to mentioned users
+      if (mentions.length > 0) {
+        const issueDoc = await getDoc(doc(db, `/artifacts/${canvasAppId}/public/data/issueReports/${issueId}`));
+        const issueData = issueDoc.exists() ? issueDoc.data() : {};
+        const issueType = issueData.issueType || "Sự cố";
+        const issueBranch = issueData.issueBranch || "";
+        
+        for (const mention of mentions) {
+          if (mention.uid && mention.uid !== currentUser.uid) {
+            const notificationMessage = `${currentUserProfile.displayName} đã tag bạn trong bình luận về ${issueType}${issueBranch ? ` (${issueBranch})` : ""}`;
+            await sendNotification(mention.uid, notificationMessage, issueId);
+          }
+        }
+      }
+      
       commentInput.value = "";
-      logActivity("Add Comment", { issueId, commentText });
+      hideMentionSuggestions();
+      logActivity("Add Comment", { issueId, commentText, mentionsCount: mentions.length });
     } catch (error) {
       console.error("Error adding comment:", error);
+    }
+  }
+
+  /**
+   * Sets up mention autocomplete for comment input
+   */
+  function setupMentionAutocomplete(issueId) {
+    const commentInput = document.getElementById("newCommentInput");
+    const suggestionsDiv = document.getElementById("mentionSuggestions");
+    if (!commentInput || !suggestionsDiv) return;
+
+    let allUsers = [];
+    let currentMentionStart = -1;
+    let selectedIndex = -1;
+
+    // Load all users once
+    const usersRef = collection(db, `/artifacts/${canvasAppId}/users`);
+    getDocs(usersRef).then((snapshot) => {
+      allUsers = snapshot.docs
+        .map((doc) => ({
+          uid: doc.id,
+          ...doc.data(),
+        }))
+        .filter((user) => user.status !== "disabled" && !user.disabled)
+        .map((user) => ({
+          uid: user.uid,
+          name: user.displayName || user.email || "",
+          email: user.email || "",
+          role: user.role || "",
+        }))
+        .filter((user) => user.name);
+    });
+
+    function hideMentionSuggestions() {
+      suggestionsDiv.classList.add("hidden");
+      selectedIndex = -1;
+    }
+
+    function showMentionSuggestions(query = "") {
+      if (!allUsers.length) return;
+
+      const queryLower = query.toLowerCase();
+      const filtered = allUsers
+        .filter((user) => {
+          const nameLower = user.name.toLowerCase();
+          return nameLower.includes(queryLower) || user.email.toLowerCase().includes(queryLower);
+        })
+        .slice(0, 8); // Limit to 8 suggestions
+
+      if (filtered.length === 0) {
+        hideMentionSuggestions();
+        return;
+      }
+
+      suggestionsDiv.innerHTML = filtered
+        .map((user, index) => {
+          const isSelected = index === selectedIndex ? "bg-indigo-50" : "";
+          return `
+            <div class="mention-suggestion ${isSelected} px-3 py-2 hover:bg-indigo-50 cursor-pointer flex items-center space-x-2" data-index="${index}" data-uid="${user.uid}" data-name="${user.name}">
+              <i class="fas fa-user-circle text-indigo-600"></i>
+              <div class="flex-1">
+                <div class="font-medium text-slate-700">${escapeHtml(user.name)}</div>
+                ${user.role ? `<div class="text-xs text-slate-500">${escapeHtml(user.role)}</div>` : ""}
+              </div>
+            </div>
+          `;
+        })
+        .join("");
+
+      suggestionsDiv.classList.remove("hidden");
+
+      // Add click handlers
+      suggestionsDiv.querySelectorAll(".mention-suggestion").forEach((item) => {
+        item.addEventListener("click", () => {
+          const name = item.dataset.name;
+          insertMention(name);
+        });
+      });
+    }
+
+    function insertMention(name) {
+      const text = commentInput.value;
+      const beforeMention = text.substring(0, currentMentionStart);
+      const afterMention = text.substring(commentInput.selectionStart);
+      commentInput.value = beforeMention + `@${name} ` + afterMention;
+      commentInput.focus();
+      const newCursorPos = beforeMention.length + name.length + 2;
+      commentInput.setSelectionRange(newCursorPos, newCursorPos);
+      hideMentionSuggestions();
+    }
+
+    commentInput.addEventListener("input", (e) => {
+      const text = e.target.value;
+      const cursorPos = e.target.selectionStart;
+      
+      // Find @ symbol before cursor
+      const textBeforeCursor = text.substring(0, cursorPos);
+      const lastAtIndex = textBeforeCursor.lastIndexOf("@");
+      
+      if (lastAtIndex === -1) {
+        hideMentionSuggestions();
+        return;
+      }
+
+      // Check if there's a space after @ (meaning @ is not part of a mention)
+      const textAfterAt = textBeforeCursor.substring(lastAtIndex + 1);
+      if (textAfterAt.includes(" ")) {
+        hideMentionSuggestions();
+        return;
+      }
+
+      // Get the query after @
+      const query = textAfterAt.trim();
+      currentMentionStart = lastAtIndex;
+      selectedIndex = -1;
+
+      if (query.length === 0) {
+        showMentionSuggestions("");
+      } else {
+        showMentionSuggestions(query);
+      }
+    });
+
+    commentInput.addEventListener("keydown", (e) => {
+      if (!suggestionsDiv.classList.contains("hidden") && suggestionsDiv.children.length > 0) {
+        if (e.key === "ArrowDown") {
+          e.preventDefault();
+          selectedIndex = Math.min(selectedIndex + 1, suggestionsDiv.children.length - 1);
+          updateSelectedSuggestion();
+        } else if (e.key === "ArrowUp") {
+          e.preventDefault();
+          selectedIndex = Math.max(selectedIndex - 1, -1);
+          updateSelectedSuggestion();
+        } else if (e.key === "Enter" && selectedIndex >= 0) {
+          e.preventDefault();
+          const selectedItem = suggestionsDiv.children[selectedIndex];
+          if (selectedItem) {
+            const name = selectedItem.dataset.name;
+            insertMention(name);
+          }
+        } else if (e.key === "Escape") {
+          hideMentionSuggestions();
+        }
+      }
+    });
+
+    function updateSelectedSuggestion() {
+      suggestionsDiv.querySelectorAll(".mention-suggestion").forEach((item, index) => {
+        if (index === selectedIndex) {
+          item.classList.add("bg-indigo-50");
+        } else {
+          item.classList.remove("bg-indigo-50");
+        }
+      });
+    }
+
+    // Hide suggestions when clicking outside
+    document.addEventListener("click", (e) => {
+      if (!commentInput.contains(e.target) && !suggestionsDiv.contains(e.target)) {
+        hideMentionSuggestions();
+      }
+    });
+
+    // Store hide function globally for use in handleAddComment
+    window.hideMentionSuggestions = hideMentionSuggestions;
+  }
+
+  // Make parseMentions async-compatible
+  async function parseMentionsAsync(text) {
+    const mentionPattern = /@([^\s@]+)/g;
+    const matches = [...text.matchAll(mentionPattern)];
+    
+    if (matches.length === 0) return [];
+    
+    try {
+      const usersRef = collection(db, `/artifacts/${canvasAppId}/users`);
+      const snapshot = await getDocs(usersRef);
+      const usersMap = new Map();
+      
+      snapshot.docs.forEach((doc) => {
+        const userData = doc.data();
+        const displayName = userData.displayName || userData.email || "";
+        if (displayName) {
+          usersMap.set(displayName.toLowerCase(), { uid: doc.id, name: displayName });
+          // Also store by name parts for better matching
+          const nameParts = displayName.toLowerCase().split(/\s+/);
+          nameParts.forEach((part) => {
+            if (part.length > 1 && !usersMap.has(part)) {
+              usersMap.set(part, { uid: doc.id, name: displayName });
+            }
+          });
+        }
+      });
+      
+      const uniqueMentions = new Map();
+      matches.forEach((match) => {
+        const mentionName = match[1];
+        const mentionLower = mentionName.toLowerCase();
+        
+        // Try exact match first
+        let found = usersMap.get(mentionLower);
+        if (!found) {
+          // Try partial match
+          for (const [key, value] of usersMap.entries()) {
+            if (key.includes(mentionLower) || mentionLower.includes(key)) {
+              found = value;
+              break;
+            }
+          }
+        }
+        
+        if (found && !uniqueMentions.has(found.uid)) {
+          uniqueMentions.set(found.uid, {
+            uid: found.uid,
+            name: found.name,
+          });
+        }
+      });
+      
+      return Array.from(uniqueMentions.values());
+    } catch (error) {
+      console.error("Error parsing mentions:", error);
+      return [];
     }
   }
 
@@ -4069,11 +5796,24 @@
       )
       .join("");
 
+    // Populate branch dropdown for Nhân viên
+    const branchContainer = editAccountModal.querySelector("#editAccountBranchContainer");
+    const branchSelect = editAccountModal.querySelector("#editAccountBranch");
+    if (branchSelect) {
+      branchSelect.innerHTML = '<option value="">-- Chọn chi nhánh --</option>' + 
+        ALL_BRANCHES.map(b => `<option value="${b}" ${userData.branch === b ? "selected" : ""}>${b}</option>`).join("");
+    }
+
     const handleRoleChange = () => {
       const role = roleSelect.value;
       document
         .getElementById("managedBranchesContainer")
         .classList.toggle("hidden", role !== "Manager");
+      
+      // Show/hide branch field for Nhân viên
+      if (branchContainer) {
+        branchContainer.classList.toggle("hidden", role !== "Nhân viên");
+      }
     };
 
     roleSelect.addEventListener("change", handleRoleChange);
@@ -4088,8 +5828,12 @@
     const saveBtn = editAccountModal.querySelector("#saveAccountDetailsBtn");
     if (!uid) return;
 
+    const role = editAccountModal.querySelector("#editAccountRole").value;
+    const branchSelect = editAccountModal.querySelector("#editAccountBranch");
+    const branch = branchSelect?.value || "";
+    
     const updatedData = {
-      role: editAccountModal.querySelector("#editAccountRole").value,
+      role: role,
       employeeId: editAccountModal
         .querySelector("#editAccountEmployeeId")
         .value.trim(),
@@ -4105,6 +5849,14 @@
         editAccountModal.querySelectorAll("#allowedViewsCheckboxes input:checked")
       ).map((cb) => cb.value),
     };
+    
+    // Thêm/xóa branch cho Nhân viên
+    if (role === "Nhân viên" && branch) {
+      updatedData.branch = branch;
+    } else if (role !== "Nhân viên") {
+      // Xóa branch nếu không phải Nhân viên
+      updatedData.branch = null;
+    }
 
     saveBtn.disabled = true;
     saveBtn.innerHTML = `<i class="fas fa-spinner fa-spin mr-2"></i>Đang lưu...`;
@@ -4134,16 +5886,169 @@
     }
   }
 
+  async function handleUpdateProfile() {
+    if (!currentUser || !currentUserProfile || !myProfileModal) return;
+
+    const displayNameInput = myProfileModal.querySelector("#profileDisplayName");
+    const messageEl = myProfileModal.querySelector("#profileUpdateMessage");
+    const updateBtn = myProfileModal.querySelector("#updateProfileBtn");
+
+    if (!displayNameInput || !messageEl || !updateBtn) return;
+
+    const newDisplayName = displayNameInput.value.trim();
+
+    if (!newDisplayName) {
+      messageEl.className = "p-3 rounded-lg text-sm alert-error";
+      messageEl.textContent = "Vui lòng nhập tên hiển thị.";
+      messageEl.classList.remove("hidden");
+      return;
+    }
+
+    if (newDisplayName === currentUserProfile.displayName) {
+      messageEl.className = "p-3 rounded-lg text-sm alert-info";
+      messageEl.textContent = "Tên hiển thị không thay đổi.";
+      messageEl.classList.remove("hidden");
+      setTimeout(() => {
+        messageEl.classList.add("hidden");
+      }, 2000);
+      return;
+    }
+
+    updateBtn.disabled = true;
+    updateBtn.innerHTML = `<i class="fas fa-spinner fa-spin mr-2"></i>Đang cập nhật...`;
+
+    try {
+      const userDocRef = doc(db, `/artifacts/${canvasAppId}/users/${currentUser.uid}`);
+      await updateDoc(userDocRef, { displayName: newDisplayName });
+      await logActivity("Update Own Profile", { field: "displayName", newValue: newDisplayName });
+
+      // Update local state
+      currentUserProfile.displayName = newDisplayName;
+      loggedInUserDisplay.textContent = newDisplayName;
+      dropdownUserName.textContent = newDisplayName;
+
+      messageEl.className = "p-3 rounded-lg text-sm alert-success";
+      messageEl.textContent = "Cập nhật tên hiển thị thành công!";
+      messageEl.classList.remove("hidden");
+
+      setTimeout(() => {
+        messageEl.classList.add("hidden");
+      }, 3000);
+    } catch (error) {
+      console.error("Error updating profile:", error);
+      messageEl.className = "p-3 rounded-lg text-sm alert-error";
+      messageEl.textContent = `Lỗi: ${error.message}`;
+      messageEl.classList.remove("hidden");
+    } finally {
+      updateBtn.disabled = false;
+      updateBtn.innerHTML = `<i class="fas fa-save mr-2"></i>Cập nhật thông tin`;
+    }
+  }
+
+  async function handleChangePassword() {
+    if (!currentUser || !currentUserProfile || !myProfileModal) return;
+
+    const currentPasswordInput = myProfileModal.querySelector("#profileCurrentPassword");
+    const newPasswordInput = myProfileModal.querySelector("#profileNewPassword");
+    const confirmPasswordInput = myProfileModal.querySelector("#profileConfirmPassword");
+    const messageEl = myProfileModal.querySelector("#passwordChangeMessage");
+    const changeBtn = myProfileModal.querySelector("#changePasswordBtn");
+
+    if (!currentPasswordInput || !newPasswordInput || !confirmPasswordInput || !messageEl || !changeBtn) return;
+
+    const currentPassword = currentPasswordInput.value;
+    const newPassword = newPasswordInput.value;
+    const confirmPassword = confirmPasswordInput.value;
+
+    // Validation
+    if (!currentPassword) {
+      messageEl.className = "p-3 rounded-lg text-sm alert-error";
+      messageEl.textContent = "Vui lòng nhập mật khẩu hiện tại.";
+      messageEl.classList.remove("hidden");
+      return;
+    }
+
+    if (newPassword.length < 6) {
+      messageEl.className = "p-3 rounded-lg text-sm alert-error";
+      messageEl.textContent = "Mật khẩu mới phải có ít nhất 6 ký tự.";
+      messageEl.classList.remove("hidden");
+      return;
+    }
+
+    if (newPassword !== confirmPassword) {
+      messageEl.className = "p-3 rounded-lg text-sm alert-error";
+      messageEl.textContent = "Mật khẩu xác nhận không khớp.";
+      messageEl.classList.remove("hidden");
+      return;
+    }
+
+    changeBtn.disabled = true;
+    changeBtn.innerHTML = `<i class="fas fa-spinner fa-spin mr-2"></i>Đang đổi mật khẩu...`;
+
+    try {
+      // Reauthenticate user with current password
+      const credential = EmailAuthProvider.credential(currentUser.email, currentPassword);
+      await reauthenticateWithCredential(currentUser, credential);
+
+      // Update password
+      await updatePassword(currentUser, newPassword);
+
+      // Update requiresPasswordChange flag if it was set
+      if (currentUserProfile.requiresPasswordChange) {
+        const userDocRef = doc(db, `/artifacts/${canvasAppId}/users/${currentUser.uid}`);
+        await updateDoc(userDocRef, { requiresPasswordChange: false });
+        currentUserProfile.requiresPasswordChange = false;
+      }
+
+      await logActivity("Change Own Password", {});
+
+      // Clear password fields
+      currentPasswordInput.value = "";
+      newPasswordInput.value = "";
+      confirmPasswordInput.value = "";
+
+      messageEl.className = "p-3 rounded-lg text-sm alert-success";
+      messageEl.textContent = "Đổi mật khẩu thành công!";
+      messageEl.classList.remove("hidden");
+
+      setTimeout(() => {
+        messageEl.classList.add("hidden");
+      }, 3000);
+    } catch (error) {
+      console.error("Error changing password:", error);
+      let errorMessage = "Lỗi khi đổi mật khẩu.";
+      
+      if (error.code === "auth/wrong-password") {
+        errorMessage = "Mật khẩu hiện tại không đúng.";
+      } else if (error.code === "auth/weak-password") {
+        errorMessage = "Mật khẩu mới quá yếu. Vui lòng chọn mật khẩu mạnh hơn.";
+      } else if (error.code === "auth/requires-recent-login") {
+        errorMessage = "Vui lòng đăng nhập lại để đổi mật khẩu.";
+      } else {
+        errorMessage = `Lỗi: ${error.message}`;
+      }
+
+      messageEl.className = "p-3 rounded-lg text-sm alert-error";
+      messageEl.textContent = errorMessage;
+      messageEl.classList.remove("hidden");
+    } finally {
+      changeBtn.disabled = false;
+      changeBtn.innerHTML = `<i class="fas fa-key mr-2"></i>Đổi mật khẩu`;
+    }
+  }
+
   async function handleCreateAccount() {
     // Lấy thêm vai trò (role) từ dropdown mới
     const email = mainContentContainer.querySelector("#createAccountEmail").value.trim();
     const password = mainContentContainer.querySelector("#createAccountPassword").value;
     const displayName = mainContentContainer.querySelector("#createAccountUsername").value.trim();
-    const role = mainContentContainer.querySelector("#createAccountRole").value; // <-- BIẾN MỚI
+    const role = mainContentContainer.querySelector("#createAccountRole").value;
     const employeeIdInput = mainContentContainer.querySelector("#createAccountEmployeeId");
+    const branchSelect = mainContentContainer.querySelector("#createAccountBranch");
     const messageEl = mainContentContainer.querySelector("#createAccountMessage");
 
     let employeeId = employeeIdInput.value.trim();
+    const branch = branchSelect?.value || "";
 
     // --- LOGIC VALIDATION MỚI ---
     let validationError = "";
@@ -4154,6 +6059,11 @@
     // Chỉ yêu cầu MSNV nếu vai trò KHÔNG PHẢI "Chi nhánh"
     if (role !== "Chi nhánh" && !employeeId) {
       validationError = "Mã nhân viên (MSNV) là bắt buộc cho vai trò này.";
+    }
+
+    // Yêu cầu branch nếu là "Nhân viên"
+    if (role === "Nhân viên" && !branch) {
+      validationError = "Chi nhánh là bắt buộc cho vai trò Nhân viên.";
     }
 
     // Nếu là "Chi nhánh", tự động gán MSNV là "N/A"
@@ -4203,6 +6113,11 @@
         managedBranches: [],
         requiresPasswordChange: true,
       };
+      
+      // Thêm branch cho Nhân viên
+      if (role === "Nhân viên" && branch) {
+        newUserProfile.branch = branch;
+      }
 
       await setDoc(
         doc(db, `/artifacts/${canvasAppId}/users/${newUid}`),
@@ -4229,6 +6144,7 @@
       mainContentContainer.querySelector("#createAccountPassword").value = "";
       mainContentContainer.querySelector("#createAccountUsername").value = "";
       mainContentContainer.querySelector("#createAccountEmployeeId").value = "";
+      if (branchSelect) branchSelect.value = "";
       
     } catch (error) {
       messageEl.textContent = `Lỗi tạo tài khoản: ${error.message}`;
@@ -4538,15 +6454,40 @@
     }
 
     // Validation: Kiểm tra các trường bắt buộc
-    if (
-      !issueBranch ||
-      !issueDescription ||
-      (issueScope === "specific_rooms" && !specificRooms)
-    ) {
-      messageEl.textContent =
-        "Vui lòng điền đầy đủ thông tin (chọn ít nhất 1 phòng nếu là sự cố phòng cụ thể).";
+    const validationErrors = [];
+    
+    if (!issueType || issueType.trim() === "") {
+      validationErrors.push("Loại sự cố");
+    }
+    if (!priority || priority.trim() === "") {
+      validationErrors.push("Mức độ ưu tiên");
+    }
+    if (!issueBranch || issueBranch.trim() === "") {
+      validationErrors.push("Chi nhánh");
+    }
+    if (!issueDescription || issueDescription.trim() === "") {
+      validationErrors.push("Mô tả chi tiết");
+    }
+    if (issueScope === "specific_rooms" && !specificRooms) {
+      validationErrors.push("Chọn ít nhất 1 phòng cụ thể");
+    }
+    
+    if (validationErrors.length > 0) {
+      messageEl.textContent = `Vui lòng điền đầy đủ thông tin: ${validationErrors.join(", ")}.`;
       messageEl.className = "p-3 rounded-lg text-sm text-center alert-error";
       messageEl.classList.remove("hidden");
+      
+      // Scroll to first error field
+      if (!issueType || issueType.trim() === "") {
+        mainContentContainer.querySelector("#issueType")?.focus();
+      } else if (!priority || priority.trim() === "") {
+        mainContentContainer.querySelector("#issuePriority")?.focus();
+      } else if (!issueBranch || issueBranch.trim() === "") {
+        mainContentContainer.querySelector("#issueBranch")?.focus();
+      } else if (!issueDescription || issueDescription.trim() === "") {
+        mainContentContainer.querySelector("#issueDescription")?.focus();
+      }
+      
       return;
     }
 
@@ -4556,13 +6497,16 @@
 
     try {
       let imageUrl = "";
-      // Tải ảnh lên nếu có
+      // Tải ảnh lên nếu có (với nén trước khi upload)
       if (imageFile) {
+        // Compress image before upload
+        const compressedImage = await compressImage(imageFile);
+        
         const storageRef = ref(
           storage,
-          `issue_images/${currentUser.uid}/${Date.now()}-${imageFile.name}`
+          `issue_images/${currentUser.uid}/${Date.now()}-${compressedImage.name || imageFile.name}`
         );
-        const snapshot = await uploadBytes(storageRef, imageFile);
+        const snapshot = await uploadBytes(storageRef, compressedImage);
         imageUrl = await getDownloadURL(snapshot.ref);
       }
 
@@ -4782,12 +6726,17 @@
     confirmBtn.innerHTML = `<i class="fas fa-spinner fa-spin"></i>`;
 
     try {
+      // Compress photo before upload
+      const compressedPhoto = await compressImage(capturedPhotoBlob, {
+        fileType: "image/jpeg", // Keep as JPEG for attendance photos
+      });
+
       const today = new Date().toISOString().split("T")[0];
       const storageRef = ref(
         storage,
         `attendance_photos/${currentUser.uid}/${today}/${Date.now()}.jpg`
       );
-      const snapshot = await uploadBytes(storageRef, capturedPhotoBlob);
+      const snapshot = await uploadBytes(storageRef, compressedPhoto);
       const photoUrl = await getDownloadURL(snapshot.ref);
 
       await addDoc(
@@ -4846,6 +6795,771 @@
     unsubscribeListeners.push(unsubscribe);
   }
 
+  // --- Shift Management Functions ---
+  
+  /**
+   * Initializes default shifts if no shifts exist, or updates existing default shifts
+   */
+  async function initializeDefaultShifts() {
+    try {
+      const shiftsRef = collection(db, `/artifacts/${canvasAppId}/public/data/shifts`);
+      const snapshot = await getDocs(shiftsRef);
+      
+      // Default shifts configuration
+      const defaultShifts = [
+        { name: "Ca Đêm 1 (18h-04h)", startTime: "18:00", endTime: "04:00", breakDuration: 30 },
+        { name: "Ca Sáng (8h30-17h30)", startTime: "08:30", endTime: "17:30", breakDuration: 60 },
+        { name: "Ca Chiều (16h-24h)", startTime: "16:00", endTime: "24:00", breakDuration: 0 },
+        { name: "Ca Đêm 2 (22h-6h)", startTime: "22:00", endTime: "06:00", breakDuration: 0 },
+        { name: "Ca Sáng Sớm (6h-15h)", startTime: "06:00", endTime: "15:00", breakDuration: 60 },
+      ];
+
+      if (snapshot.empty) {
+        // Create all default shifts if none exist
+        const createPromises = defaultShifts.map((shift) =>
+          addDoc(shiftsRef, {
+            shiftName: shift.name,
+            startTime: shift.startTime,
+            endTime: shift.endTime,
+            breakDuration: shift.breakDuration,
+            createdAt: serverTimestamp(),
+            isDefault: true,
+          })
+        );
+        await Promise.all(createPromises);
+        console.log("Đã tạo các ca làm việc mặc định.");
+      } else {
+        // Update existing default shifts to match new configuration
+        const existingShifts = snapshot.docs.map((doc) => ({
+          id: doc.id,
+          ...doc.data(),
+        }));
+
+        const updatePromises = [];
+        for (const defaultShift of defaultShifts) {
+          const existingShift = existingShifts.find(
+            (s) => s.shiftName === defaultShift.name
+          );
+          
+          if (existingShift) {
+            // Update breakDuration if it doesn't match
+            if (existingShift.breakDuration !== defaultShift.breakDuration) {
+              updatePromises.push(
+                updateDoc(doc(db, `/artifacts/${canvasAppId}/public/data/shifts/${existingShift.id}`), {
+                  breakDuration: defaultShift.breakDuration,
+                })
+              );
+            }
+          } else {
+            // Create missing default shift
+            updatePromises.push(
+              addDoc(shiftsRef, {
+                shiftName: defaultShift.name,
+                startTime: defaultShift.startTime,
+                endTime: defaultShift.endTime,
+                breakDuration: defaultShift.breakDuration,
+                createdAt: serverTimestamp(),
+                isDefault: true,
+              })
+            );
+          }
+        }
+
+        if (updatePromises.length > 0) {
+          await Promise.all(updatePromises);
+          console.log("Đã cập nhật các ca làm việc mặc định.");
+        }
+      }
+    } catch (error) {
+      console.error("Error initializing default shifts:", error);
+    }
+  }
+
+  /**
+   * Loads all shifts and renders them in the table
+   */
+  async function loadShifts() {
+    const tableBody = mainContentContainer.querySelector("#shiftsTableBody");
+    const assignShiftSelect = mainContentContainer.querySelector("#assignShiftName");
+    if (!tableBody) return;
+
+    try {
+      const shiftsRef = collection(db, `/artifacts/${canvasAppId}/public/data/shifts`);
+      const snapshot = await getDocs(shiftsRef);
+      const shifts = snapshot.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+      }));
+
+      // Render shifts table
+      if (shifts.length === 0) {
+        tableBody.innerHTML = `<tr><td colspan="7" class="text-center p-4 text-slate-500">Chưa có ca làm việc nào. Hãy tạo ca mới.</td></tr>`;
+      } else {
+        tableBody.innerHTML = await Promise.all(
+          shifts.map(async (shift) => {
+            // Count employees assigned to this shift
+            const employeeShiftsQuery = query(
+              collection(db, `/artifacts/${canvasAppId}/public/data/employeeShifts`),
+              where("shiftId", "==", shift.id)
+            );
+            const employeeSnapshot = await getDocs(employeeShiftsQuery);
+            const employeeCount = employeeSnapshot.size;
+
+            // Calculate total hours
+            const startTime = shift.startTime || "00:00";
+            const endTime = shift.endTime || "00:00";
+            const breakDuration = shift.breakDuration || 0;
+            
+            const [startHour, startMin] = startTime.split(":").map(Number);
+            const [endHour, endMin] = endTime.split(":").map(Number);
+            const startMinutes = startHour * 60 + startMin;
+            const endMinutes = endHour * 60 + endMin;
+            let totalMinutes = endMinutes - startMinutes;
+            if (totalMinutes < 0) totalMinutes += 24 * 60; // Handle overnight shifts
+            totalMinutes -= breakDuration;
+            const totalHours = (totalMinutes / 60).toFixed(1);
+
+            const breakDisplay = breakDuration > 0 ? `${breakDuration} phút` : "Không có";
+            
+            return `
+              <tr class="hover:bg-gray-50">
+                <td class="px-4 py-3 font-medium">${shift.shiftName || "N/A"}</td>
+                <td class="px-4 py-3">${startTime}</td>
+                <td class="px-4 py-3">${endTime}</td>
+                <td class="px-4 py-3">${breakDisplay}</td>
+                <td class="px-4 py-3 font-semibold">${totalHours} giờ</td>
+                <td class="px-4 py-3">${employeeCount} người</td>
+                <td class="px-4 py-3 text-right">
+                  <button class="delete-shift-btn btn-danger !text-xs !py-1 !px-2" data-shift-id="${shift.id}" data-shift-name="${shift.shiftName}">
+                    <i class="fas fa-trash mr-1"></i>Xóa
+                  </button>
+                </td>
+              </tr>
+            `;
+          })
+        ).then(rows => rows.join(""));
+
+        // Add event listeners for delete buttons
+        tableBody.querySelectorAll(".delete-shift-btn").forEach((btn) => {
+          btn.addEventListener("click", () => {
+            const shiftId = btn.dataset.shiftId;
+            const shiftName = btn.dataset.shiftName;
+            if (confirm(`Bạn có chắc chắn muốn xóa ca "${shiftName}"?`)) {
+              handleDeleteShift(shiftId);
+            }
+          });
+        });
+      }
+
+      // Populate assign shift dropdown
+      if (assignShiftSelect) {
+        assignShiftSelect.innerHTML = '<option value="">-- Chọn ca --</option>' + shifts
+          .map((shift) => `<option value="${shift.id}" data-shift-name="${shift.shiftName}">${shift.shiftName}</option>`)
+          .join("");
+      }
+    } catch (error) {
+      console.error("Error loading shifts:", error);
+      if (tableBody) {
+        tableBody.innerHTML = `<tr><td colspan="7" class="text-center p-4 text-red-500">Lỗi tải dữ liệu: ${error.message}</td></tr>`;
+      }
+    }
+  }
+
+  /**
+   * Loads employees for shift assignment
+   */
+  async function loadEmployeesForShiftAssignment() {
+    const employeeSelect = mainContentContainer.querySelector("#assignShiftEmployee");
+    if (!employeeSelect) return;
+
+    try {
+      const usersRef = collection(db, `/artifacts/${canvasAppId}/users`);
+      const snapshot = await getDocs(usersRef);
+      const employees = snapshot.docs
+        .map((doc) => ({
+          uid: doc.id,
+          ...doc.data(),
+        }))
+        .filter((user) => {
+          // Chỉ lấy Nhân viên không bị disabled
+          if (user.role !== "Nhân viên" || user.status === "disabled" || user.disabled) {
+            return false;
+          }
+          
+          // Nếu là Manager, chỉ hiển thị Nhân viên trong các chi nhánh được quản lý
+          if (currentUserProfile.role === "Manager") {
+            const managedBranches = currentUserProfile.managedBranches || [];
+            return user.branch && managedBranches.includes(user.branch);
+          }
+          
+          // Admin thấy tất cả Nhân viên
+          return true;
+        });
+
+      employeeSelect.innerHTML = '<option value="">-- Chọn nhân viên --</option>' + employees
+        .sort((a, b) => (a.displayName || "").localeCompare(b.displayName || ""))
+        .map((emp) => `<option value="${emp.uid}">${emp.displayName || emp.email}${emp.employeeId ? ` (${emp.employeeId})` : ""}${emp.branch ? ` - ${emp.branch.replace("ICOOL ", "")}` : ""}</option>`)
+        .join("");
+    } catch (error) {
+      console.error("Error loading employees:", error);
+    }
+  }
+
+  /**
+   * Creates a new shift
+   */
+  async function handleCreateShift() {
+    const shiftNameInput = mainContentContainer.querySelector("#shiftName");
+    const startTimeInput = mainContentContainer.querySelector("#shiftStartTime");
+    const endTimeInput = mainContentContainer.querySelector("#shiftEndTime");
+    const breakDurationInput = mainContentContainer.querySelector("#shiftBreakDuration");
+    const messageEl = mainContentContainer.querySelector("#shiftMessage");
+    const createBtn = mainContentContainer.querySelector("#createShiftBtn");
+
+    const shiftName = shiftNameInput?.value.trim();
+    const startTime = startTimeInput?.value;
+    const endTime = endTimeInput?.value;
+    const breakDuration = parseInt(breakDurationInput?.value || "0", 10);
+
+    // Validation
+    if (!shiftName || !startTime || !endTime) {
+      messageEl.textContent = "Vui lòng điền đầy đủ thông tin (Tên ca, Giờ bắt đầu, Giờ kết thúc).";
+      messageEl.className = "p-3 rounded-lg text-sm text-center alert-error";
+      messageEl.classList.remove("hidden");
+      return;
+    }
+
+    createBtn.disabled = true;
+    createBtn.innerHTML = `<i class="fas fa-spinner fa-spin mr-2"></i>Đang tạo...`;
+
+    try {
+      // Check if shift name already exists
+      const shiftsRef = collection(db, `/artifacts/${canvasAppId}/public/data/shifts`);
+      const existingShifts = await getDocs(shiftsRef);
+      const duplicate = existingShifts.docs.find(
+        (doc) => doc.data().shiftName === shiftName
+      );
+
+      if (duplicate) {
+        messageEl.textContent = `Ca "${shiftName}" đã tồn tại. Vui lòng chọn tên khác.`;
+        messageEl.className = "p-3 rounded-lg text-sm text-center alert-error";
+        messageEl.classList.remove("hidden");
+        createBtn.disabled = false;
+        createBtn.innerHTML = `<i class="fas fa-plus mr-2"></i>Tạo Ca`;
+        return;
+      }
+
+      // Create shift
+      await addDoc(shiftsRef, {
+        shiftName: shiftName,
+        startTime: startTime,
+        endTime: endTime,
+        breakDuration: breakDuration,
+        createdAt: serverTimestamp(),
+      });
+
+      // Clear form
+      shiftNameInput.value = "";
+      startTimeInput.value = "";
+      endTimeInput.value = "";
+      breakDurationInput.value = "0";
+
+      messageEl.textContent = "Tạo ca thành công!";
+      messageEl.className = "p-3 rounded-lg text-sm text-center alert-success";
+      messageEl.classList.remove("hidden");
+
+      // Reload shifts
+      await loadShifts();
+
+      setTimeout(() => {
+        messageEl.classList.add("hidden");
+      }, 3000);
+    } catch (error) {
+      console.error("Error creating shift:", error);
+      messageEl.textContent = `Lỗi: ${error.message}`;
+      messageEl.className = "p-3 rounded-lg text-sm text-center alert-error";
+      messageEl.classList.remove("hidden");
+    } finally {
+      createBtn.disabled = false;
+      createBtn.innerHTML = `<i class="fas fa-plus mr-2"></i>Tạo Ca`;
+    }
+  }
+
+  /**
+   * Assigns a shift to an employee
+   */
+  async function handleAssignShift() {
+    const employeeSelect = mainContentContainer.querySelector("#assignShiftEmployee");
+    const shiftSelect = mainContentContainer.querySelector("#assignShiftName");
+    const messageEl = mainContentContainer.querySelector("#assignShiftMessage");
+    const assignBtn = mainContentContainer.querySelector("#assignShiftBtn");
+
+    const employeeId = employeeSelect?.value;
+    const shiftId = shiftSelect?.value;
+    const shiftName = shiftSelect?.options[shiftSelect.selectedIndex]?.dataset.shiftName;
+
+    if (!employeeId || !shiftId) {
+      messageEl.textContent = "Vui lòng chọn nhân viên và ca làm việc.";
+      messageEl.className = "p-3 rounded-lg text-sm text-center alert-error";
+      messageEl.classList.remove("hidden");
+      return;
+    }
+
+    assignBtn.disabled = true;
+    assignBtn.innerHTML = `<i class="fas fa-spinner fa-spin mr-2"></i>Đang gán...`;
+
+    try {
+      // Get employee info
+      const userDoc = await getDoc(doc(db, `/artifacts/${canvasAppId}/users/${employeeId}`));
+      if (!userDoc.exists()) {
+        throw new Error("Không tìm thấy nhân viên.");
+      }
+      const employeeName = userDoc.data().displayName || userDoc.data().email;
+
+      // Check if employee already has this shift
+      const existingAssignments = await getDocs(
+        query(
+          collection(db, `/artifacts/${canvasAppId}/public/data/employeeShifts`),
+          where("employeeId", "==", employeeId),
+          where("shiftId", "==", shiftId)
+        )
+      );
+
+      if (!existingAssignments.empty) {
+        messageEl.textContent = `Nhân viên "${employeeName}" đã được gán ca "${shiftName}" rồi.`;
+        messageEl.className = "p-3 rounded-lg text-sm text-center alert-error";
+        messageEl.classList.remove("hidden");
+        assignBtn.disabled = false;
+        assignBtn.innerHTML = `<i class="fas fa-check mr-2"></i>Gán Ca`;
+        return;
+      }
+
+      // Assign shift
+      await addDoc(collection(db, `/artifacts/${canvasAppId}/public/data/employeeShifts`), {
+        employeeId: employeeId,
+        employeeName: employeeName,
+        shiftId: shiftId,
+        shiftName: shiftName,
+        assignedDate: serverTimestamp(),
+        assignedBy: currentUser.uid,
+        assignedByName: currentUserProfile.displayName,
+      });
+
+      // Also update user document for quick access
+      await setDoc(
+        doc(db, `/artifacts/${canvasAppId}/users/${employeeId}/shift/current`),
+        {
+          shiftId: shiftId,
+          shiftName: shiftName,
+          updatedAt: serverTimestamp(),
+        },
+        { merge: true }
+      );
+
+      messageEl.textContent = `Đã gán ca "${shiftName}" cho "${employeeName}" thành công!`;
+      messageEl.className = "p-3 rounded-lg text-sm text-center alert-success";
+      messageEl.classList.remove("hidden");
+
+      // Clear selection
+      employeeSelect.value = "";
+      shiftSelect.value = "";
+
+      // Reload shifts to update employee count
+      await loadShifts();
+
+      await logActivity("Assign Shift", {
+        employeeId: employeeId,
+        employeeName: employeeName,
+        shiftId: shiftId,
+        shiftName: shiftName,
+      });
+
+      setTimeout(() => {
+        messageEl.classList.add("hidden");
+      }, 3000);
+    } catch (error) {
+      console.error("Error assigning shift:", error);
+      messageEl.textContent = `Lỗi: ${error.message}`;
+      messageEl.className = "p-3 rounded-lg text-sm text-center alert-error";
+      messageEl.classList.remove("hidden");
+    } finally {
+      assignBtn.disabled = false;
+      assignBtn.innerHTML = `<i class="fas fa-check mr-2"></i>Gán Ca`;
+    }
+  }
+
+  /**
+   * Deletes a shift
+   */
+  async function handleDeleteShift(shiftId) {
+    try {
+      // Check if any employees are assigned to this shift
+      const employeeShiftsQuery = query(
+        collection(db, `/artifacts/${canvasAppId}/public/data/employeeShifts`),
+        where("shiftId", "==", shiftId)
+      );
+      const employeeSnapshot = await getDocs(employeeShiftsQuery);
+
+      if (!employeeSnapshot.empty) {
+        alert("Không thể xóa ca này vì đã có nhân viên được gán. Vui lòng gỡ gán trước.");
+        return;
+      }
+
+      // Delete shift
+      await deleteDoc(doc(db, `/artifacts/${canvasAppId}/public/data/shifts/${shiftId}`));
+
+      await logActivity("Delete Shift", { shiftId: shiftId });
+
+      // Reload shifts
+      await loadShifts();
+    } catch (error) {
+      console.error("Error deleting shift:", error);
+      alert(`Lỗi khi xóa ca: ${error.message}`);
+    }
+  }
+
+  /**
+   * Loads employees for attendance report filter
+   */
+  async function loadEmployeesForAttendanceReport() {
+    const employeeSelect = mainContentContainer.querySelector("#attendanceReportEmployee");
+    if (!employeeSelect) return;
+
+    try {
+      const usersRef = collection(db, `/artifacts/${canvasAppId}/users`);
+      const snapshot = await getDocs(usersRef);
+      const employees = snapshot.docs
+        .map((doc) => ({
+          uid: doc.id,
+          ...doc.data(),
+        }))
+        .filter((user) => {
+          // Chỉ lấy Nhân viên không bị disabled
+          if (user.role !== "Nhân viên" || user.status === "disabled" || user.disabled) {
+            return false;
+          }
+          
+          // Manager chỉ thấy Nhân viên trong các chi nhánh được quản lý
+          if (currentUserProfile.role === "Manager") {
+            const managedBranches = currentUserProfile.managedBranches || [];
+            return user.branch && managedBranches.includes(user.branch);
+          }
+          
+          // Admin thấy tất cả Nhân viên
+          return true;
+        });
+
+      employeeSelect.innerHTML = '<option value="">Tất cả nhân viên</option>' + employees
+        .sort((a, b) => (a.displayName || "").localeCompare(b.displayName || ""))
+        .map((emp) => `<option value="${emp.uid}">${emp.displayName || emp.email}${emp.employeeId ? ` (${emp.employeeId})` : ""}</option>`)
+        .join("");
+    } catch (error) {
+      console.error("Error loading employees for report:", error);
+    }
+  }
+
+  /**
+   * Generates attendance report
+   */
+  async function generateAttendanceReport() {
+    const monthInput = mainContentContainer.querySelector("#attendanceReportMonth");
+    const employeeSelect = mainContentContainer.querySelector("#attendanceReportEmployee");
+    const resultsDiv = mainContentContainer.querySelector("#attendanceReportResults");
+    const tableBody = mainContentContainer.querySelector("#attendanceReportTableBody");
+    const messageEl = mainContentContainer.querySelector("#attendanceReportMessage");
+    const generateBtn = mainContentContainer.querySelector("#generateAttendanceReportBtn");
+
+    if (!monthInput || !resultsDiv || !tableBody) return;
+
+    const selectedMonth = monthInput.value;
+    const selectedEmployeeId = employeeSelect?.value || "";
+
+    if (!selectedMonth) {
+      messageEl.textContent = "Vui lòng chọn tháng/năm.";
+      messageEl.className = "p-3 rounded-lg text-sm text-center alert-error";
+      messageEl.classList.remove("hidden");
+      return;
+    }
+
+    generateBtn.disabled = true;
+    generateBtn.innerHTML = `<i class="fas fa-spinner fa-spin mr-2"></i>Đang tạo báo cáo...`;
+      tableBody.innerHTML = `<tr><td colspan="7" class="text-center p-4">Đang tải dữ liệu...</td></tr>`;
+
+    try {
+      const [year, month] = selectedMonth.split("-").map(Number);
+      const startDate = new Date(year, month - 1, 1);
+      const endDate = new Date(year, month, 0, 23, 59, 59, 999);
+
+      // Get employees to process
+      let employeeIds = [];
+      if (selectedEmployeeId) {
+        employeeIds = [selectedEmployeeId];
+      } else {
+        // Get all employees
+        const usersRef = collection(db, `/artifacts/${canvasAppId}/users`);
+        const usersSnapshot = await getDocs(usersRef);
+        employeeIds = usersSnapshot.docs
+          .map((doc) => doc.id)
+          .filter((uid) => {
+            const userData = usersSnapshot.docs.find((d) => d.id === uid)?.data();
+            // Chỉ lấy Nhân viên không bị disabled
+            if (userData?.role !== "Nhân viên" || userData?.status === "disabled" || userData?.disabled) {
+              return false;
+            }
+            
+            // Manager chỉ thấy Nhân viên trong các chi nhánh được quản lý
+            if (currentUserProfile.role === "Manager") {
+              const managedBranches = currentUserProfile.managedBranches || [];
+              return userData?.branch && managedBranches.includes(userData.branch);
+            }
+            
+            // Admin thấy tất cả Nhân viên
+            return true;
+          });
+      }
+
+      // Load attendance data for all employees
+      const allAttendanceData = [];
+      for (const employeeId of employeeIds) {
+        const attendanceRef = collection(
+          db,
+          `/artifacts/${canvasAppId}/users/${employeeId}/attendance`
+        );
+        const attendanceSnapshot = await getDocs(attendanceRef);
+
+        attendanceSnapshot.docs.forEach((doc) => {
+          const data = doc.data();
+          const timestamp = data.timestamp?.toDate();
+          if (timestamp && timestamp >= startDate && timestamp <= endDate) {
+            // Get employee shift info
+            allAttendanceData.push({
+              employeeId: employeeId,
+              employeeName: data.employeeName || "N/A",
+              action: data.action,
+              timestamp: timestamp,
+              photoUrl: data.photoUrl,
+              location: data.location,
+            });
+          }
+        });
+      }
+
+      // Get employee info
+      const usersRef = collection(db, `/artifacts/${canvasAppId}/users`);
+      const usersSnapshot = await getDocs(usersRef);
+      const employeeMap = {};
+      usersSnapshot.docs.forEach((doc) => {
+        employeeMap[doc.id] = doc.data();
+      });
+
+      // Get shift assignments
+      const shiftsRef = collection(db, `/artifacts/${canvasAppId}/public/data/shifts`);
+      const shiftsSnapshot = await getDocs(shiftsRef);
+      const shiftsMap = {};
+      shiftsSnapshot.docs.forEach((doc) => {
+        shiftsMap[doc.id] = doc.data();
+      });
+
+      // Get employee shifts
+      const employeeShiftsRef = collection(db, `/artifacts/${canvasAppId}/public/data/employeeShifts`);
+      const employeeShiftsSnapshot = await getDocs(employeeShiftsRef);
+      const employeeShiftsMap = {};
+      employeeShiftsSnapshot.docs.forEach((doc) => {
+        const data = doc.data();
+        if (!employeeShiftsMap[data.employeeId]) {
+          employeeShiftsMap[data.employeeId] = [];
+        }
+        employeeShiftsMap[data.employeeId].push({
+          shiftId: data.shiftId,
+          shiftName: data.shiftName,
+        });
+      });
+
+      // Process and group by date and employee
+      const reportData = {};
+      allAttendanceData.forEach((record) => {
+        const dateKey = record.timestamp.toISOString().split("T")[0];
+        const employeeKey = record.employeeId;
+        const key = `${dateKey}_${employeeKey}`;
+
+        if (!reportData[key]) {
+          reportData[key] = {
+            date: dateKey,
+            employeeId: employeeKey,
+            employeeName: employeeMap[employeeKey]?.displayName || employeeMap[employeeKey]?.email || "N/A",
+            checkIn: null,
+            checkOut: null,
+            shiftName: employeeShiftsMap[employeeKey]?.[0]?.shiftName || "Chưa gán ca",
+          };
+        }
+
+        if (record.action === "Check-In") {
+          reportData[key].checkIn = record.timestamp;
+        } else if (record.action === "Check-Out") {
+          reportData[key].checkOut = record.timestamp;
+        }
+      });
+
+      // Convert to array and sort by date
+      const reportArray = Object.values(reportData).sort((a, b) => 
+        new Date(a.date) - new Date(b.date)
+      );
+
+      // Calculate statistics
+      let totalHours = 0;
+      let workingDays = 0;
+      let absentDays = 0;
+      let totalCheckIns = 0;
+
+      reportArray.forEach((day) => {
+        if (day.checkIn) {
+          workingDays++;
+          totalCheckIns++;
+          if (day.checkOut) {
+            const hours = (day.checkOut - day.checkIn) / (1000 * 60 * 60);
+            totalHours += hours;
+          }
+        }
+      });
+
+      // Calculate absent days (days in month without check-in)
+      const daysInMonth = endDate.getDate();
+      const uniqueEmployees = new Set(employeeIds);
+      absentDays = daysInMonth * uniqueEmployees.size - workingDays;
+
+      // Update statistics display
+      const totalHoursEl = mainContentContainer.querySelector("#reportTotalHours");
+      const workingDaysEl = mainContentContainer.querySelector("#reportWorkingDays");
+      const absentDaysEl = mainContentContainer.querySelector("#reportAbsentDays");
+      const checkInsEl = mainContentContainer.querySelector("#reportCheckIns");
+
+      if (totalHoursEl) totalHoursEl.textContent = totalHours.toFixed(1);
+      if (workingDaysEl) workingDaysEl.textContent = workingDays;
+      if (absentDaysEl) absentDaysEl.textContent = absentDays;
+      if (checkInsEl) checkInsEl.textContent = totalCheckIns;
+
+      // Render table
+      if (reportArray.length === 0) {
+        tableBody.innerHTML = `<tr><td colspan="7" class="text-center p-4 text-slate-500">Không có dữ liệu chấm công trong tháng này.</td></tr>`;
+      } else {
+        tableBody.innerHTML = reportArray.map((day) => {
+          const checkInTime = day.checkIn
+            ? day.checkIn.toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" })
+            : "-";
+          const checkOutTime = day.checkOut
+            ? day.checkOut.toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" })
+            : "-";
+          
+          let hoursWorked = "-";
+          let status = "Nghỉ";
+          let statusClass = "text-red-600";
+
+          if (day.checkIn && day.checkOut) {
+            const hours = (day.checkOut - day.checkIn) / (1000 * 60 * 60);
+            hoursWorked = hours.toFixed(1);
+            status = "Hoàn thành";
+            statusClass = "text-green-600";
+          } else if (day.checkIn) {
+            status = "Chưa check-out";
+            statusClass = "text-yellow-600";
+          }
+
+          const dateStr = new Date(day.date).toLocaleDateString("vi-VN", {
+            day: "2-digit",
+            month: "2-digit",
+            year: "numeric",
+          });
+
+          return `
+            <tr class="hover:bg-gray-50">
+              <td class="px-4 py-3">${dateStr}</td>
+              <td class="px-4 py-3">${day.employeeName}</td>
+              <td class="px-4 py-3">${day.shiftName}</td>
+              <td class="px-4 py-3">${checkInTime}</td>
+              <td class="px-4 py-3">${checkOutTime}</td>
+              <td class="px-4 py-3 font-medium">${hoursWorked}${hoursWorked !== "-" ? " giờ" : ""}</td>
+              <td class="px-4 py-3">
+                <span class="${statusClass} font-medium">${status}</span>
+              </td>
+            </tr>
+          `;
+        }).join("");
+      }
+
+      // Store report data for export
+      window.currentAttendanceReportData = reportArray;
+      window.currentAttendanceReportStats = {
+        totalHours,
+        workingDays,
+        absentDays,
+        totalCheckIns,
+        month: selectedMonth,
+      };
+
+      resultsDiv.classList.remove("hidden");
+      messageEl.classList.add("hidden");
+    } catch (error) {
+      console.error("Error generating report:", error);
+      messageEl.textContent = `Lỗi: ${error.message}`;
+      messageEl.className = "p-3 rounded-lg text-sm text-center alert-error";
+      messageEl.classList.remove("hidden");
+      tableBody.innerHTML = `<tr><td colspan="7" class="text-center p-4 text-red-500">Lỗi tải dữ liệu.</td></tr>`;
+    } finally {
+      generateBtn.disabled = false;
+      generateBtn.innerHTML = `<i class="fas fa-search mr-2"></i>Tạo Báo Cáo`;
+    }
+  }
+
+  /**
+   * Exports attendance report to Excel
+   */
+  function handleExportAttendanceReport() {
+    if (!window.currentAttendanceReportData || window.currentAttendanceReportData.length === 0) {
+      alert("Không có dữ liệu để xuất. Vui lòng tạo báo cáo trước.");
+      return;
+    }
+
+    const stats = window.currentAttendanceReportStats;
+    const data = window.currentAttendanceReportData.map((day) => {
+      const checkInTime = day.checkIn
+        ? day.checkIn.toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" })
+        : "";
+      const checkOutTime = day.checkOut
+        ? day.checkOut.toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" })
+        : "";
+      
+      let hoursWorked = "";
+      if (day.checkIn && day.checkOut) {
+        const hours = (day.checkOut - day.checkIn) / (1000 * 60 * 60);
+        hoursWorked = hours.toFixed(1);
+      }
+
+      return {
+        "Ngày": new Date(day.date).toLocaleDateString("vi-VN"),
+        "Nhân viên": day.employeeName,
+        "Ca": day.shiftName,
+        "Check-in": checkInTime,
+        "Check-out": checkOutTime,
+        "Số giờ": hoursWorked ? `${hoursWorked} giờ` : "",
+        "Trạng thái": day.checkIn && day.checkOut ? "Hoàn thành" : day.checkIn ? "Chưa check-out" : "Nghỉ",
+      };
+    });
+
+    // Add summary row
+    data.push({}, {
+      "Ngày": "TỔNG KẾT",
+      "Nhân viên": "",
+      "Ca": "",
+      "Check-in": "",
+      "Check-out": "",
+      "Số giờ": `${stats.totalHours.toFixed(1)} giờ`,
+      "Trạng thái": `Làm việc: ${stats.workingDays} ngày | Nghỉ: ${stats.absentDays} ngày`,
+    });
+
+    const fileName = `bang_cham_cong_${stats.month.replace("-", "_")}.xlsx`;
+    exportToExcel(data, fileName);
+  }
+
   // --- Global Modal Close Functions ---
   function closeIssueDetailModal() {
     issueDetailModal.style.display = "none";
@@ -4859,6 +7573,46 @@
     stopCameraStream();
     if (timeInterval) clearInterval(timeInterval);
     cameraModal.style.display = "none";
+  }
+
+  /**
+   * Compresses an image file before upload.
+   * @param {File|Blob} imageFile - The image file to compress
+   * @param {Object} options - Compression options (optional)
+   * @returns {Promise<File|Blob>} - The compressed image file
+   */
+  async function compressImage(imageFile, options = {}) {
+    try {
+      // Default compression options
+      const compressionOptions = {
+        maxSizeMB: 1, // Maximum file size in MB
+        maxWidthOrHeight: 1024, // Maximum width or height
+        useWebWorker: true, // Use web worker for better performance
+        quality: 0.8, // Image quality (0-1)
+        fileType: "image/jpeg", // Output file type
+        ...options, // Allow overriding defaults
+      };
+
+      // Check if browser-image-compression is available
+      if (typeof imageCompression === "undefined") {
+        console.warn("Image compression library not loaded, uploading original file");
+        return imageFile;
+      }
+
+      // Compress the image
+      const compressedFile = await imageCompression(imageFile, compressionOptions);
+      
+      console.log(
+        `Image compressed: ${(imageFile.size / 1024 / 1024).toFixed(2)}MB -> ${(compressedFile.size / 1024 / 1024).toFixed(2)}MB`
+      );
+
+      return compressedFile;
+    } catch (error) {
+      console.error("Image compression error:", error);
+      // If compression fails, return original file
+      console.warn("Falling back to original image file");
+      return imageFile;
+    }
   }
 
   /**
@@ -4878,6 +7632,71 @@
     // Gắn worksheet vào workbook với tên là 'Chấm Công'
     XLSX.utils.book_append_sheet(wb, ws, "Chấm Công");
     // Xuất file
+    XLSX.writeFile(wb, fileName);
+  }
+
+  /**
+   * Exports issue history data to Excel file.
+   * Uses the filtered data (issueHistoryFiltered) to export only what's currently displayed.
+   */
+  function handleExportIssueHistory() {
+    if (!issueHistoryFiltered || issueHistoryFiltered.length === 0) {
+      alert("Không có dữ liệu sự cố để xuất. Vui lòng kiểm tra lại bộ lọc.");
+      return;
+    }
+
+    // Format location detail helper
+    const formatLocationDetail = (report) => {
+      if (report.issueScope === "all_rooms") {
+        return "Tất cả phòng";
+      } else if (report.specificRooms) {
+        const firstRoom = report.specificRooms.split(", ")[0];
+        const locationInfo = roomToLocationMap[firstRoom];
+        const floorName = locationInfo ? locationInfo.floor : "N/A";
+        return `Tầng: ${floorName}, Phòng: ${report.specificRooms}`;
+      }
+      return "N/A";
+    };
+
+    // Format date helper
+    const formatDate = (dateValue) => {
+      if (!dateValue) return "N/A";
+      try {
+        const date = dateValue.toDate ? dateValue.toDate() : new Date(dateValue);
+        return date.toLocaleString("vi-VN");
+      } catch (e) {
+        return "N/A";
+      }
+    };
+
+    // Convert issue reports to Excel format
+    const excelData = issueHistoryFiltered.map((report) => {
+      return {
+        "Chi nhánh": report.issueBranch || "N/A",
+        "Vị trí cụ thể": formatLocationDetail(report),
+        "Người gửi": report.reporterName || "N/A",
+        "Loại sự cố": report.issueType || "N/A",
+        "Mức độ ưu tiên": report.priority || "N/A",
+        "Ngày báo cáo": formatDate(report.reportDate),
+        "Trạng thái": report.status || "N/A",
+        "Người được giao": report.assigneeName || "Chưa giao",
+        "Người giải quyết": report.resolverName || "Chưa giải quyết",
+        "Ngày giải quyết": report.resolvedDate ? formatDate(report.resolvedDate) : "Chưa giải quyết",
+        "Mô tả": report.issueDescription || "Không có mô tả",
+      };
+    });
+
+    // Create worksheet and workbook
+    const ws = XLSX.utils.json_to_sheet(excelData);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Lịch Sử Sự Cố");
+
+    // Generate filename with current date
+    const now = new Date();
+    const dateStr = now.toISOString().split("T")[0].replace(/-/g, "");
+    const fileName = `lich_su_su_co_${dateStr}.xlsx`;
+
+    // Export file
     XLSX.writeFile(wb, fileName);
   }
 
@@ -5022,8 +7841,13 @@
       "forceChangePasswordModal"
     );
     drillDownModal = document.getElementById("drillDownModal");
+    confirmCancelModal = document.getElementById("confirmCancelModal");
+    myProfileModal = document.getElementById("myProfileModal");
     sidebar = document.getElementById("sidebar");
     mobileMenuToggle = document.getElementById("mobileMenuToggle");
+    onlineStatusIndicator = document.getElementById("onlineStatusIndicator");
+    onlineStatusIcon = document.getElementById("onlineStatusIcon");
+    onlineStatusText = document.getElementById("onlineStatusText");
   }
 
   function bindShellEventListeners() {
@@ -5043,6 +7867,14 @@
     document
       .getElementById("logoutDropdownBtn")
       .addEventListener("click", handleLogout);
+    document
+      .getElementById("myProfileDropdownBtn")
+      .addEventListener("click", (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        document.getElementById("userDropdownMenu").classList.remove("show");
+        openMyProfileModal();
+      });
     document
       .getElementById("userDropdownToggle")
       .addEventListener("click", (e) => {
@@ -5134,6 +7966,36 @@
     deleteAccountModal
       .querySelector("#closeDeleteModalBtn")
       .addEventListener("click", closeDeleteAccountModal);
+
+    // Confirm Cancel Modal Listeners
+    if (confirmCancelModal) {
+      confirmCancelModal
+        .querySelector("#confirmCancelBtn")
+        .addEventListener("click", handleConfirmCancelIssue);
+      confirmCancelModal
+        .querySelector("#cancelConfirmCancelBtn")
+        .addEventListener("click", () => {
+          confirmCancelModal.style.display = "none";
+        });
+      confirmCancelModal
+        .querySelector("#closeConfirmCancelModalBtn")
+        .addEventListener("click", () => {
+          confirmCancelModal.style.display = "none";
+        });
+    }
+
+    // My Profile Modal Listeners
+    if (myProfileModal) {
+      myProfileModal
+        .querySelector("#closeMyProfileModalBtn")
+        .addEventListener("click", closeMyProfileModal);
+      // Close modal when clicking outside
+      myProfileModal.addEventListener("click", (e) => {
+        if (e.target === myProfileModal) {
+          closeMyProfileModal();
+        }
+      });
+    }
 
     // Camera Modal Listeners
     cameraModal
