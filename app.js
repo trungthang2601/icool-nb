@@ -509,6 +509,8 @@
   let activityLogsCache = [];
   let issueHistoryCache = [];
   let issueHistoryFiltered = [];
+  let issueHistorySelectedMonth = ""; // Store selected month/year for archive query
+  let issueHistoryMode = "current"; // "current" or "archive" - mode for viewing issue history
   let myTasksCache = [];
   let activityLogCurrentPage = 1;
   let accountsCurrentPage = 1;
@@ -2795,8 +2797,8 @@
     const tableBody = mainContentContainer.querySelector("#issueHistoryTableBody");
     if (!tableBody) return;
 
-    // Check if month is selected
-    if (!issueHistorySelectedMonth) {
+    // For archive mode, check if month is selected
+    if (issueHistoryMode === "archive" && !issueHistorySelectedMonth) {
       tableBody.innerHTML = `<tr>
         <td colspan="7" class="text-center p-8 text-slate-500">
           <i class="fas fa-calendar-check text-4xl mb-4 text-slate-300"></i>
@@ -2824,36 +2826,44 @@
       const dateFromFilter = mainContentContainer.querySelector("#filterDateFrom")?.value || "";
       const dateToFilter = mainContentContainer.querySelector("#filterDateTo")?.value || "";
 
-      // Parse selected month to get date range
-      const [year, month] = issueHistorySelectedMonth.split("-");
-      const startDate = new Date(parseInt(year), parseInt(month) - 1, 1); // First day of month
-      const endDate = new Date(parseInt(year), parseInt(month), 0, 23, 59, 59, 999); // Last day of month
+      // Build query based on mode
+      let q;
+      
+      if (issueHistoryMode === "current") {
+        // Current mode: Query from issueReports (like before)
+        q = getScopedIssuesQuery();
+      } else {
+        // Archive mode: Query from issueReports_archive with month filter
+        // Parse selected month to get date range
+        const [year, month] = issueHistorySelectedMonth.split("-");
+        const startDate = new Date(parseInt(year), parseInt(month) - 1, 1); // First day of month
+        const endDate = new Date(parseInt(year), parseInt(month), 0, 23, 59, 59, 999); // Last day of month
 
-      // Build query for archive collection
-      // Query archive collection with scope restrictions
-      let q = collection(db, `/artifacts/${canvasAppId}/public/data/issueReports_archive`);
-      
-      // Apply scope restrictions (same as getScopedIssuesQuery but for archive)
-      if (currentUserProfile.role === "Manager") {
-        const managedBranches = currentUserProfile.managedBranches || [];
-        if (managedBranches.length > 0) {
-          q = query(q, where("issueBranch", "in", managedBranches));
-        } else {
-          // Return empty result
-          tableBody.innerHTML = `<tr><td colspan="7" class="text-center p-4 text-slate-500">Không có dữ liệu trong tháng này.</td></tr>`;
-          issueHistoryFiltered = [];
-          return;
+        // Build query for archive collection
+        q = collection(db, `/artifacts/${canvasAppId}/public/data/issueReports_archive`);
+        
+        // Apply scope restrictions (same as getScopedIssuesQuery but for archive)
+        if (currentUserProfile.role === "Manager") {
+          const managedBranches = currentUserProfile.managedBranches || [];
+          if (managedBranches.length > 0) {
+            q = query(q, where("issueBranch", "in", managedBranches));
+          } else {
+            // Return empty result
+            tableBody.innerHTML = `<tr><td colspan="7" class="text-center p-4 text-slate-500">Không có dữ liệu trong tháng này.</td></tr>`;
+            issueHistoryFiltered = [];
+            return;
+          }
+        } else if (currentUserProfile.role === "Nhân viên") {
+          q = query(q, where("reporterId", "==", currentUser.uid));
         }
-      } else if (currentUserProfile.role === "Nhân viên") {
-        q = query(q, where("reporterId", "==", currentUser.uid));
+        
+        // Filter by month (using reportDate)
+        q = query(
+          q,
+          where("reportDate", ">=", Timestamp.fromDate(startDate)),
+          where("reportDate", "<=", Timestamp.fromDate(endDate))
+        );
       }
-      
-      // Filter by month (using reportDate)
-      q = query(
-        q,
-        where("reportDate", ">=", Timestamp.fromDate(startDate)),
-        where("reportDate", "<=", Timestamp.fromDate(endDate))
-      );
 
       // Apply additional filters at server-side (if any beyond month)
       if (branchFilter) {
@@ -2877,37 +2887,156 @@
       }
 
       // Execute query
-      const snapshot = await getDocs(q);
+      let snapshot;
+      let usingFallback = false;
+      
+      try {
+        snapshot = await getDocs(q);
+        
+        // If archive mode returns no results, try fallback to current reports
+        if (issueHistoryMode === "archive" && snapshot.empty) {
+          console.log("Archive collection is empty, trying fallback to current reports...");
+          usingFallback = true;
+          
+          // Fallback: Query from current reports (without date filter at server-side)
+          // We'll filter by month at client-side to avoid index issues
+          q = getScopedIssuesQuery();
+          
+          // Apply other filters (but not date filter - will filter client-side)
+          if (branchFilter) {
+            q = query(q, where("issueBranch", "==", branchFilter));
+          }
+          if (issueTypeFilter) {
+            q = query(q, where("issueType", "==", issueTypeFilter));
+          }
+          if (statusFilter) {
+            q = query(q, where("status", "==", statusFilter));
+          }
+          
+          // Add ordering and pagination (without date filter)
+          // Note: We'll need to get more results and filter client-side
+          // Increase limit to ensure we get enough data for the month
+          q = query(q, orderBy("reportDate", "desc"), limit(ITEMS_PER_PAGE * 10)); // Get more to filter client-side
+          
+          if (loadNext && issueHistoryLastVisible) {
+            q = query(q, startAfter(issueHistoryLastVisible));
+          }
+          
+          snapshot = await getDocs(q);
+        }
+      } catch (error) {
+        console.error("Error querying issue history:", error);
+        
+        // If archive mode fails, try fallback to current reports
+        if (issueHistoryMode === "archive") {
+          console.log("Archive query failed, trying fallback to current reports...");
+          usingFallback = true;
+          
+          // Fallback: Query from current reports (without date filter at server-side)
+          // We'll filter by month at client-side to avoid index issues
+          q = getScopedIssuesQuery();
+          
+          // Apply other filters (but not date filter - will filter client-side)
+          if (branchFilter) {
+            q = query(q, where("issueBranch", "==", branchFilter));
+          }
+          if (issueTypeFilter) {
+            q = query(q, where("issueType", "==", issueTypeFilter));
+          }
+          if (statusFilter) {
+            q = query(q, where("status", "==", statusFilter));
+          }
+          
+          // Add ordering and pagination (without date filter)
+          // Increase limit to ensure we get enough data for the month
+          q = query(q, orderBy("reportDate", "desc"), limit(ITEMS_PER_PAGE * 10)); // Get more to filter client-side
+          
+          if (loadNext && issueHistoryLastVisible) {
+            q = query(q, startAfter(issueHistoryLastVisible));
+          }
+          
+          try {
+            snapshot = await getDocs(q);
+          } catch (fallbackError) {
+            console.error("Fallback query also failed:", fallbackError);
+            throw fallbackError;
+          }
+        } else {
+          throw error;
+        }
+      }
       
       // Convert to array
       const reports = snapshot.docs.map((doc) => ({
         id: doc.id,
         ...doc.data(),
       }));
-
-      // Client-side filtering for reporterName and date range (not supported server-side)
-      let filteredReports = reports;
-      if (reporterFilter || dateFromFilter || dateToFilter) {
-        filteredReports = reports.filter((report) => {
-      if (reporterFilter && report.reporterName !== reporterFilter) {
-        return false;
+      
+      if (usingFallback) {
+        console.log(`Archive collection empty/not found. Loaded ${reports.length} reports from current collection (fallback mode)`);
+      } else {
+        console.log(`Loaded ${reports.length} reports in ${issueHistoryMode} mode`);
       }
-      if (dateFromFilter || dateToFilter) {
-        const reportDate = new Date(report.reportDate);
-        reportDate.setHours(0, 0, 0, 0);
-        if (dateFromFilter) {
-          const fromDate = new Date(dateFromFilter);
-          fromDate.setHours(0, 0, 0, 0);
+
+      // Client-side filtering
+      let filteredReports = reports;
+      let totalLoadedCount = reports.length; // Store total loaded count for message
+      
+      // If using fallback in archive mode, filter by selected month
+      if (usingFallback && issueHistoryMode === "archive" && issueHistorySelectedMonth) {
+        const [year, month] = issueHistorySelectedMonth.split("-");
+        const startDate = new Date(parseInt(year), parseInt(month) - 1, 1);
+        startDate.setHours(0, 0, 0, 0);
+        const endDate = new Date(parseInt(year), parseInt(month), 0, 23, 59, 59, 999);
+        
+        filteredReports = reports.filter((report) => {
+          // Handle both Timestamp and Date formats
+          let reportDate;
+          if (report.reportDate && report.reportDate.toDate) {
+            reportDate = report.reportDate.toDate();
+          } else if (report.reportDate) {
+            reportDate = new Date(report.reportDate);
+          } else {
+            return false;
+          }
+          
+          return reportDate >= startDate && reportDate <= endDate;
+        });
+        
+        console.log(`Filtered to ${filteredReports.length} reports for month ${issueHistorySelectedMonth}`);
+      }
+      
+      // Additional client-side filtering for reporterName and date range
+      if (reporterFilter || dateFromFilter || dateToFilter) {
+        filteredReports = filteredReports.filter((report) => {
+          if (reporterFilter && report.reporterName !== reporterFilter) {
+            return false;
+          }
+          if (dateFromFilter || dateToFilter) {
+            // Handle both Timestamp and Date formats
+            let reportDate;
+            if (report.reportDate && report.reportDate.toDate) {
+              reportDate = report.reportDate.toDate();
+            } else if (report.reportDate) {
+              reportDate = new Date(report.reportDate);
+            } else {
+              return false;
+            }
+            
+            reportDate.setHours(0, 0, 0, 0);
+            if (dateFromFilter) {
+              const fromDate = new Date(dateFromFilter);
+              fromDate.setHours(0, 0, 0, 0);
               if (reportDate < fromDate) return false;
-          }
-        if (dateToFilter) {
-          const toDate = new Date(dateToFilter);
-          toDate.setHours(23, 59, 59, 999);
+            }
+            if (dateToFilter) {
+              const toDate = new Date(dateToFilter);
+              toDate.setHours(23, 59, 59, 999);
               if (reportDate > toDate) return false;
+            }
           }
-        }
-      return true;
-    });
+          return true;
+        });
       }
 
       // Update cache and state
@@ -2923,6 +3052,17 @@
       issueHistoryLastVisible = snapshot.docs[snapshot.docs.length - 1] || null;
       issueHistoryHasMore = snapshot.docs.length === ITEMS_PER_PAGE;
 
+      // Show fallback message if using fallback
+      if (usingFallback && issueHistoryMode === "archive") {
+        const resultsSubtitle = mainContentContainer.querySelector("#issueHistoryResultsSubtitle");
+        if (resultsSubtitle) {
+          const originalText = resultsSubtitle.textContent;
+          // Create informative message about data source and count
+          const message = `Báo cáo archive đang lấy dữ liệu từ báo cáo hiện tại (đã tải ${totalLoadedCount} bản ghi, hiển thị ${filteredReports.length} bản ghi trong tháng này)`;
+          resultsSubtitle.innerHTML = `${originalText} <span class="text-amber-600 text-xs ml-2 block mt-1" title="Archive collection chưa có dữ liệu. Hệ thống đang lấy từ báo cáo hiện tại và lọc theo tháng/năm đã chọn.">${message}</span>`;
+        }
+      }
+      
       // Update UI
     updateActiveFiltersCount();
     renderIssueHistoryTable(issueHistoryFiltered);
@@ -2954,26 +3094,96 @@
     issueHistoryFiltered = [];
     issueHistoryCache = [];
     issueHistoryLastVisible = null;
+    issueHistoryMode = "current"; // Default to current reports mode
     
-    // Hide results section initially
+    // Get elements
     const resultsSection = mainContentContainer.querySelector("#issueHistoryResults");
-    if (resultsSection) {
-      resultsSection.classList.add("hidden");
-    }
-    
-    // Clear table body
+    const archiveSelector = mainContentContainer.querySelector("#issueHistoryArchiveSelector");
+    const modeDescription = mainContentContainer.querySelector("#issueHistoryModeDescription");
+    const modeCurrentBtn = mainContentContainer.querySelector("#issueHistoryModeCurrent");
+    const modeArchiveBtn = mainContentContainer.querySelector("#issueHistoryModeArchive");
     const tableBody = mainContentContainer.querySelector("#issueHistoryTableBody");
-    if (tableBody) {
-      tableBody.innerHTML = `<tr>
-        <td colspan="7" class="text-center p-8 text-slate-500">
-          <i class="fas fa-calendar-check text-4xl mb-4 text-slate-300"></i>
-          <p class="text-base font-medium">Chưa chọn tháng/năm để xem báo cáo</p>
-          <p class="text-sm mt-2">Vui lòng chọn tháng/năm ở trên và nhấn "Xem Báo Cáo"</p>
-        </td>
-      </tr>`;
+    
+    // Setup mode toggle buttons
+    function switchMode(mode) {
+      issueHistoryMode = mode;
+      
+      // Update button states
+      if (modeCurrentBtn && modeArchiveBtn) {
+        if (mode === "current") {
+          modeCurrentBtn.classList.add("active", "bg-indigo-600", "text-white");
+          modeCurrentBtn.classList.remove("bg-slate-200", "text-slate-700");
+          modeArchiveBtn.classList.remove("active", "bg-indigo-600", "text-white");
+          modeArchiveBtn.classList.add("bg-slate-200", "text-slate-700");
+          
+          // Hide archive selector
+          if (archiveSelector) archiveSelector.classList.add("hidden");
+          
+          // Update description
+          if (modeDescription) {
+            modeDescription.textContent = "Xem tất cả báo cáo hiện tại (tự động tải)";
+          }
+          
+          // Clear selected month
+          issueHistorySelectedMonth = "";
+          
+          // Show results section for current mode
+          if (resultsSection) {
+            resultsSection.classList.remove("hidden");
+            // Update title
+            const resultsTitle = mainContentContainer.querySelector("#issueHistoryResultsTitle");
+            const resultsSubtitle = mainContentContainer.querySelector("#issueHistoryResultsSubtitle");
+            if (resultsTitle) resultsTitle.textContent = "Báo Cáo Hiện Tại";
+            if (resultsSubtitle) resultsSubtitle.textContent = "Tất cả báo cáo sự cố hiện tại";
+          }
+          
+          // Load current reports immediately
+          loadIssueHistoryPage(true);
+        } else {
+          modeArchiveBtn.classList.add("active", "bg-indigo-600", "text-white");
+          modeArchiveBtn.classList.remove("bg-slate-200", "text-slate-700");
+          modeCurrentBtn.classList.remove("active", "bg-indigo-600", "text-white");
+          modeCurrentBtn.classList.add("bg-slate-200", "text-slate-700");
+          
+          // Show archive selector
+          if (archiveSelector) archiveSelector.classList.remove("hidden");
+          
+          // Update description
+          if (modeDescription) {
+            modeDescription.textContent = "Xem báo cáo từ archive (chọn tháng/năm)";
+          }
+          
+          // Clear table and show message
+          if (tableBody) {
+            tableBody.innerHTML = `<tr>
+              <td colspan="7" class="text-center p-8 text-slate-500">
+                <i class="fas fa-calendar-check text-4xl mb-4 text-slate-300"></i>
+                <p class="text-base font-medium">Chưa chọn tháng/năm để xem báo cáo</p>
+                <p class="text-sm mt-2">Vui lòng chọn tháng/năm ở trên và nhấn "Xem Báo Cáo"</p>
+              </td>
+            </tr>`;
+          }
+          
+          // Hide results section initially for archive mode
+          if (resultsSection) {
+            resultsSection.classList.add("hidden");
+          }
+        }
+      }
     }
     
-    // Setup month selector - default to current month
+    // Setup mode toggle event listeners
+    if (modeCurrentBtn) {
+      modeCurrentBtn.addEventListener("click", () => switchMode("current"));
+    }
+    if (modeArchiveBtn) {
+      modeArchiveBtn.addEventListener("click", () => switchMode("archive"));
+    }
+    
+    // Initialize to current mode (load immediately)
+    switchMode("current");
+    
+    // Setup month selector - default to current month (for archive mode)
     const monthInput = mainContentContainer.querySelector("#issueHistoryMonth");
     if (monthInput) {
       const now = new Date();
@@ -2985,7 +3195,34 @@
     // Setup load button
     const loadBtn = mainContentContainer.querySelector("#loadIssueHistoryBtn");
     if (loadBtn) {
-      loadBtn.addEventListener("click", handleLoadIssueHistory);
+      // Ensure button is enabled and has correct type
+      loadBtn.disabled = false;
+      loadBtn.type = "button"; // Prevent form submission if inside a form
+      
+      // Remove any existing listeners to avoid duplicates
+      const newLoadBtn = loadBtn.cloneNode(true);
+      loadBtn.parentNode.replaceChild(newLoadBtn, loadBtn);
+      
+      // Add event listener to new button
+      newLoadBtn.addEventListener("click", (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        console.log("Load button clicked"); // Debug log
+        handleLoadIssueHistory();
+      });
+      
+      // Also allow Enter key on month input
+      if (monthInput) {
+        monthInput.addEventListener("keypress", (e) => {
+          if (e.key === "Enter") {
+            e.preventDefault();
+            console.log("Enter key pressed on month input"); // Debug log
+            handleLoadIssueHistory();
+          }
+        });
+      }
+    } else {
+      console.error("Load button not found: #loadIssueHistoryBtn");
     }
     
     // Setup clear button
@@ -3122,6 +3359,11 @@
    * Handles loading issue history when user selects month/year
    */
   async function handleLoadIssueHistory() {
+    // Only works in archive mode
+    if (issueHistoryMode !== "archive") {
+      return;
+    }
+    
     const monthInput = mainContentContainer.querySelector("#issueHistoryMonth");
     const messageEl = mainContentContainer.querySelector("#issueHistorySelectorMessage");
     const loadBtn = mainContentContainer.querySelector("#loadIssueHistoryBtn");
@@ -3131,7 +3373,15 @@
     const resultsSubtitle = mainContentContainer.querySelector("#issueHistoryResultsSubtitle");
     const exportBtn = mainContentContainer.querySelector("#exportIssueHistoryBtn");
     
-    if (!monthInput || !resultsSection) return;
+    if (!monthInput || !resultsSection) {
+      console.error("Missing required elements for issue history:", { monthInput, resultsSection });
+      return;
+    }
+    
+    // Prevent multiple clicks
+    if (loadBtn && loadBtn.disabled) {
+      return;
+    }
 
     const selectedMonth = monthInput.value;
     

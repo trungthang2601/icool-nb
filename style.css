@@ -2,6 +2,15 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Issue History Mode Toggle Buttons */
+.issue-history-mode-btn {
+  @apply transition-all duration-200;
+}
+
+.issue-history-mode-btn.active {
+  @apply shadow-md;
+}
+
 :root {
     --primary-color: #4f46e5;
     /* indigo-600 */

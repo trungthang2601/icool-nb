@@ -499,10 +499,35 @@
             Lịch Sử Báo Cáo
           </h2>
           
-          <!-- Month/Year Selector Section -->
-          <div class="card p-5 mb-6 bg-slate-50 border border-slate-200">
+          <!-- Mode Toggle: Current Reports vs Archive -->
+          <div class="mb-6 flex items-center gap-4 bg-slate-50 p-4 rounded-lg border border-slate-200">
+            <span class="text-sm font-medium text-slate-700">Chế độ xem:</span>
+            <div class="flex gap-2">
+              <button 
+                id="issueHistoryModeCurrent" 
+                class="px-4 py-2 rounded-lg text-sm font-medium transition-colors issue-history-mode-btn active"
+                data-mode="current"
+              >
+                <i class="fas fa-clock mr-2"></i>Báo Cáo Hiện Tại
+              </button>
+              <button 
+                id="issueHistoryModeArchive" 
+                class="px-4 py-2 rounded-lg text-sm font-medium transition-colors issue-history-mode-btn"
+                data-mode="archive"
+              >
+                <i class="fas fa-archive mr-2"></i>Báo Cáo Archive
+              </button>
+            </div>
+            <p class="text-xs text-slate-500 ml-auto">
+              <i class="fas fa-info-circle mr-1"></i>
+              <span id="issueHistoryModeDescription">Xem tất cả báo cáo hiện tại</span>
+            </p>
+          </div>
+          
+          <!-- Month/Year Selector Section (only for archive mode) -->
+          <div id="issueHistoryArchiveSelector" class="card p-5 mb-6 bg-slate-50 border border-slate-200 hidden">
             <h3 class="text-lg font-semibold text-slate-700 mb-4 flex items-center">
-              <i class="fas fa-calendar-alt mr-2 text-indigo-600"></i>Chọn tháng/năm để xem báo cáo
+              <i class="fas fa-calendar-alt mr-2 text-indigo-600"></i>Chọn tháng/năm để xem báo cáo từ archive
             </h3>
             <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 items-end">
               <div>
@@ -521,7 +546,11 @@
                 </p>
               </div>
               <div class="flex items-end gap-2">
-                <button id="loadIssueHistoryBtn" class="btn-primary w-full">
+                <button 
+                  id="loadIssueHistoryBtn" 
+                  type="button"
+                  class="btn-primary w-full"
+                >
                   <i class="fas fa-search mr-2"></i>Xem Báo Cáo
                 </button>
                 <button id="clearIssueHistoryBtn" class="btn-secondary hidden">
@@ -532,8 +561,8 @@
             <div id="issueHistorySelectorMessage" class="hidden mt-4 p-3 rounded-lg text-sm"></div>
           </div>
           
-          <!-- Results Section (hidden until month is selected) -->
-          <div id="issueHistoryResults" class="hidden">
+          <!-- Results Section -->
+          <div id="issueHistoryResults">
             <div class="flex flex-wrap justify-between items-center mb-6 gap-4">
               <div>
                 <h3 id="issueHistoryResultsTitle" class="text-xl font-semibold text-slate-700"></h3>
