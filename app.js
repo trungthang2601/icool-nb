@@ -29,6 +29,7 @@
     limit,
     deleteDoc,
     startAfter,
+    Timestamp,
   } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
   import {
     getStorage,
@@ -36,6 +37,10 @@
     uploadBytes,
     getDownloadURL,
   } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-storage.js";
+  import {
+    getFunctions,
+    httpsCallable,
+  } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-functions.js";
 
   // --- Configuration Constants ---
   const firebaseConfig =
@@ -470,7 +475,7 @@
   const ISSUE_TYPES = ["Kỹ thuật", "Vận hành", "Hệ thống", "Con người", "Khác"];
 
   // --- Global State Variables ---
-  let app, auth, db, storage;
+  let app, auth, db, storage, functions;
   let currentUser = null,
     currentUserProfile = null;
   let unsubscribeListeners = [],
@@ -488,7 +493,17 @@
     timeInterval,
     capturedLocationInfo;
   let showDisabledAccounts = false;
-  let allUsersCache = [];
+  let allUsersCache = []; // Cache for all users (used for accounts table, dropdowns, mentions) - may be filtered
+  let allUsersCacheUnfiltered = []; // Cache for all users before disabled filter (for total count)
+  let accountsSearchTerm = "";
+  let activityLogSearchTerm = "";
+  let usersCacheLoaded = false; // Flag to track if users cache has been loaded
+  let activityLogFilters = {
+    actor: "",
+    action: "",
+    dateFrom: "",
+    dateTo: ""
+  };
   let escalationInterval = null;
   let dashboardReportsCache = [];
   let activityLogsCache = [];
@@ -545,6 +560,7 @@
       auth = getAuth(app);
       db = getFirestore(app);
       storage = getStorage(app);
+      functions = getFunctions(app);
 
       // Enable offline persistence for Firestore
       // This allows the app to work offline and sync when connection is restored
@@ -815,6 +831,9 @@
           forceChangePasswordModal.style.display = "none";
           listenToNotifications();
           showInitialView();
+          // Load users into cache (for dropdowns and mentions)
+          // Don't await - load in background to not block UI
+          loadUsersIntoCache().catch(err => console.error("Failed to load users cache:", err));
           if (currentUserProfile.role === "Admin") {
             startEscalationChecker();
           }
@@ -829,6 +848,9 @@
       }
     } else {
       setupUIForLoggedOutUser();
+      // Clear cache on logout
+      allUsersCache = [];
+      usersCacheLoaded = false;
     }
     skeletonLoader.classList.add("hidden");
   }
@@ -862,6 +884,30 @@
       currentUserProfile.allowedViews = currentUserProfile.allowedViews.filter(
         (viewId) => viewId !== "myProfileView"
       );
+    }
+  }
+
+  /**
+   * Loads all users into cache (called once after login)
+   * This avoids repeated getDocs calls in openIssueDetailModal and setupMentionAutocomplete
+   */
+  async function loadUsersIntoCache() {
+    if (usersCacheLoaded || !currentUser) {
+      return; // Already loaded or user not logged in
+    }
+
+    try {
+      const usersRef = collection(db, `/artifacts/${canvasAppId}/users`);
+      const usersSnapshot = await getDocs(usersRef);
+      allUsersCache = usersSnapshot.docs.map((doc) => ({
+        uid: doc.id,
+        ...doc.data(),
+      }));
+      usersCacheLoaded = true;
+      console.log(`✅ Loaded ${allUsersCache.length} users into cache`);
+    } catch (error) {
+      console.error("Error loading users into cache:", error);
+      // Continue execution even if cache load fails
     }
   }
 
@@ -1362,6 +1408,17 @@
       loadAccountsPage(true); // Reload from server when toggling
     });
 
+    // Search input event listener
+    const accountSearchInput = mainContentContainer.querySelector("#accountSearchInput");
+    if (accountSearchInput) {
+      accountSearchInput.value = accountsSearchTerm; // Restore previous search term
+      accountSearchInput.addEventListener("input", (e) => {
+        accountsSearchTerm = e.target.value.trim().toLowerCase();
+        // Re-render table with current cache using the search filter
+        renderAccountsTable(allUsersCache);
+      });
+    }
+
     const exportAllBtn = mainContentContainer.querySelector(
       "#exportAllAttendanceBtn"
     );
@@ -1402,18 +1459,38 @@
       accountsCurrentPage = 1;
       accountsLastVisible = null;
       allUsersCache = [];
+      allUsersCacheUnfiltered = [];
     }
 
     // Show loading state
     tableBody.innerHTML = `<tr><td colspan="5" class="text-center p-4">Đang tải...</td></tr>`;
+    
+    // Update count display to show loading
+    const countTextEl = mainContentContainer.querySelector("#accountsCountText");
+    if (countTextEl) {
+      countTextEl.textContent = "Đang tải...";
+    }
 
     try {
-      // Build query - filter disabled accounts if needed
+      // Get total count of all users (only when resetPage, to avoid unnecessary queries)
+      if (resetPage) {
+        // Get total count query (without pagination) - only on first load
+        const countQuery = query(collection(db, `/artifacts/${canvasAppId}/users`), orderBy("displayName"));
+        const countSnapshot = await getDocs(countQuery);
+        const allUsersForCount = countSnapshot.docs.map((doc) => ({
+          uid: doc.id,
+          ...doc.data(),
+        }));
+        
+        // Store total count
+        allUsersCacheUnfiltered = allUsersForCount;
+      }
+      
+      // Build query for paginated results
       let q = query(collection(db, `/artifacts/${canvasAppId}/users`));
       
       // Note: Firestore doesn't have a direct "disabled" field check
       // We'll filter client-side for disabled accounts
-      // For now, load all and filter client-side
       
       // Add ordering and pagination
       q = query(q, orderBy("displayName"), limit(ITEMS_PER_PAGE));
@@ -1430,13 +1507,15 @@
           ...doc.data(),
         }));
 
+      // Note: allUsersCacheUnfiltered is already set when resetPage, don't update it on loadNext
+
       // Filter disabled accounts client-side
       let filteredUsers = users;
       if (!showDisabledAccounts) {
-        filteredUsers = users.filter((user) => !user.disabled);
+        filteredUsers = users.filter((user) => user.status !== "disabled" && !user.disabled);
       }
 
-      // Update cache and state
+      // Update filtered cache and state
       if (resetPage) {
         allUsersCache = filteredUsers;
       } else if (loadNext) {
@@ -1454,8 +1533,14 @@
     } catch (error) {
       console.error("Error loading accounts:", error);
       tableBody.innerHTML = `<tr><td colspan="5" class="text-center p-4 text-red-500">Lỗi tải dữ liệu: ${error.message}</td></tr>`;
-        }
+      
+      // Update count display to show error
+      const countTextEl = mainContentContainer.querySelector("#accountsCountText");
+      if (countTextEl) {
+        countTextEl.textContent = "Lỗi tải dữ liệu";
       }
+    }
+  }
 
   window.setup_dashboardView = function () {
     if (!currentUserProfile) return;
@@ -2710,6 +2795,18 @@
     const tableBody = mainContentContainer.querySelector("#issueHistoryTableBody");
     if (!tableBody) return;
 
+    // Check if month is selected
+    if (!issueHistorySelectedMonth) {
+      tableBody.innerHTML = `<tr>
+        <td colspan="7" class="text-center p-8 text-slate-500">
+          <i class="fas fa-calendar-check text-4xl mb-4 text-slate-300"></i>
+          <p class="text-base font-medium">Chưa chọn tháng/năm để xem báo cáo</p>
+          <p class="text-sm mt-2">Vui lòng chọn tháng/năm ở trên và nhấn "Xem Báo Cáo"</p>
+        </td>
+      </tr>`;
+      return;
+    }
+
     if (resetPage) {
       issueHistoryCurrentPage = 1;
       issueHistoryLastVisible = null;
@@ -2720,17 +2817,45 @@
 
     try {
       // Get filter values
-    const branchFilter = mainContentContainer.querySelector("#filterBranch")?.value || "";
-    const issueTypeFilter = mainContentContainer.querySelector("#filterIssueType")?.value || "";
-    const statusFilter = mainContentContainer.querySelector("#filterStatus")?.value || "";
-    const reporterFilter = mainContentContainer.querySelector("#filterReporter")?.value || "";
-    const dateFromFilter = mainContentContainer.querySelector("#filterDateFrom")?.value || "";
-    const dateToFilter = mainContentContainer.querySelector("#filterDateTo")?.value || "";
+      const branchFilter = mainContentContainer.querySelector("#filterBranch")?.value || "";
+      const issueTypeFilter = mainContentContainer.querySelector("#filterIssueType")?.value || "";
+      const statusFilter = mainContentContainer.querySelector("#filterStatus")?.value || "";
+      const reporterFilter = mainContentContainer.querySelector("#filterReporter")?.value || "";
+      const dateFromFilter = mainContentContainer.querySelector("#filterDateFrom")?.value || "";
+      const dateToFilter = mainContentContainer.querySelector("#filterDateTo")?.value || "";
 
-      // Build base query with scope restrictions
-      let q = getScopedIssuesQuery();
+      // Parse selected month to get date range
+      const [year, month] = issueHistorySelectedMonth.split("-");
+      const startDate = new Date(parseInt(year), parseInt(month) - 1, 1); // First day of month
+      const endDate = new Date(parseInt(year), parseInt(month), 0, 23, 59, 59, 999); // Last day of month
 
-      // Apply filters at server-side
+      // Build query for archive collection
+      // Query archive collection with scope restrictions
+      let q = collection(db, `/artifacts/${canvasAppId}/public/data/issueReports_archive`);
+      
+      // Apply scope restrictions (same as getScopedIssuesQuery but for archive)
+      if (currentUserProfile.role === "Manager") {
+        const managedBranches = currentUserProfile.managedBranches || [];
+        if (managedBranches.length > 0) {
+          q = query(q, where("issueBranch", "in", managedBranches));
+        } else {
+          // Return empty result
+          tableBody.innerHTML = `<tr><td colspan="7" class="text-center p-4 text-slate-500">Không có dữ liệu trong tháng này.</td></tr>`;
+          issueHistoryFiltered = [];
+          return;
+        }
+      } else if (currentUserProfile.role === "Nhân viên") {
+        q = query(q, where("reporterId", "==", currentUser.uid));
+      }
+      
+      // Filter by month (using reportDate)
+      q = query(
+        q,
+        where("reportDate", ">=", Timestamp.fromDate(startDate)),
+        where("reportDate", "<=", Timestamp.fromDate(endDate))
+      );
+
+      // Apply additional filters at server-side (if any beyond month)
       if (branchFilter) {
         q = query(q, where("issueBranch", "==", branchFilter));
       }
@@ -2741,7 +2866,7 @@
         q = query(q, where("status", "==", statusFilter));
       }
       // Note: reporterName filter cannot be done server-side, will filter client-side
-      // Date filters will be handled client-side for now (Firestore date range queries are complex)
+      // Additional date filters (within the selected month) will be handled client-side
 
       // Add ordering and pagination
       q = query(q, orderBy("reportDate", "desc"), limit(ITEMS_PER_PAGE));
@@ -2822,14 +2947,69 @@
 
   window.setup_issueHistoryView = function () {
     if (!currentUserProfile) return;
-    issueHistoryCurrentPage = 1; // Reset page
-    const tableBody = mainContentContainer.querySelector(
-      "#issueHistoryTableBody"
-    );
-    if (!tableBody) return;
-    tableBody.innerHTML = `<tr><td colspan="7" class="text-center p-4">Đang tải...</td></tr>`;
+    
+    // Reset state
+    issueHistoryCurrentPage = 1;
+    issueHistorySelectedMonth = "";
+    issueHistoryFiltered = [];
+    issueHistoryCache = [];
+    issueHistoryLastVisible = null;
+    
+    // Hide results section initially
+    const resultsSection = mainContentContainer.querySelector("#issueHistoryResults");
+    if (resultsSection) {
+      resultsSection.classList.add("hidden");
+    }
+    
+    // Clear table body
+    const tableBody = mainContentContainer.querySelector("#issueHistoryTableBody");
+    if (tableBody) {
+      tableBody.innerHTML = `<tr>
+        <td colspan="7" class="text-center p-8 text-slate-500">
+          <i class="fas fa-calendar-check text-4xl mb-4 text-slate-300"></i>
+          <p class="text-base font-medium">Chưa chọn tháng/năm để xem báo cáo</p>
+          <p class="text-sm mt-2">Vui lòng chọn tháng/năm ở trên và nhấn "Xem Báo Cáo"</p>
+        </td>
+      </tr>`;
+    }
+    
+    // Setup month selector - default to current month
+    const monthInput = mainContentContainer.querySelector("#issueHistoryMonth");
+    if (monthInput) {
+      const now = new Date();
+      const year = now.getFullYear();
+      const month = String(now.getMonth() + 1).padStart(2, '0');
+      monthInput.value = `${year}-${month}`;
+    }
 
-    // Populate branch filter dropdown
+    // Setup load button
+    const loadBtn = mainContentContainer.querySelector("#loadIssueHistoryBtn");
+    if (loadBtn) {
+      loadBtn.addEventListener("click", handleLoadIssueHistory);
+    }
+    
+    // Setup clear button
+    const clearBtn = mainContentContainer.querySelector("#clearIssueHistoryBtn");
+    if (clearBtn) {
+      clearBtn.addEventListener("click", () => {
+        issueHistorySelectedMonth = "";
+        if (monthInput) monthInput.value = "";
+        if (resultsSection) resultsSection.classList.add("hidden");
+        if (tableBody) {
+          tableBody.innerHTML = `<tr>
+            <td colspan="7" class="text-center p-8 text-slate-500">
+              <i class="fas fa-calendar-check text-4xl mb-4 text-slate-300"></i>
+              <p class="text-base font-medium">Chưa chọn tháng/năm để xem báo cáo</p>
+              <p class="text-sm mt-2">Vui lòng chọn tháng/năm ở trên và nhấn "Xem Báo Cáo"</p>
+            </td>
+          </tr>`;
+        }
+        clearBtn.classList.add("hidden");
+        issueHistoryFiltered = [];
+      });
+    }
+
+    // Populate branch filter dropdown (for when results are shown)
     const branchFilter = mainContentContainer.querySelector("#filterBranch");
     if (branchFilter) {
       branchFilter.innerHTML = '<option value="">Tất cả</option>';
@@ -2844,7 +3024,6 @@
     // Populate status filter dropdown from ISSUE_STATUSES constant (excluding "Đã hủy")
     const statusFilter = mainContentContainer.querySelector("#filterStatus");
     if (statusFilter) {
-      const currentValue = statusFilter.value; // Preserve current selection
       statusFilter.innerHTML = '<option value="">Tất cả</option>';
       ISSUE_STATUSES.filter(status => status !== "Đã hủy").forEach((status) => {
         const option = document.createElement("option");
@@ -2852,14 +3031,7 @@
         option.textContent = status;
         statusFilter.appendChild(option);
       });
-      // Restore previous selection if it still exists
-      if (currentValue && ISSUE_STATUSES.includes(currentValue) && currentValue !== "Đã hủy") {
-        statusFilter.value = currentValue;
-      }
     }
-
-    // Populate reporter filter dropdown (will be updated when data loads)
-    populateReporterFilter();
 
     // Set up toggle filter section
     const toggleFiltersBtn = mainContentContainer.querySelector("#toggleFiltersBtn");
@@ -2903,15 +3075,18 @@
         if (dateFromFilter) dateFromFilter.value = "";
         if (dateToFilter) dateToFilter.value = "";
 
-        // Reload from server with cleared filters
-        loadIssueHistoryPage(true);
+        // Reload from archive with current selected month and cleared filters
+        if (issueHistorySelectedMonth) {
+          loadIssueHistoryPage(true);
+        }
       });
     }
 
-    // Export to Excel button
+    // Export to Excel button (only enabled when data is loaded)
     const exportIssueHistoryBtn = mainContentContainer.querySelector("#exportIssueHistoryBtn");
     if (exportIssueHistoryBtn) {
       exportIssueHistoryBtn.addEventListener("click", handleExportIssueHistory);
+      exportIssueHistoryBtn.disabled = !issueHistorySelectedMonth;
     }
 
     // Update filter count when filter inputs change
@@ -2940,9 +3115,74 @@
       }
     });
 
-    // Load initial page with server-side pagination
-    loadIssueHistoryPage(true);
+    // Don't load data initially - wait for user to select month/year
   };
+
+  /**
+   * Handles loading issue history when user selects month/year
+   */
+  async function handleLoadIssueHistory() {
+    const monthInput = mainContentContainer.querySelector("#issueHistoryMonth");
+    const messageEl = mainContentContainer.querySelector("#issueHistorySelectorMessage");
+    const loadBtn = mainContentContainer.querySelector("#loadIssueHistoryBtn");
+    const clearBtn = mainContentContainer.querySelector("#clearIssueHistoryBtn");
+    const resultsSection = mainContentContainer.querySelector("#issueHistoryResults");
+    const resultsTitle = mainContentContainer.querySelector("#issueHistoryResultsTitle");
+    const resultsSubtitle = mainContentContainer.querySelector("#issueHistoryResultsSubtitle");
+    const exportBtn = mainContentContainer.querySelector("#exportIssueHistoryBtn");
+    
+    if (!monthInput || !resultsSection) return;
+
+    const selectedMonth = monthInput.value;
+    
+    if (!selectedMonth) {
+      messageEl.textContent = "Vui lòng chọn tháng/năm để xem báo cáo.";
+      messageEl.className = "p-3 rounded-lg text-sm text-center alert-error";
+      messageEl.classList.remove("hidden");
+      return;
+    }
+
+    // Set selected month
+    issueHistorySelectedMonth = selectedMonth;
+    
+    // Show loading state
+    loadBtn.disabled = true;
+    loadBtn.innerHTML = `<i class="fas fa-spinner fa-spin mr-2"></i>Đang tải...`;
+    messageEl.classList.add("hidden");
+    
+    try {
+      // Format month display
+      const [year, month] = selectedMonth.split("-");
+      const monthNames = ["Tháng 1", "Tháng 2", "Tháng 3", "Tháng 4", "Tháng 5", "Tháng 6",
+                          "Tháng 7", "Tháng 8", "Tháng 9", "Tháng 10", "Tháng 11", "Tháng 12"];
+      const monthName = monthNames[parseInt(month) - 1];
+      
+      // Update results title
+      if (resultsTitle) {
+        resultsTitle.textContent = `Báo cáo ${monthName}/${year}`;
+      }
+      if (resultsSubtitle) {
+        resultsSubtitle.textContent = `Dữ liệu từ archive - ${monthName}/${year}`;
+      }
+      
+      // Show results section
+      resultsSection.classList.remove("hidden");
+      if (clearBtn) clearBtn.classList.remove("hidden");
+      if (exportBtn) exportBtn.disabled = false;
+      
+      // Load data from archive
+      await loadIssueHistoryPage(true);
+      
+    } catch (error) {
+      console.error("Error loading issue history:", error);
+      messageEl.textContent = `Lỗi tải dữ liệu: ${error.message}`;
+      messageEl.className = "p-3 rounded-lg text-sm text-center alert-error";
+      messageEl.classList.remove("hidden");
+    } finally {
+      loadBtn.disabled = false;
+      loadBtn.innerHTML = `<i class="fas fa-search mr-2"></i>Xem Báo Cáo`;
+    }
+  }
 
   /**
    * Loads my tasks page with server-side pagination
@@ -3106,6 +3346,9 @@
 
       // Update UI
       renderActivityLogTable(activityLogsCache);
+      
+      // Populate filter dropdowns after data is loaded
+      await populateActivityLogFilters();
     } catch (error) {
       console.error("Error loading activity logs:", error);
       tableBody.innerHTML = `<tr><td colspan="4" class="text-center p-4 text-red-500">Lỗi tải dữ liệu: ${error.message}</td></tr>`;
@@ -3115,6 +3358,93 @@
   window.setup_activityLogView = function () {
     if (!currentUserProfile) return;
     activityLogCurrentPage = 1; // Reset page
+    
+    // Search input event listener
+    const activityLogSearchInput = mainContentContainer.querySelector("#activityLogSearchInput");
+    if (activityLogSearchInput) {
+      activityLogSearchInput.value = activityLogSearchTerm; // Restore previous search term
+      activityLogSearchInput.addEventListener("input", (e) => {
+        activityLogSearchTerm = e.target.value.trim().toLowerCase();
+        // Re-render table with current cache using the search filter
+        renderActivityLogTable(activityLogsCache);
+      });
+    }
+
+    // Populate filter dropdowns (async, will complete after data loads)
+    populateActivityLogFilters().catch((error) => {
+      console.error("Error populating activity log filters:", error);
+    });
+
+    // Set up toggle filter section
+    const toggleFiltersBtn = mainContentContainer.querySelector("#toggleActivityLogFiltersBtn");
+    const filterSection = mainContentContainer.querySelector("#activityLogFilterSection");
+    
+    if (toggleFiltersBtn && filterSection) {
+      toggleFiltersBtn.addEventListener("click", () => {
+        filterSection.classList.toggle("hidden");
+        if (!filterSection.classList.contains("hidden")) {
+          updateActiveActivityLogFiltersCount();
+        }
+      });
+    }
+
+    // Set up filter event listeners
+    const applyFiltersBtn = mainContentContainer.querySelector("#applyActivityLogFiltersBtn");
+    const clearFiltersBtn = mainContentContainer.querySelector("#clearActivityLogFiltersBtn");
+    
+    if (applyFiltersBtn) {
+      applyFiltersBtn.addEventListener("click", filterActivityLog);
+    }
+
+    if (clearFiltersBtn) {
+      clearFiltersBtn.addEventListener("click", () => {
+        // Clear all filter inputs
+        const actorFilter = mainContentContainer.querySelector("#activityLogFilterActor");
+        const actionFilter = mainContentContainer.querySelector("#activityLogFilterAction");
+        const dateFromFilter = mainContentContainer.querySelector("#activityLogFilterDateFrom");
+        const dateToFilter = mainContentContainer.querySelector("#activityLogFilterDateTo");
+
+        if (actorFilter) actorFilter.value = "";
+        if (actionFilter) actionFilter.value = "";
+        if (dateFromFilter) dateFromFilter.value = "";
+        if (dateToFilter) dateToFilter.value = "";
+
+        activityLogFilters = {
+          actor: "",
+          action: "",
+          dateFrom: "",
+          dateTo: ""
+        };
+
+        // Re-render table with cleared filters
+        renderActivityLogTable(activityLogsCache);
+        updateActiveActivityLogFiltersCount();
+      });
+    }
+
+    // Update filter count when filter inputs change
+    const filterSelects = [
+      mainContentContainer.querySelector("#activityLogFilterActor"),
+      mainContentContainer.querySelector("#activityLogFilterAction")
+    ];
+
+    const filterInputs = [
+      mainContentContainer.querySelector("#activityLogFilterDateFrom"),
+      mainContentContainer.querySelector("#activityLogFilterDateTo")
+    ];
+
+    filterSelects.forEach((select) => {
+      if (select) {
+        select.addEventListener("change", updateActiveActivityLogFiltersCount);
+      }
+    });
+
+    filterInputs.forEach((input) => {
+      if (input) {
+        input.addEventListener("change", updateActiveActivityLogFiltersCount);
+        input.addEventListener("input", updateActiveActivityLogFiltersCount);
+      }
+    });
     
     // Load initial page with server-side pagination
     loadActivityLogPage(true);
@@ -3195,15 +3525,247 @@
     }
   }
 
+  /**
+   * Populates activity log filter dropdowns
+   * - Actor filter: queries all users from users collection
+   * - Action filter: populated from activity logs cache
+   */
+  async function populateActivityLogFilters() {
+    const actorFilter = mainContentContainer.querySelector("#activityLogFilterActor");
+    const actionFilter = mainContentContainer.querySelector("#activityLogFilterAction");
+    
+    // Populate actor filter from users collection (all users, not just from cache)
+    if (actorFilter) {
+      const currentValue = actorFilter.value;
+      
+      try {
+        // Query all users from users collection
+        // Try with orderBy first, fallback to no orderBy if index doesn't exist
+        let usersSnapshot;
+        try {
+          const usersQuery = query(
+            collection(db, `/artifacts/${canvasAppId}/users`),
+            orderBy("displayName")
+          );
+          usersSnapshot = await getDocs(usersQuery);
+        } catch (orderByError) {
+          // If orderBy fails (likely missing index), query without orderBy and sort client-side
+          console.warn("orderBy('displayName') failed, querying without orderBy:", orderByError);
+          const usersQuery = query(collection(db, `/artifacts/${canvasAppId}/users`));
+          usersSnapshot = await getDocs(usersQuery);
+        }
+
+        const users = usersSnapshot.docs.map((doc) => ({
+          uid: doc.id,
+          ...doc.data(),
+        }));
+
+        // Filter out disabled users (optional, you might want to show all)
+        const activeUsers = users.filter((user) => !user.disabled && user.status !== "disabled");
+
+        // Sort by displayName (client-side if orderBy wasn't used)
+        activeUsers.sort((a, b) => {
+          const nameA = (a.displayName || a.email || "").toLowerCase();
+          const nameB = (b.displayName || b.email || "").toLowerCase();
+          return nameA.localeCompare(nameB);
+        });
+
+        // Build actor options
+        actorFilter.innerHTML = '<option value="">Tất cả</option>';
+        activeUsers.forEach((user) => {
+          const displayName = user.displayName || "";
+          const email = user.email || "";
+          const displayText = displayName || email || "N/A";
+          // Use displayName as primary value, fallback to email
+          const filterValue = displayName || email;
+          
+          if (filterValue) {
+            const option = document.createElement("option");
+            option.value = filterValue;
+            option.textContent = displayText;
+            // Store email as data attribute for filtering
+            if (email && email !== filterValue) {
+              option.setAttribute("data-email", email);
+            }
+            actorFilter.appendChild(option);
+          }
+        });
+
+        // Restore previous selection if it still exists
+        if (currentValue) {
+          const optionExists = Array.from(actorFilter.options).some(
+            (opt) => opt.value === currentValue
+          );
+          if (optionExists) {
+            actorFilter.value = currentValue;
+          }
+        }
+      } catch (error) {
+        console.error("Error loading users for activity log filter:", error);
+        // Fallback to cache if query fails
+        if (activityLogsCache.length > 0) {
+          const currentValue = actorFilter.value;
+          const uniqueActors = new Set();
+          
+          activityLogsCache.forEach((log) => {
+            const actorName = log.actor?.displayName || "";
+            const actorEmail = log.actor?.email || "";
+            if (actorName) uniqueActors.add(actorName);
+            if (actorEmail) uniqueActors.add(actorEmail);
+          });
+          
+          actorFilter.innerHTML = '<option value="">Tất cả</option>';
+          Array.from(uniqueActors).sort().forEach((actor) => {
+            const option = document.createElement("option");
+            option.value = actor;
+            option.textContent = actor;
+            actorFilter.appendChild(option);
+          });
+          
+          if (currentValue && uniqueActors.has(currentValue)) {
+            actorFilter.value = currentValue;
+          }
+        }
+      }
+    }
+
+    // Populate action filter from cache (actions are not stored in users collection)
+    if (actionFilter && activityLogsCache.length > 0) {
+      const currentValue = actionFilter.value;
+      const uniqueActions = new Set();
+      
+      activityLogsCache.forEach((log) => {
+        if (log.action) uniqueActions.add(log.action);
+      });
+      
+      actionFilter.innerHTML = '<option value="">Tất cả</option>';
+      Array.from(uniqueActions).sort().forEach((action) => {
+        const option = document.createElement("option");
+        option.value = action;
+        option.textContent = action;
+        actionFilter.appendChild(option);
+      });
+      
+      if (currentValue && uniqueActions.has(currentValue)) {
+        actionFilter.value = currentValue;
+      }
+    }
+  }
+
+  /**
+   * Updates the active filters count badge
+   */
+  function updateActiveActivityLogFiltersCount() {
+    const activeFiltersCount = mainContentContainer.querySelector("#activeActivityLogFiltersCount");
+    if (!activeFiltersCount) return;
+
+    const actorFilter = mainContentContainer.querySelector("#activityLogFilterActor")?.value || "";
+    const actionFilter = mainContentContainer.querySelector("#activityLogFilterAction")?.value || "";
+    const dateFromFilter = mainContentContainer.querySelector("#activityLogFilterDateFrom")?.value || "";
+    const dateToFilter = mainContentContainer.querySelector("#activityLogFilterDateTo")?.value || "";
+
+    let count = 0;
+    if (actorFilter) count++;
+    if (actionFilter) count++;
+    if (dateFromFilter) count++;
+    if (dateToFilter) count++;
+
+    if (count > 0) {
+      activeFiltersCount.textContent = `${count} bộ lọc đang hoạt động`;
+      activeFiltersCount.classList.remove("hidden");
+    } else {
+      activeFiltersCount.classList.add("hidden");
+    }
+  }
+
+  /**
+   * Applies filters to activity log
+   */
+  function filterActivityLog() {
+    const actorFilter = mainContentContainer.querySelector("#activityLogFilterActor")?.value || "";
+    const actionFilter = mainContentContainer.querySelector("#activityLogFilterAction")?.value || "";
+    const dateFromFilter = mainContentContainer.querySelector("#activityLogFilterDateFrom")?.value || "";
+    const dateToFilter = mainContentContainer.querySelector("#activityLogFilterDateTo")?.value || "";
+
+    activityLogFilters = {
+      actor: actorFilter,
+      action: actionFilter,
+      dateFrom: dateFromFilter,
+      dateTo: dateToFilter
+    };
+
+    // Re-render table with filters applied
+    renderActivityLogTable(activityLogsCache);
+    updateActiveActivityLogFiltersCount();
+  }
+
   // --- Table Rendering ---
   function renderActivityLogTable(logs) {
     const tableBody = mainContentContainer.querySelector("#activityLogTableBody");
     if (!tableBody) return;
 
+    // Apply search filter if search term exists
+    let filteredLogs = logs;
+    if (activityLogSearchTerm) {
+      filteredLogs = filteredLogs.filter((log) => {
+        const actorName = (log.actor?.displayName || "").toLowerCase();
+        const actorEmail = (log.actor?.email || "").toLowerCase();
+        const action = (log.action || "").toLowerCase();
+        const details = JSON.stringify(log.details || {}).toLowerCase();
+        const timestamp = log.timestamp 
+          ? new Date(log.timestamp.toDate()).toLocaleString("vi-VN").toLowerCase()
+          : "";
+        
+        return (
+          actorName.includes(activityLogSearchTerm) ||
+          actorEmail.includes(activityLogSearchTerm) ||
+          action.includes(activityLogSearchTerm) ||
+          details.includes(activityLogSearchTerm) ||
+          timestamp.includes(activityLogSearchTerm)
+        );
+      });
+    }
+
+    // Apply filters
+    if (activityLogFilters.actor) {
+      filteredLogs = filteredLogs.filter((log) => {
+        const actorName = log.actor?.displayName || "";
+        const actorEmail = log.actor?.email || "";
+        return actorName === activityLogFilters.actor || actorEmail === activityLogFilters.actor;
+      });
+    }
+
+    if (activityLogFilters.action) {
+      filteredLogs = filteredLogs.filter((log) => {
+        return (log.action || "") === activityLogFilters.action;
+      });
+    }
+
+    if (activityLogFilters.dateFrom) {
+      const dateFrom = new Date(activityLogFilters.dateFrom);
+      dateFrom.setHours(0, 0, 0, 0);
+      filteredLogs = filteredLogs.filter((log) => {
+        if (!log.timestamp) return false;
+        const logDate = log.timestamp.toDate();
+        logDate.setHours(0, 0, 0, 0);
+        return logDate >= dateFrom;
+      });
+    }
+
+    if (activityLogFilters.dateTo) {
+      const dateTo = new Date(activityLogFilters.dateTo);
+      dateTo.setHours(23, 59, 59, 999);
+      filteredLogs = filteredLogs.filter((log) => {
+        if (!log.timestamp) return false;
+        const logDate = log.timestamp.toDate();
+        return logDate <= dateTo;
+      });
+    }
+
     // With server-side pagination, show all loaded logs (no client-side slicing)
     tableBody.innerHTML =
-      logs.length > 0
-        ? logs
+      filteredLogs.length > 0
+        ? filteredLogs
             .map(
               (log) => `
           <tr class="hover:bg-gray-50">
@@ -3225,7 +3787,7 @@
             .join("")
         : `<tr><td colspan="4" class="text-center p-4">Không có hoạt động nào.</td></tr>`;
 
-    renderActivityLogPagination(logs.length);
+    renderActivityLogPagination(filteredLogs.length);
   }
 
   function renderActivityLogPagination(totalLogs) {
@@ -3440,14 +4002,73 @@
 
   // TÌM VÀ THAY THẾ TOÀN BỘ HÀM NÀY TRONG app.js
 
+  /**
+   * Updates the accounts count display
+   * @param {number} totalAllAccounts - Total number of all accounts (including disabled)
+   * @param {number} totalCount - Total number of accounts (after disabled filter)
+   * @param {number} displayedCount - Number of accounts currently displayed (after search filter)
+   * @param {string} searchTerm - Current search term (if any)
+   */
+  function updateAccountsCountDisplay(totalAllAccounts, totalCount, displayedCount, searchTerm) {
+    const countTextEl = mainContentContainer.querySelector("#accountsCountText");
+    if (!countTextEl) return;
+
+    if (searchTerm && searchTerm.trim()) {
+      // Show filtered count vs visible count vs total all
+      if (displayedCount < totalCount) {
+        countTextEl.innerHTML = `Hiển thị <span class="font-semibold text-indigo-600">${displayedCount}</span> / <span class="font-semibold">${totalCount}</span> (Tổng: <span class="font-semibold">${totalAllAccounts}</span>) tài khoản`;
+      } else {
+        countTextEl.innerHTML = `Hiển thị <span class="font-semibold">${totalCount}</span> (Tổng: <span class="font-semibold">${totalAllAccounts}</span>) tài khoản`;
+      }
+    } else {
+      // Always show total all accounts
+      if (showDisabledAccounts || totalCount === totalAllAccounts) {
+        // If showing disabled accounts or no disabled accounts, show total with "Tổng:"
+        countTextEl.innerHTML = `Tổng: <span class="font-semibold">${totalAllAccounts}</span> tài khoản`;
+      } else {
+        // Show visible count and total all
+        countTextEl.innerHTML = `Hiển thị <span class="font-semibold">${totalCount}</span> / Tổng: <span class="font-semibold">${totalAllAccounts}</span> tài khoản`;
+      }
+    }
+  }
+
   function renderAccountsTable(users) {
     const tableBody = mainContentContainer.querySelector("#accountsTableBody");
     if (!tableBody) return;
 
+    // Store total all accounts (including disabled) from unfiltered cache
+    // If we have unfiltered cache, use it; otherwise use current users array length
+    const totalAllAccounts = allUsersCacheUnfiltered.length > 0 
+      ? allUsersCacheUnfiltered.length 
+      : users.length;
+
     // Filter disabled accounts if needed (already filtered in loadAccountsPage, but double-check)
-    const filteredUsers = showDisabledAccounts
+    let filteredUsers = showDisabledAccounts
       ? users
       : users.filter((user) => user.status !== "disabled" && !user.disabled);
+
+    // Store total count after disabled filter (before search filter)
+    const totalCount = filteredUsers.length;
+
+    // Apply search filter if search term exists
+    if (accountsSearchTerm) {
+      filteredUsers = filteredUsers.filter((user) => {
+        const displayName = (user.displayName || "").toLowerCase();
+        const email = (user.email || "").toLowerCase();
+        const employeeId = (user.employeeId || "").toLowerCase();
+        const role = (user.role || "").toLowerCase();
+        
+        return (
+          displayName.includes(accountsSearchTerm) ||
+          email.includes(accountsSearchTerm) ||
+          employeeId.includes(accountsSearchTerm) ||
+          role.includes(accountsSearchTerm)
+        );
+      });
+    }
+
+    // Update accounts count display (pass total all, visible after disabled filter, displayed after search)
+    updateAccountsCountDisplay(totalAllAccounts, totalCount, filteredUsers.length, accountsSearchTerm);
 
     // With server-side pagination, show all loaded users (no client-side slicing)
 
@@ -5125,17 +5746,15 @@
       }
       
       if (canManage) {
-        // Chỉ tải danh sách user nếu user là manager
-        const usersSnapshot = await getDocs(
-          collection(db, `/artifacts/${canvasAppId}/users`)
-        );
-        const users = usersSnapshot.docs.map((doc) => ({
-          uid: doc.id,
-          ...doc.data(),
-        }))
-        // Filter: Loại bỏ "Chi nhánh", disabled users
+        // Use cached users instead of calling getDocs
+        // Ensure cache is loaded
+        if (!usersCacheLoaded) {
+          await loadUsersIntoCache();
+        }
+        
+        // Filter from cache: Loại bỏ "Chi nhánh", disabled users
         // Và nếu là Manager, chỉ hiển thị Nhân viên trong các chi nhánh được quản lý
-        .filter((u) => {
+        const users = allUsersCache.filter((u) => {
           // Loại bỏ tài khoản "Chi nhánh" và tài khoản bị disabled
           if (u.role === "Chi nhánh" || u.status === "disabled" || u.disabled) {
             return false;
@@ -5155,6 +5774,7 @@
           // Admin thấy tất cả (trừ Chi nhánh và disabled)
           return true;
         });
+        
         assigneeSelect.innerHTML =
           `<option value="">Chưa giao</option>` +
           users
@@ -5543,18 +6163,16 @@
     const suggestionsDiv = document.getElementById("mentionSuggestions");
     if (!commentInput || !suggestionsDiv) return;
 
-    let allUsers = [];
     let currentMentionStart = -1;
     let selectedIndex = -1;
 
-    // Load all users once
-    const usersRef = collection(db, `/artifacts/${canvasAppId}/users`);
-    getDocs(usersRef).then((snapshot) => {
-      allUsers = snapshot.docs
-        .map((doc) => ({
-          uid: doc.id,
-          ...doc.data(),
-        }))
+    // Helper function to get users from cache
+    function getUsersFromCache() {
+      if (!usersCacheLoaded || allUsersCache.length === 0) {
+        return [];
+      }
+      
+      return allUsersCache
         .filter((user) => user.status !== "disabled" && !user.disabled)
         .map((user) => ({
           uid: user.uid,
@@ -5563,7 +6181,12 @@
           role: user.role || "",
         }))
         .filter((user) => user.name);
-    });
+    }
+
+    // Load cache if not loaded yet (async, don't block)
+    if (!usersCacheLoaded) {
+      loadUsersIntoCache();
+    }
 
     function hideMentionSuggestions() {
       suggestionsDiv.classList.add("hidden");
@@ -5571,6 +6194,8 @@
     }
 
     function showMentionSuggestions(query = "") {
+      // Get users from cache dynamically (in case cache loads after function is called)
+      const allUsers = getUsersFromCache();
       if (!allUsers.length) return;
 
       const queryLower = query.toLowerCase();
@@ -5866,6 +6491,10 @@
       await updateDoc(userDocRef, updatedData);
       await logActivity("Update User Profile", { targetUid: uid });
 
+      // Invalidate users cache (reload cache to reflect changes)
+      usersCacheLoaded = false;
+      await loadUsersIntoCache();
+
       messageEl.className = "p-3 rounded-lg text-sm text-center alert-success";
       messageEl.textContent = "Cập nhật thành công!";
       messageEl.classList.remove("hidden");
@@ -6135,7 +6764,11 @@
       //    vì phiên đăng nhập chính không hề bị thay đổi.
       await logActivity("Admin Create User", { newEmail: email, newUid: newUid });
       
-      // 7. Hiển thị thông báo thành công và xóa form
+      // 7. Invalidate users cache (reload cache to include new user)
+      usersCacheLoaded = false;
+      await loadUsersIntoCache();
+      
+      // 8. Hiển thị thông báo thành công và xóa form
       messageEl.textContent = `Tạo tài khoản ${email} (vai trò: ${role}) thành công! Tài khoản đã sẵn sàng. Người dùng có thể đăng nhập và sẽ được yêu cầu đổi mật khẩu lần đầu.`;
       messageEl.className = "p-3 rounded-lg text-sm text-center alert-success";
       messageEl.classList.remove("hidden");
@@ -6147,7 +6780,29 @@
       if (branchSelect) branchSelect.value = "";
       
     } catch (error) {
-      messageEl.textContent = `Lỗi tạo tài khoản: ${error.message}`;
+      console.error("Error creating account:", error);
+      
+      // Xử lý các lỗi Firebase phổ biến với thông báo tiếng Việt
+      let errorMessage = "Lỗi tạo tài khoản: ";
+      
+      if (error.code === "auth/email-already-in-use") {
+        errorMessage = `Email "${email}" đã được sử dụng. Vui lòng chọn email khác hoặc kiểm tra lại danh sách tài khoản.`;
+      } else if (error.code === "auth/invalid-email") {
+        errorMessage = `Email "${email}" không hợp lệ. Vui lòng kiểm tra lại định dạng email.`;
+      } else if (error.code === "auth/weak-password") {
+        errorMessage = "Mật khẩu quá yếu. Vui lòng sử dụng mật khẩu có ít nhất 6 ký tự và có độ phức tạp cao hơn.";
+      } else if (error.code === "auth/operation-not-allowed") {
+        errorMessage = "Tính năng tạo tài khoản bằng email/mật khẩu chưa được bật. Vui lòng liên hệ quản trị viên.";
+      } else if (error.code === "auth/network-request-failed") {
+        errorMessage = "Lỗi kết nối mạng. Vui lòng kiểm tra kết nối internet và thử lại.";
+      } else if (error.message) {
+        // Fallback: hiển thị message từ error nếu không match các code trên
+        errorMessage = `Lỗi tạo tài khoản: ${error.message}`;
+      } else {
+        errorMessage = "Đã xảy ra lỗi không xác định khi tạo tài khoản. Vui lòng thử lại sau.";
+      }
+      
+      messageEl.textContent = errorMessage;
       messageEl.className = "p-3 rounded-lg text-sm text-center alert-error";
       messageEl.classList.remove("hidden");
     }
@@ -6296,7 +6951,22 @@
             createCount++;
           } catch (error) {
             errorCount++;
-            errors.push(`Tạo mới ${email}: ${error.message}`);
+            
+            // Xử lý các lỗi Firebase phổ biến với thông báo tiếng Việt
+            let errorMsg = "";
+            if (error.code === "auth/email-already-in-use") {
+              errorMsg = `Email "${email}" đã được sử dụng`;
+            } else if (error.code === "auth/invalid-email") {
+              errorMsg = `Email "${email}" không hợp lệ`;
+            } else if (error.code === "auth/weak-password") {
+              errorMsg = `Mật khẩu quá yếu cho ${email}`;
+            } else if (error.message) {
+              errorMsg = error.message;
+            } else {
+              errorMsg = "Lỗi không xác định";
+            }
+            
+            errors.push(`Tạo mới ${email}: ${errorMsg}`);
           }
         }
       }
@@ -6316,6 +6986,12 @@
       }`;
       messageEl.classList.remove("hidden");
       fileInput.value = ""; // Clear file input
+      
+      // Invalidate users cache after bulk import (reload cache to include new/updated users)
+      if (createCount > 0 || updateCount > 0) {
+        usersCacheLoaded = false;
+        loadUsersIntoCache().catch(err => console.error("Failed to reload users cache:", err));
+      }
     };
     reader.readAsArrayBuffer(file);
   }
@@ -6399,6 +7075,10 @@
         { disabledUid: uid }
       );
 
+      // Invalidate users cache (reload cache to reflect changes)
+      usersCacheLoaded = false;
+      await loadUsersIntoCache();
+
       modal.style.display = "none";
       // No need to call render manually, the listener will do it.
     } catch (error) {
@@ -6417,6 +7097,11 @@
       });
 
       await logActivity("Enable User", { enabledUid: uid });
+      
+      // Invalidate users cache (reload cache to reflect changes)
+      usersCacheLoaded = false;
+      await loadUsersIntoCache();
+      
       // No need to call render manually, the listener will do it.
     } catch (error) {
       console.error("Error during account enable:", error);
@@ -6664,24 +7349,162 @@
     const captureBtn = cameraModal.querySelector("#captureBtn");
     const recaptureBtn = cameraModal.querySelector("#recaptureBtn");
     const confirmBtn = cameraModal.querySelector("#confirmAttendanceBtn");
+    const messageEl = cameraModal.querySelector("#cameraMessage");
 
+    // Reset UI
     video.classList.remove("hidden");
     preview.classList.add("hidden");
     captureBtn.classList.remove("hidden");
     recaptureBtn.classList.add("hidden");
     confirmBtn.classList.add("hidden");
+    messageEl.classList.add("hidden");
+    messageEl.textContent = "";
+
+    // Check if getUserMedia is supported
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      messageEl.textContent = "Trình duyệt của bạn không hỗ trợ truy cập camera. Vui lòng sử dụng trình duyệt khác (Chrome, Firefox, Edge).";
+      messageEl.className = "mt-4 p-3 rounded-lg text-sm flex-shrink-0 alert-error";
+      messageEl.classList.remove("hidden");
+      video.classList.add("hidden");
+      return;
+    }
 
     try {
       currentCameraStream = await navigator.mediaDevices.getUserMedia({
         video: { facingMode: "user" },
       });
       video.srcObject = currentCameraStream;
+      
+      // Hide error message if camera works
+      messageEl.classList.add("hidden");
+      
+      // Enable capture button when camera works
+      captureBtn.disabled = false;
+      captureBtn.classList.remove("opacity-50", "cursor-not-allowed");
     } catch (err) {
       console.error("Camera error:", err);
-      cameraModal.querySelector("#cameraMessage").textContent =
-        "Không thể truy cập camera. Vui lòng cấp quyền.";
+      
+      // Hide video on error
+      video.classList.add("hidden");
+      
+      // Xử lý các lỗi camera phổ biến với thông báo tiếng Việt
+      let errorMessage = "";
+      
+      if (err.name === "NotAllowedError" || err.name === "PermissionDeniedError") {
+        errorMessage = `
+          <div class="flex items-start">
+            <i class="fas fa-exclamation-triangle text-yellow-500 mr-2 mt-0.5"></i>
+            <div>
+              <p class="font-semibold mb-1">Không có quyền truy cập camera</p>
+              <p class="text-sm">Vui lòng:</p>
+              <ul class="text-sm list-disc list-inside mt-1 space-y-1">
+                <li>Nhấp vào biểu tượng camera trên thanh địa chỉ trình duyệt</li>
+                <li>Chọn "Cho phép" để cấp quyền truy cập camera</li>
+                <li>Làm mới trang và thử lại</li>
+              </ul>
+            </div>
+          </div>
+        `;
+      } else if (err.name === "NotFoundError" || err.name === "DevicesNotFoundError") {
+        errorMessage = `
+          <div class="flex items-start">
+            <i class="fas fa-video-slash text-red-500 mr-2 mt-0.5"></i>
+            <div>
+              <p class="font-semibold mb-1">Không tìm thấy camera</p>
+              <p class="text-sm">Vui lòng kiểm tra:</p>
+              <ul class="text-sm list-disc list-inside mt-1 space-y-1">
+                <li>Camera đã được kết nối đúng cách chưa?</li>
+                <li>Camera có đang được sử dụng bởi ứng dụng khác không?</li>
+                <li>Thử ngắt kết nối và kết nối lại camera</li>
+              </ul>
+            </div>
+          </div>
+        `;
+      } else if (err.name === "NotReadableError" || err.name === "TrackStartError") {
+        errorMessage = `
+          <div class="flex items-start">
+            <i class="fas fa-exclamation-circle text-orange-500 mr-2 mt-0.5"></i>
+            <div>
+              <p class="font-semibold mb-1">Camera đang được sử dụng</p>
+              <p class="text-sm">Vui lòng:</p>
+              <ul class="text-sm list-disc list-inside mt-1 space-y-1">
+                <li>Đóng các ứng dụng khác đang sử dụng camera (Zoom, Teams, Skype, v.v.)</li>
+                <li>Làm mới trang và thử lại</li>
+                <li>Khởi động lại trình duyệt nếu vẫn không được</li>
+              </ul>
+            </div>
+          </div>
+        `;
+      } else if (err.name === "OverconstrainedError" || err.name === "ConstraintNotSatisfiedError") {
+        errorMessage = `
+          <div class="flex items-start">
+            <i class="fas fa-cog text-blue-500 mr-2 mt-0.5"></i>
+            <div>
+              <p class="font-semibold mb-1">Camera không hỗ trợ yêu cầu</p>
+              <p class="text-sm">Vui lòng thử lại hoặc sử dụng camera khác.</p>
+            </div>
+          </div>
+        `;
+      } else if (err.name === "AbortError") {
+        errorMessage = `
+          <div class="flex items-start">
+            <i class="fas fa-times-circle text-gray-500 mr-2 mt-0.5"></i>
+            <div>
+              <p class="font-semibold mb-1">Quá trình truy cập camera bị hủy</p>
+              <p class="text-sm">Vui lòng thử lại.</p>
+            </div>
+          </div>
+        `;
+      } else {
+        errorMessage = `
+          <div class="flex items-start">
+            <i class="fas fa-exclamation-triangle text-red-500 mr-2 mt-0.5"></i>
+            <div>
+              <p class="font-semibold mb-1">Không thể kết nối camera</p>
+              <p class="text-sm">Vui lòng kiểm tra lại camera và quyền truy cập, sau đó thử lại.</p>
+              <p class="text-xs text-gray-500 mt-1">Lỗi: ${err.name || err.message || "Không xác định"}</p>
+            </div>
+          </div>
+        `;
+      }
+      
+      // Add retry button to error message
+      errorMessage += `
+        <div class="mt-3 pt-3 border-t border-red-300">
+          <button 
+            id="retryCameraBtn" 
+            class="btn-primary text-sm w-full sm:w-auto"
+            onclick="window.startCameraStream && window.startCameraStream()"
+          >
+            <i class="fas fa-redo mr-2"></i>Thử lại
+          </button>
+        </div>
+      `;
+      
+      messageEl.innerHTML = errorMessage;
+      messageEl.className = "mt-4 p-4 rounded-lg text-sm flex-shrink-0 bg-red-50 border border-red-200 text-red-800";
+      messageEl.classList.remove("hidden");
+      
+      // Disable capture button when camera fails
+      captureBtn.disabled = true;
+      captureBtn.classList.add("opacity-50", "cursor-not-allowed");
+      
+      // Setup retry button click handler
+      const retryBtn = messageEl.querySelector("#retryCameraBtn");
+      if (retryBtn) {
+        // Remove old listeners if any
+        const newRetryBtn = retryBtn.cloneNode(true);
+        retryBtn.parentNode.replaceChild(newRetryBtn, retryBtn);
+        
+        newRetryBtn.addEventListener("click", () => {
+          startCameraStream();
+        });
+      }
     }
   }
+  
+  // Expose startCameraStream globally for retry button
+  window.startCameraStream = startCameraStream;
 
   function capturePhoto() {
     const video = cameraModal.querySelector("#cameraFeed");
@@ -6923,13 +7746,13 @@
             
             return `
               <tr class="hover:bg-gray-50">
-                <td class="px-4 py-3 font-medium">${shift.shiftName || "N/A"}</td>
-                <td class="px-4 py-3">${startTime}</td>
-                <td class="px-4 py-3">${endTime}</td>
-                <td class="px-4 py-3">${breakDisplay}</td>
-                <td class="px-4 py-3 font-semibold">${totalHours} giờ</td>
-                <td class="px-4 py-3">${employeeCount} người</td>
-                <td class="px-4 py-3 text-right">
+                <td data-label="Tên ca" class="px-4 py-3 font-medium">${shift.shiftName || "N/A"}</td>
+                <td data-label="Giờ bắt đầu" class="px-4 py-3">${startTime}</td>
+                <td data-label="Giờ kết thúc" class="px-4 py-3">${endTime}</td>
+                <td data-label="Thời gian nghỉ" class="px-4 py-3">${breakDisplay}</td>
+                <td data-label="Tổng giờ" class="px-4 py-3 font-semibold">${totalHours} giờ</td>
+                <td data-label="Số nhân viên" class="px-4 py-3">${employeeCount} người</td>
+                <td data-label="Hành động" class="px-4 py-3 text-right">
                   <button class="delete-shift-btn btn-danger !text-xs !py-1 !px-2" data-shift-id="${shift.id}" data-shift-name="${shift.shiftName}">
                     <i class="fas fa-trash mr-1"></i>Xóa
                   </button>
@@ -7283,7 +8106,98 @@
 
     generateBtn.disabled = true;
     generateBtn.innerHTML = `<i class="fas fa-spinner fa-spin mr-2"></i>Đang tạo báo cáo...`;
-      tableBody.innerHTML = `<tr><td colspan="7" class="text-center p-4">Đang tải dữ liệu...</td></tr>`;
+    tableBody.innerHTML = `<tr><td colspan="7" class="text-center p-4">Đang tải dữ liệu...</td></tr>`;
+
+    // Determine if we should use Cloud Function (for large reports)
+    // Use Cloud Function if: all employees selected OR employee count > 50
+    let useCloudFunction = !selectedEmployeeId;
+    
+    if (!useCloudFunction) {
+      // Check employee count to decide
+      try {
+        const usersRef = collection(db, `/artifacts/${canvasAppId}/users`);
+        const usersSnapshot = await getDocs(usersRef);
+        const employeeCount = usersSnapshot.docs.filter((doc) => {
+          const userData = doc.data();
+          return userData?.role === "Nhân viên" && userData?.status !== "disabled" && !userData?.disabled;
+        }).length;
+        
+        useCloudFunction = employeeCount > 50;
+      } catch (error) {
+        console.warn("Could not determine employee count, using client-side processing");
+        useCloudFunction = false;
+      }
+    }
+
+    // Use Cloud Function for large reports
+    if (useCloudFunction && functions) {
+      try {
+        messageEl.textContent = "Đang tạo báo cáo trên server... (Có thể mất vài phút với báo cáo lớn)";
+        messageEl.className = "p-3 rounded-lg text-sm text-center alert-info";
+        messageEl.classList.remove("hidden");
+
+        const generateReport = httpsCallable(functions, "generateAttendanceReport");
+        const result = await generateReport({
+          month: selectedMonth,
+          employeeId: selectedEmployeeId || "",
+          appId: canvasAppId,
+        });
+
+        const { downloadUrl, fileName, stats } = result.data;
+
+        // Update statistics display
+        const totalHoursEl = mainContentContainer.querySelector("#reportTotalHours");
+        const workingDaysEl = mainContentContainer.querySelector("#reportWorkingDays");
+        const absentDaysEl = mainContentContainer.querySelector("#reportAbsentDays");
+        const checkInsEl = mainContentContainer.querySelector("#reportCheckIns");
+
+        if (totalHoursEl) totalHoursEl.textContent = stats.totalHours;
+        if (workingDaysEl) workingDaysEl.textContent = stats.workingDays;
+        if (absentDaysEl) absentDaysEl.textContent = stats.absentDays;
+        if (checkInsEl) checkInsEl.textContent = stats.totalCheckIns;
+
+        // Show download link
+        tableBody.innerHTML = `
+          <tr>
+            <td colspan="7" class="text-center p-8">
+              <div class="space-y-4">
+                <div class="text-green-600 text-lg font-semibold">
+                  <i class="fas fa-check-circle mr-2"></i>Báo cáo đã được tạo thành công!
+                </div>
+                <div class="text-slate-600">
+                  <p class="mb-2">Báo cáo đã được tạo và lưu trên server.</p>
+                  <p class="text-sm mb-4">Số nhân viên: ${stats.employeeCount} | Tháng: ${stats.month}</p>
+                </div>
+                <div>
+                  <a href="${downloadUrl}" download="${fileName}" 
+                     class="btn-primary inline-flex items-center px-6 py-3">
+                    <i class="fas fa-download mr-2"></i>Tải xuống file Excel
+                  </a>
+                </div>
+                <div class="text-xs text-slate-500 mt-4">
+                  <i class="fas fa-info-circle mr-1"></i>
+                  File sẽ được lưu tự động và có thể tải lại sau nếu cần.
+                </div>
+              </div>
+            </td>
+          </tr>
+        `;
+
+        resultsDiv.classList.remove("hidden");
+        messageEl.classList.add("hidden");
+      } catch (error) {
+        console.error("Error calling Cloud Function:", error);
+        messageEl.textContent = `Lỗi tạo báo cáo: ${error.message}. Đang thử lại với phương pháp client-side...`;
+        messageEl.className = "p-3 rounded-lg text-sm text-center alert-error";
+        messageEl.classList.remove("hidden");
+        
+        // Fallback to client-side processing
+        useCloudFunction = false;
+      }
+    }
+
+    // Client-side processing (original code)
+    if (!useCloudFunction) {
 
     try {
       const [year, month] = selectedMonth.split("-").map(Number);
@@ -7508,6 +8422,7 @@
       generateBtn.disabled = false;
       generateBtn.innerHTML = `<i class="fas fa-search mr-2"></i>Tạo Báo Cáo`;
     }
+    }
   }
 
   /**
@@ -7691,10 +8606,17 @@
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Lịch Sử Sự Cố");
 
-    // Generate filename with current date
-    const now = new Date();
-    const dateStr = now.toISOString().split("T")[0].replace(/-/g, "");
-    const fileName = `lich_su_su_co_${dateStr}.xlsx`;
+    // Generate filename with selected month/year or current date
+    let fileName;
+    if (issueHistorySelectedMonth) {
+      // Format: lich_su_su_co_2027_10.xlsx
+      const formattedMonth = issueHistorySelectedMonth.replace("-", "_");
+      fileName = `lich_su_su_co_${formattedMonth}.xlsx`;
+    } else {
+      const now = new Date();
+      const dateStr = now.toISOString().split("T")[0].replace(/-/g, "");
+      fileName = `lich_su_su_co_${dateStr}.xlsx`;
+    }
 
     // Export file
     XLSX.writeFile(wb, fileName);
