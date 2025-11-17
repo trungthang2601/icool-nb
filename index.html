@@ -1406,7 +1406,85 @@
     </div>
   </div>
 
+  <footer class="bg-slate-50 border-t border-slate-200 py-6 mt-8">
+    <div class="container mx-auto px-4">
+      <div class="flex flex-col items-center justify-center space-y-4">
+        <!-- Logo Section -->
+        <div class="flex items-center justify-center gap-6 flex-wrap" id="footerLogos">
+          <img 
+            id="icoolLogo"
+            src="/assets/images/icool-logo.jpg" 
+            alt="ICOOL Logo" 
+            class="h-12 object-contain max-w-[150px]"
+            onerror="this.onerror=null; this.src='assets/images/icool-logo.jpg'; console.warn('Trying fallback path for ICOOL logo');"
+          />
+          <img 
+            id="spaaLogo"
+            src="/assets/images/spaa-logo.jpg" 
+            alt="SPAA Logo" 
+            class="h-12 object-contain max-w-[150px]"
+            onerror="this.onerror=null; this.src='assets/images/spaa-logo.jpg'; console.warn('Trying fallback path for SPAA logo');"
+          />
+        </div>
+        <!-- Copyright Text -->
+        <p class="text-sm text-slate-600">
+          © 2025 by Dev ICOOL and SPAA
+        </p>
+      </div>
+    </div>
+  </footer>
 
+  <script>
+    // Ensure logos load correctly regardless of server setup
+    (function() {
+      const logoPaths = [
+        '/assets/images/',
+        'assets/images/',
+        './assets/images/',
+        '../assets/images/'
+      ];
+      
+      const logos = [
+        { id: 'icoolLogo', file: 'icool-logo.jpg' },
+        { id: 'spaaLogo', file: 'spaa-logo.png' }
+      ];
+      
+      logos.forEach(logo => {
+        const img = document.getElementById(logo.id);
+        if (!img) return;
+        
+        let currentPathIndex = 0;
+        
+        const tryNextPath = () => {
+          if (currentPathIndex >= logoPaths.length) {
+            console.error(`Failed to load ${logo.file} from all paths`);
+            return;
+          }
+          
+          const testPath = logoPaths[currentPathIndex] + logo.file;
+          const testImg = new Image();
+          
+          testImg.onload = () => {
+            img.src = testPath;
+            console.log(`✅ Loaded ${logo.file} from: ${testPath}`);
+          };
+          
+          testImg.onerror = () => {
+            currentPathIndex++;
+            tryNextPath();
+          };
+          
+          testImg.src = testPath;
+        };
+        
+        // Start trying paths
+        img.onerror = () => {
+          img.onerror = null; // Prevent infinite loop
+          tryNextPath();
+        };
+      });
+    })();
+  </script>
 </body>
 
 </html>

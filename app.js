@@ -2840,6 +2840,7 @@
         const endDate = new Date(parseInt(year), parseInt(month), 0, 23, 59, 59, 999); // Last day of month
 
         // Build query for archive collection
+        // Query archive collection with scope restrictions
         q = collection(db, `/artifacts/${canvasAppId}/public/data/issueReports_archive`);
         
         // Apply scope restrictions (same as getScopedIssuesQuery but for archive)
@@ -2893,8 +2894,8 @@
       try {
         snapshot = await getDocs(q);
         
-        // If archive mode returns no results, try fallback to current reports
-        if (issueHistoryMode === "archive" && snapshot.empty) {
+        // If archive returns no results, try fallback to current reports
+        if (snapshot.empty) {
           console.log("Archive collection is empty, trying fallback to current reports...");
           usingFallback = true;
           
@@ -2914,9 +2915,9 @@
           }
           
           // Add ordering and pagination (without date filter)
-          // Note: We'll need to get more results and filter client-side
-          // Increase limit to ensure we get enough data for the month
-          q = query(q, orderBy("reportDate", "desc"), limit(ITEMS_PER_PAGE * 10)); // Get more to filter client-side
+          // Increase limit significantly to ensure we get enough data for the month
+          // Note: We'll filter by month client-side, so we need more records
+          q = query(q, orderBy("reportDate", "desc"), limit(500)); // Get more records to filter client-side
           
           if (loadNext && issueHistoryLastVisible) {
             q = query(q, startAfter(issueHistoryLastVisible));
@@ -2927,42 +2928,39 @@
       } catch (error) {
         console.error("Error querying issue history:", error);
         
-        // If archive mode fails, try fallback to current reports
-        if (issueHistoryMode === "archive") {
-          console.log("Archive query failed, trying fallback to current reports...");
-          usingFallback = true;
-          
-          // Fallback: Query from current reports (without date filter at server-side)
-          // We'll filter by month at client-side to avoid index issues
-          q = getScopedIssuesQuery();
-          
-          // Apply other filters (but not date filter - will filter client-side)
-          if (branchFilter) {
-            q = query(q, where("issueBranch", "==", branchFilter));
-          }
-          if (issueTypeFilter) {
-            q = query(q, where("issueType", "==", issueTypeFilter));
-          }
-          if (statusFilter) {
-            q = query(q, where("status", "==", statusFilter));
-          }
-          
-          // Add ordering and pagination (without date filter)
-          // Increase limit to ensure we get enough data for the month
-          q = query(q, orderBy("reportDate", "desc"), limit(ITEMS_PER_PAGE * 10)); // Get more to filter client-side
-          
-          if (loadNext && issueHistoryLastVisible) {
-            q = query(q, startAfter(issueHistoryLastVisible));
-          }
-          
-          try {
-            snapshot = await getDocs(q);
-          } catch (fallbackError) {
-            console.error("Fallback query also failed:", fallbackError);
-            throw fallbackError;
-          }
-        } else {
-          throw error;
+        // If archive query fails, try fallback to current reports
+        console.log("Archive query failed, trying fallback to current reports...");
+        usingFallback = true;
+        
+        // Fallback: Query from current reports (without date filter at server-side)
+        // We'll filter by month at client-side to avoid index issues
+        q = getScopedIssuesQuery();
+        
+        // Apply other filters (but not date filter - will filter client-side)
+        if (branchFilter) {
+          q = query(q, where("issueBranch", "==", branchFilter));
+        }
+        if (issueTypeFilter) {
+          q = query(q, where("issueType", "==", issueTypeFilter));
+        }
+        if (statusFilter) {
+          q = query(q, where("status", "==", statusFilter));
+        }
+        
+        // Add ordering and pagination (without date filter)
+        // Increase limit significantly to ensure we get enough data for the month
+        // Note: We'll filter by month client-side, so we need more records
+        q = query(q, orderBy("reportDate", "desc"), limit(500)); // Get more records to filter client-side
+        
+        if (loadNext && issueHistoryLastVisible) {
+          q = query(q, startAfter(issueHistoryLastVisible));
+        }
+        
+        try {
+          snapshot = await getDocs(q);
+        } catch (fallbackError) {
+          console.error("Fallback query also failed:", fallbackError);
+          throw fallbackError;
         }
       }
       
@@ -2975,19 +2973,20 @@
       if (usingFallback) {
         console.log(`Archive collection empty/not found. Loaded ${reports.length} reports from current collection (fallback mode)`);
       } else {
-        console.log(`Loaded ${reports.length} reports in ${issueHistoryMode} mode`);
+        console.log(`Loaded ${reports.length} reports from archive`);
       }
 
       // Client-side filtering
       let filteredReports = reports;
-      let totalLoadedCount = reports.length; // Store total loaded count for message
       
-      // If using fallback in archive mode, filter by selected month
-      if (usingFallback && issueHistoryMode === "archive" && issueHistorySelectedMonth) {
+      // If using fallback, filter by selected month
+      if (usingFallback && issueHistorySelectedMonth) {
         const [year, month] = issueHistorySelectedMonth.split("-");
         const startDate = new Date(parseInt(year), parseInt(month) - 1, 1);
         startDate.setHours(0, 0, 0, 0);
         const endDate = new Date(parseInt(year), parseInt(month), 0, 23, 59, 59, 999);
+        
+        console.log(`Filtering reports for month ${issueHistorySelectedMonth}: ${startDate.toISOString()} to ${endDate.toISOString()}`);
         
         filteredReports = reports.filter((report) => {
           // Handle both Timestamp and Date formats
@@ -2997,13 +2996,29 @@
           } else if (report.reportDate) {
             reportDate = new Date(report.reportDate);
           } else {
+            console.warn("Report missing reportDate:", report.id);
             return false;
           }
           
-          return reportDate >= startDate && reportDate <= endDate;
+          const isInRange = reportDate >= startDate && reportDate <= endDate;
+          if (!isInRange) {
+            console.log(`Report ${report.id} date ${reportDate.toISOString()} is outside range`);
+          }
+          return isInRange;
         });
         
-        console.log(`Filtered to ${filteredReports.length} reports for month ${issueHistorySelectedMonth}`);
+        console.log(`Filtered to ${filteredReports.length} reports for month ${issueHistorySelectedMonth} (from ${reports.length} total)`);
+        
+        // If still no results after filtering, try loading more data
+        if (filteredReports.length === 0 && reports.length > 0) {
+          console.warn("No reports found in selected month. This might be because:");
+          console.warn(`- Selected month: ${issueHistorySelectedMonth}`);
+          console.warn(`- Date range: ${startDate.toISOString()} to ${endDate.toISOString()}`);
+          console.warn(`- Sample report dates:`, reports.slice(0, 3).map(r => {
+            const rd = r.reportDate?.toDate ? r.reportDate.toDate() : new Date(r.reportDate);
+            return rd.toISOString();
+          }));
+        }
       }
       
       // Additional client-side filtering for reporterName and date range
@@ -3053,16 +3068,16 @@
       issueHistoryHasMore = snapshot.docs.length === ITEMS_PER_PAGE;
 
       // Show fallback message if using fallback
-      if (usingFallback && issueHistoryMode === "archive") {
+      if (usingFallback) {
         const resultsSubtitle = mainContentContainer.querySelector("#issueHistoryResultsSubtitle");
         if (resultsSubtitle) {
           const originalText = resultsSubtitle.textContent;
           // Create informative message about data source and count
-          const message = `Báo cáo archive đang lấy dữ liệu từ báo cáo hiện tại (đã tải ${totalLoadedCount} bản ghi, hiển thị ${filteredReports.length} bản ghi trong tháng này)`;
+          const message = `Báo cáo archive đang lấy dữ liệu từ báo cáo hiện tại (đã tải ${reports.length} bản ghi, hiển thị ${filteredReports.length} bản ghi trong tháng này)`;
           resultsSubtitle.innerHTML = `${originalText} <span class="text-amber-600 text-xs ml-2 block mt-1" title="Archive collection chưa có dữ liệu. Hệ thống đang lấy từ báo cáo hiện tại và lọc theo tháng/năm đã chọn.">${message}</span>`;
         }
       }
-      
+
       // Update UI
     updateActiveFiltersCount();
     renderIssueHistoryTable(issueHistoryFiltered);
@@ -3103,8 +3118,10 @@
     const modeCurrentBtn = mainContentContainer.querySelector("#issueHistoryModeCurrent");
     const modeArchiveBtn = mainContentContainer.querySelector("#issueHistoryModeArchive");
     const tableBody = mainContentContainer.querySelector("#issueHistoryTableBody");
+    const monthInput = mainContentContainer.querySelector("#issueHistoryMonth");
+    const loadBtn = mainContentContainer.querySelector("#loadIssueHistoryBtn");
     
-    // Setup mode toggle buttons
+    // Setup mode toggle function
     function switchMode(mode) {
       issueHistoryMode = mode;
       
@@ -3127,7 +3144,7 @@
           // Clear selected month
           issueHistorySelectedMonth = "";
           
-          // Show results section for current mode
+          // Show results section
           if (resultsSection) {
             resultsSection.classList.remove("hidden");
             // Update title
@@ -3168,6 +3185,9 @@
           if (resultsSection) {
             resultsSection.classList.add("hidden");
           }
+          
+          // Clear selected month
+          issueHistorySelectedMonth = "";
         }
       }
     }
@@ -3184,7 +3204,6 @@
     switchMode("current");
     
     // Setup month selector - default to current month (for archive mode)
-    const monthInput = mainContentContainer.querySelector("#issueHistoryMonth");
     if (monthInput) {
       const now = new Date();
       const year = now.getFullYear();
@@ -3192,37 +3211,24 @@
       monthInput.value = `${year}-${month}`;
     }
 
-    // Setup load button
-    const loadBtn = mainContentContainer.querySelector("#loadIssueHistoryBtn");
+    // Setup load button (only for archive mode)
     if (loadBtn) {
-      // Ensure button is enabled and has correct type
-      loadBtn.disabled = false;
-      loadBtn.type = "button"; // Prevent form submission if inside a form
-      
-      // Remove any existing listeners to avoid duplicates
-      const newLoadBtn = loadBtn.cloneNode(true);
-      loadBtn.parentNode.replaceChild(newLoadBtn, loadBtn);
-      
-      // Add event listener to new button
-      newLoadBtn.addEventListener("click", (e) => {
+      loadBtn.type = "button"; // Prevent form submission
+      loadBtn.addEventListener("click", (e) => {
         e.preventDefault();
         e.stopPropagation();
-        console.log("Load button clicked"); // Debug log
         handleLoadIssueHistory();
       });
       
       // Also allow Enter key on month input
       if (monthInput) {
         monthInput.addEventListener("keypress", (e) => {
-          if (e.key === "Enter") {
+          if (e.key === "Enter" && issueHistoryMode === "archive") {
             e.preventDefault();
-            console.log("Enter key pressed on month input"); // Debug log
             handleLoadIssueHistory();
           }
         });
       }
-    } else {
-      console.error("Load button not found: #loadIssueHistoryBtn");
     }
     
     // Setup clear button
@@ -3375,11 +3381,6 @@
     
     if (!monthInput || !resultsSection) {
       console.error("Missing required elements for issue history:", { monthInput, resultsSection });
-      return;
-    }
-    
-    // Prevent multiple clicks
-    if (loadBtn && loadBtn.disabled) {
       return;
     }
 
@@ -7609,13 +7610,24 @@
     confirmBtn.classList.add("hidden");
     messageEl.classList.add("hidden");
     messageEl.textContent = "";
+    messageEl.className = "hidden mt-4 p-3 rounded-lg text-sm flex-shrink-0";
 
     // Check if getUserMedia is supported
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-      messageEl.textContent = "Trình duyệt của bạn không hỗ trợ truy cập camera. Vui lòng sử dụng trình duyệt khác (Chrome, Firefox, Edge).";
-      messageEl.className = "mt-4 p-3 rounded-lg text-sm flex-shrink-0 alert-error";
+      messageEl.innerHTML = `
+        <div class="flex items-start">
+          <i class="fas fa-exclamation-triangle text-red-500 mr-2 mt-0.5"></i>
+          <div>
+            <p class="font-semibold mb-1">Trình duyệt không hỗ trợ camera</p>
+            <p class="text-sm">Vui lòng sử dụng trình duyệt khác (Chrome, Firefox, Edge) hoặc cập nhật trình duyệt của bạn.</p>
+          </div>
+        </div>
+      `;
+      messageEl.className = "mt-4 p-4 rounded-lg text-sm flex-shrink-0 bg-red-50 border border-red-200 text-red-800";
       messageEl.classList.remove("hidden");
       video.classList.add("hidden");
+      captureBtn.disabled = true;
+      captureBtn.classList.add("opacity-50", "cursor-not-allowed");
       return;
     }
 
@@ -7724,7 +7736,6 @@
           <button 
             id="retryCameraBtn" 
             class="btn-primary text-sm w-full sm:w-auto"
-            onclick="window.startCameraStream && window.startCameraStream()"
           >
             <i class="fas fa-redo mr-2"></i>Thử lại
           </button>
