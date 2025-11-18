@@ -85,6 +85,7 @@
     "ICOOL ĐẠI LỘ 2",
     "ICOOL LÊ THỊ HÀ",
     "ICOOL VŨNG TÀU",
+    "SPACE A&A",
   ];
 
   // New data structure: Branch -> Floor -> Room array
@@ -413,6 +414,11 @@
       "Tầng 1": ["P.101", "P.102", "P.103", "P.104", "P.105", "P.106"],
       "Tầng 2": ["P.201", "P.202", "P.203", "P.204", "P.205", "P.206"],
       "Tầng 3": ["P.301", "P.302", "P.303", "P.304", "P.305", "P.306"],
+    },
+    "SPACE A&A": {
+      // Dữ liệu phòng cho SPACE A&A
+      Trệt: [],
+      "Tầng 1": [],
     },
 
     // Dữ liệu mặc định cho các chi nhánh không được liệt kê ở trên
