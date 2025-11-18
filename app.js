@@ -1420,10 +1420,61 @@
     const accountSearchInput = mainContentContainer.querySelector("#accountSearchInput");
     if (accountSearchInput) {
       accountSearchInput.value = accountsSearchTerm; // Restore previous search term
-      accountSearchInput.addEventListener("input", (e) => {
+      let searchTimeout;
+      accountSearchInput.addEventListener("input", async (e) => {
         accountsSearchTerm = e.target.value.trim().toLowerCase();
-        // Re-render table with current cache using the search filter
-        renderAccountsTable(allUsersCache);
+        
+        // Clear previous timeout
+        clearTimeout(searchTimeout);
+        
+        // If there's a search term, load all users for search
+        if (accountsSearchTerm) {
+          // Show loading state immediately
+          const tableBody = mainContentContainer.querySelector("#accountsTableBody");
+          if (tableBody) {
+            tableBody.innerHTML = `<tr><td colspan="5" class="text-center p-4">Đang tìm kiếm...</td></tr>`;
+          }
+          
+          // Debounce search to avoid too many requests
+          searchTimeout = setTimeout(async () => {
+            try {
+              // Load all users for search (without pagination)
+              const allUsersQuery = query(
+                collection(db, `/artifacts/${canvasAppId}/users`),
+                orderBy("displayName")
+              );
+              const allUsersSnapshot = await getDocs(allUsersQuery);
+              const allUsers = allUsersSnapshot.docs.map((doc) => ({
+                uid: doc.id,
+                ...doc.data(),
+              }));
+              
+              // Store unfiltered cache for count display
+              allUsersCacheUnfiltered = allUsers;
+              
+              // Filter disabled accounts if needed
+              if (!showDisabledAccounts) {
+                allUsersCache = allUsers.filter((user) => user.status !== "disabled" && !user.disabled);
+              } else {
+                allUsersCache = allUsers;
+              }
+              
+              // Re-render table with search filter
+              renderAccountsTable(allUsersCache);
+            } catch (error) {
+              console.error("Error loading users for search:", error);
+              if (tableBody) {
+                tableBody.innerHTML = `<tr><td colspan="5" class="text-center p-4 text-red-500">Lỗi tìm kiếm: ${error.message}</td></tr>`;
+              }
+              // Fallback to current cache
+              renderAccountsTable(allUsersCache);
+            }
+          }, 300); // 300ms debounce
+        } else {
+          // If search is cleared, reload with pagination
+          accountsCurrentPage = 1;
+          loadAccountsPage(true);
+        }
       });
     }
 
@@ -4310,10 +4361,11 @@
     // Apply search filter if search term exists
     if (accountsSearchTerm) {
       filteredUsers = filteredUsers.filter((user) => {
-        const displayName = (user.displayName || "").toLowerCase();
-        const email = (user.email || "").toLowerCase();
-        const employeeId = (user.employeeId || "").toLowerCase();
-        const role = (user.role || "").toLowerCase();
+        // Convert all values to string before calling toLowerCase()
+        const displayName = String(user.displayName || "").toLowerCase();
+        const email = String(user.email || "").toLowerCase();
+        const employeeId = String(user.employeeId || "").toLowerCase();
+        const role = String(user.role || "").toLowerCase();
         
         return (
           displayName.includes(accountsSearchTerm) ||
