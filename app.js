@@ -5929,6 +5929,12 @@
     modal.querySelector("#detailIssueImageContainer").innerHTML = "";
     modal.querySelector("#detailRepairedImageContainer").innerHTML = "";
     modal.querySelector("#detailIssueComments").innerHTML = "";
+    // Clear message element
+    const messageEl = modal.querySelector("#detailIssueMessage");
+    if (messageEl) {
+      messageEl.classList.add("hidden");
+      messageEl.textContent = "";
+    }
 
     const docRef = doc(
       db,
@@ -6442,6 +6448,7 @@
       await addDoc(commentsCol, commentData);
       
       // Send notifications to mentioned users
+      let notifiedUsers = [];
       if (mentions.length > 0) {
         const issueDoc = await getDoc(doc(db, `/artifacts/${canvasAppId}/public/data/issueReports/${issueId}`));
         const issueData = issueDoc.exists() ? issueDoc.data() : {};
@@ -6452,12 +6459,30 @@
           if (mention.uid && mention.uid !== currentUser.uid) {
             const notificationMessage = `${currentUserProfile.displayName} đã tag bạn trong bình luận về ${issueType}${issueBranch ? ` (${issueBranch})` : ""}`;
             await sendNotification(mention.uid, notificationMessage, issueId);
+            notifiedUsers.push(mention.name);
           }
         }
       }
       
       commentInput.value = "";
       hideMentionSuggestions();
+      
+      // Show notification reminder if users were mentioned
+      const messageEl = modal.querySelector("#detailIssueMessage");
+      if (notifiedUsers.length > 0) {
+        const userList = notifiedUsers.join(", ");
+        messageEl.textContent = `✓ Đã gửi thông báo đến ${notifiedUsers.length} người dùng: ${userList}`;
+        messageEl.className = "p-3 rounded-lg text-sm text-center alert-success";
+        messageEl.classList.remove("hidden");
+        
+        // Auto-hide after 5 seconds
+        setTimeout(() => {
+          messageEl.classList.add("hidden");
+        }, 5000);
+      } else {
+        messageEl.classList.add("hidden");
+      }
+      
       logActivity("Add Comment", { issueId, commentText, mentionsCount: mentions.length });
     } catch (error) {
       console.error("Error adding comment:", error);
@@ -7462,6 +7487,9 @@
     if (!issueDescription || issueDescription.trim() === "") {
       validationErrors.push("Mô tả chi tiết");
     }
+    if (!imageFile) {
+      validationErrors.push("Ảnh mô tả lỗi");
+    }
     if (issueScope === "specific_rooms" && !specificRooms) {
       validationErrors.push("Chọn ít nhất 1 phòng cụ thể");
     }
@@ -7480,6 +7508,8 @@
         mainContentContainer.querySelector("#issueBranch")?.focus();
       } else if (!issueDescription || issueDescription.trim() === "") {
         mainContentContainer.querySelector("#issueDescription")?.focus();
+      } else if (!imageFile) {
+        mainContentContainer.querySelector("#issueImage")?.focus();
       }
       
       return;
@@ -8428,25 +8458,28 @@
     tableBody.innerHTML = `<tr><td colspan="7" class="text-center p-4">Đang tải dữ liệu...</td></tr>`;
 
     // Determine if we should use Cloud Function (for large reports)
+    // TẠM THỜI TẮT CLOUD FUNCTION - CHỈ DÙNG CLIENT-SIDE
     // Use Cloud Function if: all employees selected OR employee count > 50
-    let useCloudFunction = !selectedEmployeeId;
+    let useCloudFunction = false; // Tắt Cloud Function tạm thời do lỗi CORS/permissions
     
-    if (!useCloudFunction) {
-      // Check employee count to decide
-      try {
-        const usersRef = collection(db, `/artifacts/${canvasAppId}/users`);
-        const usersSnapshot = await getDocs(usersRef);
-        const employeeCount = usersSnapshot.docs.filter((doc) => {
-          const userData = doc.data();
-          return userData?.role === "Nhân viên" && userData?.status !== "disabled" && !userData?.disabled;
-        }).length;
-        
-        useCloudFunction = employeeCount > 50;
-      } catch (error) {
-        console.warn("Could not determine employee count, using client-side processing");
-        useCloudFunction = false;
-      }
-    }
+    // Code gốc (đã comment để tắt Cloud Function):
+    // let useCloudFunction = !selectedEmployeeId;
+    // if (!useCloudFunction) {
+    //   // Check employee count to decide
+    //   try {
+    //     const usersRef = collection(db, `/artifacts/${canvasAppId}/users`);
+    //     const usersSnapshot = await getDocs(usersRef);
+    //     const employeeCount = usersSnapshot.docs.filter((doc) => {
+    //       const userData = doc.data();
+    //       return userData?.role === "Nhân viên" && userData?.status !== "disabled" && !userData?.disabled;
+    //     }).length;
+    //     
+    //     useCloudFunction = employeeCount > 50;
+    //   } catch (error) {
+    //     console.warn("Could not determine employee count, using client-side processing");
+    //     useCloudFunction = false;
+    //   }
+    // }
 
     // Use Cloud Function for large reports
     if (useCloudFunction && functions) {
@@ -8506,17 +8539,23 @@
         messageEl.classList.add("hidden");
       } catch (error) {
         console.error("Error calling Cloud Function:", error);
-        messageEl.textContent = `Lỗi tạo báo cáo: ${error.message}. Đang thử lại với phương pháp client-side...`;
-        messageEl.className = "p-3 rounded-lg text-sm text-center alert-error";
+        messageEl.textContent = `Lỗi Cloud Function: ${error.message}. Đang chuyển sang xử lý trên trình duyệt...`;
+        messageEl.className = "p-3 rounded-lg text-sm text-center alert-warning";
         messageEl.classList.remove("hidden");
         
         // Fallback to client-side processing
         useCloudFunction = false;
+        // Continue to client-side processing below
       }
     }
 
     // Client-side processing (original code)
     if (!useCloudFunction) {
+      // Clear any previous error messages if we're using client-side
+      if (messageEl && messageEl.textContent && messageEl.textContent.includes("Cloud Function")) {
+        messageEl.textContent = "Đang xử lý báo cáo trên trình duyệt...";
+        messageEl.className = "p-3 rounded-lg text-sm text-center alert-info";
+      }
 
     try {
       const [year, month] = selectedMonth.split("-").map(Number);
@@ -8554,27 +8593,32 @@
       // Load attendance data for all employees
       const allAttendanceData = [];
       for (const employeeId of employeeIds) {
-        const attendanceRef = collection(
-          db,
-          `/artifacts/${canvasAppId}/users/${employeeId}/attendance`
-        );
-        const attendanceSnapshot = await getDocs(attendanceRef);
+        try {
+          const attendanceRef = collection(
+            db,
+            `/artifacts/${canvasAppId}/users/${employeeId}/attendance`
+          );
+          const attendanceSnapshot = await getDocs(attendanceRef);
 
-        attendanceSnapshot.docs.forEach((doc) => {
-          const data = doc.data();
-          const timestamp = data.timestamp?.toDate();
-          if (timestamp && timestamp >= startDate && timestamp <= endDate) {
-            // Get employee shift info
-            allAttendanceData.push({
-              employeeId: employeeId,
-              employeeName: data.employeeName || "N/A",
-              action: data.action,
-              timestamp: timestamp,
-              photoUrl: data.photoUrl,
-              location: data.location,
-            });
-          }
-        });
+          attendanceSnapshot.docs.forEach((doc) => {
+            const data = doc.data();
+            const timestamp = data.timestamp?.toDate();
+            if (timestamp && timestamp >= startDate && timestamp <= endDate) {
+              // Get employee shift info
+              allAttendanceData.push({
+                employeeId: employeeId,
+                employeeName: data.employeeName || "N/A",
+                action: data.action,
+                timestamp: timestamp,
+                photoUrl: data.photoUrl,
+                location: data.location,
+              });
+            }
+          });
+        } catch (attendanceError) {
+          console.warn(`Lỗi khi đọc attendance của nhân viên ${employeeId}:`, attendanceError);
+          // Tiếp tục với nhân viên khác, không dừng toàn bộ quá trình
+        }
       }
 
       // Get employee info
@@ -8733,10 +8777,22 @@
       messageEl.classList.add("hidden");
     } catch (error) {
       console.error("Error generating report:", error);
-      messageEl.textContent = `Lỗi: ${error.message}`;
+      
+      // Xử lý các loại lỗi khác nhau
+      let errorMessage = `Lỗi: ${error.message || error.code || "Không xác định"}`;
+      
+      if (error.code === "permission-denied" || error.message?.includes("permission")) {
+        errorMessage = "Lỗi quyền truy cập: Bạn không có quyền đọc dữ liệu chấm công. Vui lòng liên hệ Admin.";
+      } else if (error.code === "unavailable" || error.message?.includes("unavailable")) {
+        errorMessage = "Lỗi kết nối: Không thể kết nối đến database. Vui lòng thử lại sau.";
+      } else if (error.message?.includes("network") || error.message?.includes("Network")) {
+        errorMessage = "Lỗi mạng: Kiểm tra kết nối internet và thử lại.";
+      }
+      
+      messageEl.textContent = errorMessage;
       messageEl.className = "p-3 rounded-lg text-sm text-center alert-error";
       messageEl.classList.remove("hidden");
-      tableBody.innerHTML = `<tr><td colspan="7" class="text-center p-4 text-red-500">Lỗi tải dữ liệu.</td></tr>`;
+      tableBody.innerHTML = `<tr><td colspan="7" class="text-center p-4 text-red-500">${errorMessage}</td></tr>`;
     } finally {
       generateBtn.disabled = false;
       generateBtn.innerHTML = `<i class="fas fa-search mr-2"></i>Tạo Báo Cáo`;

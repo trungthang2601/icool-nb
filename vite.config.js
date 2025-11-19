@@ -1,15 +1,13 @@
 import { defineConfig } from 'vite';
 import { fileURLToPath, URL } from 'node:url';
-import { svelte } from '@sveltejs/vite-plugin-svelte';
+
+// NOTE: This is a Vanilla JS project, not Svelte
+// Svelte dependencies were removed as they are not used
 
 export default defineConfig({
   root: '.',
   plugins: [
-    svelte({
-      compilerOptions: {
-        dev: process.env.NODE_ENV !== 'production'
-      }
-    })
+    // No Svelte plugin - this is Vanilla JS
   ],
   build: {
     outDir: 'dist',
