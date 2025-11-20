@@ -833,15 +833,22 @@
       await fetchAndSetUserProfile(user.uid, user);
 
       if (currentUserProfile && currentUserProfile.status !== "disabled") {
-        // --- SỬA LỖI LOGIC ---
-        // Luôn thiết lập UI cho người dùng đã đăng nhập TRƯỚC KHI kiểm tra đổi mật khẩu
-        setupUIForLoggedInUser();
-
         if (currentUserProfile.requiresPasswordChange) {
-          // Chỉ cần hiện modal lên
+          // Nếu cần đổi mật khẩu, chỉ hiển thị modal, KHÔNG cho phép truy cập app
+          authSection.classList.add("hidden");
+          appContainer.classList.remove("hidden");
+          // Thiết lập header cơ bản để hiển thị thông tin user
+          loggedInUserDisplay.textContent = currentUserProfile.displayName;
+          dropdownUserName.textContent = currentUserProfile.displayName;
+          dropdownUserRole.textContent = currentUserProfile.role;
+          // Ẩn sidebar và main content để người dùng không thể truy cập
+          sidebar.classList.add("-translate-x-full");
+          mainContentContainer.innerHTML = "";
+          // Hiển thị modal đổi mật khẩu
           promptForcePasswordChange();
         } else {
-          // Nếu không cần đổi mật khẩu, ẩn modal đi và tải các chức năng
+          // Nếu không cần đổi mật khẩu, thiết lập UI đầy đủ và tải các chức năng
+          setupUIForLoggedInUser();
           forceChangePasswordModal.style.display = "none";
           listenToNotifications();
           showInitialView();
@@ -853,7 +860,6 @@
           }
         }
         setTimeout(() => logActivity("User Login", { email: user.email }), 500);
-        // --- KẾT THÚC SỬA LỖI ---
       } else {
         console.error(
           "User profile not found or account is disabled. Logging out."
@@ -975,6 +981,12 @@
 
   function renderSidebarNav() {
     sidebarNav.innerHTML = "";
+    
+    // Không render sidebar nếu chưa đổi mật khẩu
+    if (currentUserProfile && currentUserProfile.requiresPasswordChange) {
+      return;
+    }
+    
     // Filter out myProfileView (it's now a modal, not a sidebar view)
     const filteredViews = (currentUserProfile.allowedViews || []).filter(
       (viewId) => viewId !== "myProfileView"
@@ -1011,6 +1023,12 @@
   }
 
   function showView(viewId) {
+    // Ngăn chặn truy cập các view nếu chưa đổi mật khẩu
+    if (currentUserProfile && currentUserProfile.requiresPasswordChange) {
+      promptForcePasswordChange();
+      return;
+    }
+
     const viewTemplate = viewsContainer.querySelector(`#${viewId}`);
     mainContentContainer.innerHTML = viewTemplate
       ? viewTemplate.innerHTML
@@ -3768,7 +3786,25 @@
    * Opens the My Profile modal and populates it with current user data
    */
   function openMyProfileModal() {
-    if (!currentUserProfile || !currentUser || !myProfileModal) return;
+    if (!currentUserProfile || !currentUser) {
+      console.error("Cannot open profile modal: missing user data");
+      return;
+    }
+    
+    if (!myProfileModal) {
+      console.error("Cannot open profile modal: myProfileModal not found");
+      myProfileModal = document.getElementById("myProfileModal");
+      if (!myProfileModal) {
+        alert("Không thể mở hồ sơ. Vui lòng tải lại trang.");
+        return;
+      }
+    }
+    
+    // Ngăn chặn mở modal hồ sơ nếu chưa đổi mật khẩu
+    if (currentUserProfile.requiresPasswordChange) {
+      promptForcePasswordChange();
+      return;
+    }
 
     // Populate profile fields
     const emailInput = myProfileModal.querySelector("#profileEmail");
@@ -4416,15 +4452,12 @@
               ? '<span class="text-xs text-red-500 font-semibold">(Đã vô hiệu hóa)</span>'
               : ""
           }</td>
-                  <td data-label="Email" class="px-3 sm:px-4 py-3 hidden md:table-cell">${user.email}</td>
-                  <td data-label="Vai Trò" class="px-3 sm:px-4 py-3">${user.role}</td>
-                  <td data-label="Chi Nhánh" class="px-3 sm:px-4 py-3 hidden lg:table-cell">
-                    <span class="truncate max-w-[200px] block" title="${user.branch || "N/A"}">${user.branch || "N/A"}</span>
-                  </td>
+                  <td data-label="Email" class="px-4 py-3">${user.email}</td>
+                  <td data-label="Vai Trò" class="px-4 py-3">${user.role}</td>
+                  <td data-label="Chi Nhánh" class="px-4 py-3">${user.branch || "N/A"}</td>
                   <td data-label="Hành động" class="px-4 py-3 text-right">
-                      <div class="flex flex-wrap gap-2 justify-end sm:justify-end">
                       ${exportButtonHTML}
-                      <button class="edit-user-btn btn-secondary !text-sm !py-1 !px-2" data-uid="${
+                      <button class="edit-user-btn btn-secondary !text-sm !py-1 !px-2 mr-2" data-uid="${
                         user.uid
                       }" ${isDisabled ? "disabled" : ""}>Sửa</button>
                       ${
@@ -4434,7 +4467,6 @@
                             : `<button class="delete-user-btn btn-danger !text-sm !py-1 !px-2" data-uid="${user.uid}" data-name="${user.displayName}">Vô hiệu hóa</button>`
                           : ""
                       }
-                      </div>
                   </td>
               </tr>
           `;
@@ -9155,6 +9187,9 @@
     drillDownModal = document.getElementById("drillDownModal");
     confirmCancelModal = document.getElementById("confirmCancelModal");
     myProfileModal = document.getElementById("myProfileModal");
+    if (!myProfileModal) {
+      console.error("myProfileModal not found!");
+    }
     sidebar = document.getElementById("sidebar");
     mobileMenuToggle = document.getElementById("mobileMenuToggle");
     onlineStatusIndicator = document.getElementById("onlineStatusIndicator");
@@ -9176,17 +9211,25 @@
         handleLogin();
       }
     });
-    document
-      .getElementById("logoutDropdownBtn")
-      .addEventListener("click", handleLogout);
-    document
-      .getElementById("myProfileDropdownBtn")
-      .addEventListener("click", (e) => {
+    const logoutBtn = document.getElementById("logoutDropdownBtn");
+    if (logoutBtn) {
+      logoutBtn.addEventListener("click", handleLogout);
+    }
+    
+    const myProfileBtn = document.getElementById("myProfileDropdownBtn");
+    if (myProfileBtn) {
+      myProfileBtn.addEventListener("click", (e) => {
         e.preventDefault();
         e.stopPropagation();
-        document.getElementById("userDropdownMenu").classList.remove("show");
+        const dropdownMenu = document.getElementById("userDropdownMenu");
+        if (dropdownMenu) {
+          dropdownMenu.classList.remove("show");
+        }
         openMyProfileModal();
       });
+    } else {
+      console.error("myProfileDropdownBtn not found!");
+    }
     document
       .getElementById("userDropdownToggle")
       .addEventListener("click", (e) => {

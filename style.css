@@ -138,6 +138,15 @@ body {
     align-items: center;
 }
 
+/* Force password change modal cannot be closed */
+#forceChangePasswordModal {
+    pointer-events: auto;
+}
+
+#forceChangePasswordModal .modal-content {
+    pointer-events: auto;
+}
+
 .modal-content {
     background-color: #fefefe;
     margin: auto;
@@ -542,4 +551,63 @@ body {
 .custom-select-trigger .placeholder-text {
     color: #64748b;
     /* slate-500 */
+}
+
+
+/* Touch events fix - Keep for functionality */
+@media (max-width: 767px) {
+    /* Ensure all interactive elements are clickable */
+    button:not(:disabled),
+    a:not(:disabled),
+    .btn-primary:not(:disabled),
+    .btn-secondary:not(:disabled),
+    .btn-danger:not(:disabled),
+    input[type="button"],
+    input[type="submit"],
+    select,
+    .custom-select-trigger {
+        pointer-events: auto !important;
+        touch-action: manipulation;
+    }
+
+    /* Fix for disabled buttons */
+    button:disabled,
+    .btn-primary:disabled,
+    .btn-secondary:disabled,
+    .btn-danger:disabled {
+        opacity: 0.5;
+        pointer-events: none;
+    }
+}
+
+/* Fix z-index and pointer events for mobile - Keep minimal for functionality */
+@media (max-width: 767px) {
+    /* Ensure sidebar overlay doesn't block clicks when hidden */
+    #sidebarOverlay.hidden {
+        display: none !important;
+        pointer-events: none !important;
+    }
+
+    /* Fix z-index issues */
+    .modal {
+        z-index: 1000 !important;
+        pointer-events: auto !important;
+    }
+
+    .modal-content {
+        z-index: 1001 !important;
+        pointer-events: auto !important;
+    }
+
+    /* Ensure dropdowns are clickable */
+    .dropdown-menu {
+        z-index: 1002 !important;
+        pointer-events: auto !important;
+    }
+
+    /* Ensure location search results are clickable */
+    #locationSearchResults {
+        z-index: 100 !important;
+        pointer-events: auto !important;
+    }
 }
