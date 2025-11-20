@@ -86,6 +86,7 @@
     "ICOOL LÊ THỊ HÀ",
     "ICOOL VŨNG TÀU",
     "SPACE A&A",
+    "Văn phòng",
   ];
 
   // New data structure: Branch -> Floor -> Room array
@@ -417,6 +418,11 @@
     },
     "SPACE A&A": {
       // Dữ liệu phòng cho SPACE A&A
+      Trệt: [],
+      "Tầng 1": [],
+    },
+    "Văn phòng": {
+      // Dữ liệu phòng cho Văn phòng
       Trệt: [],
       "Tầng 1": [],
     },
@@ -1432,7 +1438,7 @@
           // Show loading state immediately
           const tableBody = mainContentContainer.querySelector("#accountsTableBody");
           if (tableBody) {
-            tableBody.innerHTML = `<tr><td colspan="5" class="text-center p-4">Đang tìm kiếm...</td></tr>`;
+            tableBody.innerHTML = `<tr><td colspan="6" class="text-center p-4">Đang tìm kiếm...</td></tr>`;
           }
           
           // Debounce search to avoid too many requests
@@ -1522,7 +1528,7 @@
     }
 
     // Show loading state
-    tableBody.innerHTML = `<tr><td colspan="5" class="text-center p-4">Đang tải...</td></tr>`;
+    tableBody.innerHTML = `<tr><td colspan="6" class="text-center p-4">Đang tải...</td></tr>`;
     
     // Update count display to show loading
     const countTextEl = mainContentContainer.querySelector("#accountsCountText");
@@ -3510,7 +3516,7 @@
     }
 
     // Show loading state
-    tableBody.innerHTML = `<tr><td colspan="5" class="text-center p-4">Đang tải...</td></tr>`;
+    tableBody.innerHTML = `<tr><td colspan="6" class="text-center p-4">Đang tải...</td></tr>`;
 
     try {
       // Build query with server-side pagination
@@ -4366,12 +4372,14 @@
         const email = String(user.email || "").toLowerCase();
         const employeeId = String(user.employeeId || "").toLowerCase();
         const role = String(user.role || "").toLowerCase();
+        const branch = String(user.branch || "").toLowerCase();
         
         return (
           displayName.includes(accountsSearchTerm) ||
           email.includes(accountsSearchTerm) ||
           employeeId.includes(accountsSearchTerm) ||
-          role.includes(accountsSearchTerm)
+          role.includes(accountsSearchTerm) ||
+          branch.includes(accountsSearchTerm)
         );
       });
     }
@@ -4408,11 +4416,15 @@
               ? '<span class="text-xs text-red-500 font-semibold">(Đã vô hiệu hóa)</span>'
               : ""
           }</td>
-                  <td data-label="Email" class="px-4 py-3">${user.email}</td>
-                  <td data-label="Vai Trò" class="px-4 py-3">${user.role}</td>
+                  <td data-label="Email" class="px-3 sm:px-4 py-3 hidden md:table-cell">${user.email}</td>
+                  <td data-label="Vai Trò" class="px-3 sm:px-4 py-3">${user.role}</td>
+                  <td data-label="Chi Nhánh" class="px-3 sm:px-4 py-3 hidden lg:table-cell">
+                    <span class="truncate max-w-[200px] block" title="${user.branch || "N/A"}">${user.branch || "N/A"}</span>
+                  </td>
                   <td data-label="Hành động" class="px-4 py-3 text-right">
+                      <div class="flex flex-wrap gap-2 justify-end sm:justify-end">
                       ${exportButtonHTML}
-                      <button class="edit-user-btn btn-secondary !text-sm !py-1 !px-2 mr-2" data-uid="${
+                      <button class="edit-user-btn btn-secondary !text-sm !py-1 !px-2" data-uid="${
                         user.uid
                       }" ${isDisabled ? "disabled" : ""}>Sửa</button>
                       ${
@@ -4422,12 +4434,13 @@
                             : `<button class="delete-user-btn btn-danger !text-sm !py-1 !px-2" data-uid="${user.uid}" data-name="${user.displayName}">Vô hiệu hóa</button>`
                           : ""
                       }
+                      </div>
                   </td>
               </tr>
           `;
         })
         .join("")
-        : `<tr><td colspan="5" class="text-center p-4">Không có tài khoản nào.</td></tr>`;
+        : `<tr><td colspan="6" class="text-center p-4">Không có tài khoản nào.</td></tr>`;
 
     // Gắn sự kiện cho các nút Sửa, Xóa...
     tableBody.querySelectorAll(".edit-user-btn").forEach((btn) => {
@@ -6828,12 +6841,14 @@
       // Invalidate users cache (reload cache to reflect changes)
       usersCacheLoaded = false;
       await loadUsersIntoCache();
+      
+      // Reload accounts page to show updated data
+      await loadAccountsPage(true);
 
       messageEl.className = "p-3 rounded-lg text-sm text-center alert-success";
       messageEl.textContent = "Cập nhật thành công!";
       messageEl.classList.remove("hidden");
 
-      // No need to call render manually, the listener will do it.
       setTimeout(() => {
         editAccountModal.style.display = "none";
         messageEl.classList.add("hidden");

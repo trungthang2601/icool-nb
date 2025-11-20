@@ -276,7 +276,7 @@
             <div class="relative max-w-md">
               <input type="text" id="accountSearchInput" 
                 class="input-field pr-10" 
-                placeholder="Tìm kiếm theo tên, email, MSNV hoặc vai trò..."
+                placeholder="Tìm kiếm theo tên, email, MSNV, vai trò hoặc chi nhánh..."
                 autocomplete="off" />
               <i class="fas fa-search absolute right-3 top-1/2 transform -translate-y-1/2 text-slate-400 pointer-events-none"></i>
             </div>
@@ -285,27 +285,31 @@
               <span>Gõ để tìm kiếm nhanh tài khoản trong danh sách</span>
             </p>
           </div>
-          <div class="overflow-x-auto">
-            <table class="min-w-full divide-y divide-slate-200 responsive-table">
-              <thead class="bg-slate-50">
-                <tr>
-                  <th class="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase">
-                    MSNV
-                  </th>
-                  <th class="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase">
-                    Tên Người Dùng
-                  </th>
-                  <th class="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase">
-                    Email
-                  </th>
-                  <th class="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase">
-                    Vai Trò
-                  </th>
-                  <th class="px-4 py-3 text-right text-xs font-semibold text-slate-500 uppercase">
-                    Hành Động
-                  </th>
-                </tr>
-              </thead>
+          <div class="overflow-x-auto -mx-4 sm:mx-0">
+            <div class="inline-block min-w-full align-middle sm:px-0">
+              <table class="min-w-full divide-y divide-slate-200 responsive-table">
+                <thead class="bg-slate-50">
+                  <tr>
+                    <th class="px-3 sm:px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase whitespace-nowrap">
+                      MSNV
+                    </th>
+                    <th class="px-3 sm:px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase">
+                      Tên Người Dùng
+                    </th>
+                    <th class="px-3 sm:px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase hidden md:table-cell">
+                      Email
+                    </th>
+                    <th class="px-3 sm:px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase">
+                      Vai Trò
+                    </th>
+                    <th class="px-3 sm:px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase hidden lg:table-cell">
+                      Chi Nhánh
+                    </th>
+                    <th class="px-3 sm:px-4 py-3 text-right text-xs font-semibold text-slate-500 uppercase whitespace-nowrap">
+                      Hành Động
+                    </th>
+                  </tr>
+                </thead>
               <tbody id="accountsTableBody" class="bg-white divide-y divide-slate-200"></tbody>
             </table>
           </div>
