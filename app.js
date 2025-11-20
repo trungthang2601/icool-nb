@@ -4306,7 +4306,12 @@
       `
             )
             .join("")
-        : `<tr><td colspan="5" class="text-center p-4">Bạn không có nhiệm vụ nào được giao.</td></tr>`;
+        : `<tr><td colspan="5" class="text-center p-4" style="text-align: center !important; display: table-cell !important; width: 100%;">
+            <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 2rem 1rem;">
+              <i class="fas fa-tasks text-4xl text-slate-300 mb-3"></i>
+              <p class="text-sm sm:text-base text-slate-600">Bạn không có nhiệm vụ nào được giao.</p>
+            </div>
+          </td></tr>`;
 
     tableBody.querySelectorAll(".detail-issue-btn").forEach((btn) => {
       btn.addEventListener("click", () => openIssueDetailModal(btn.dataset.id));

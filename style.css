@@ -277,6 +277,24 @@ body {
     /* Better empty state styling */
     td.text-center {
         padding: 1.5rem 1rem !important;
+        text-align: center !important;
+        display: table-cell !important;
+    }
+    
+    /* Ensure empty state in responsive tables is centered */
+    .responsive-table td[colspan] {
+        text-align: center !important;
+        display: table-cell !important;
+        width: 100%;
+    }
+    
+    .responsive-table td[colspan] > div {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+        width: 100%;
     }
     
     /* Improve header spacing on mobile */
