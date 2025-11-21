@@ -2460,6 +2460,9 @@
     const scopeRadios = mainContentContainer.querySelectorAll(
       'input[name="issueScope"]'
     );
+    const issueScopeContainer = mainContentContainer.querySelector(
+      "#issueScopeContainer"
+    );
     const floorSelectorContainer = mainContentContainer.querySelector(
       "#floorSelectorContainer"
     ); // Mới
@@ -2491,8 +2494,42 @@
       });
     }
 
+    // --- Logic ẩn/hiện phần "Phạm vi sự cố" dựa trên chi nhánh ---
+    const updateIssueScopeVisibility = () => {
+      const selectedBranch = branchSelect.value;
+      // Ẩn phần "Phạm vi sự cố" nếu là "Văn phòng" hoặc "SPACE A&A"
+      const shouldHideScope = selectedBranch === "Văn phòng" || selectedBranch === "SPACE A&A";
+      
+      if (issueScopeContainer) {
+        issueScopeContainer.classList.toggle("hidden", shouldHideScope);
+      }
+      
+      // Nếu ẩn, set giá trị mặc định là "all_rooms" và ẩn các phần liên quan
+      if (shouldHideScope) {
+        const allRoomsRadio = mainContentContainer.querySelector(
+          'input[name="issueScope"][value="all_rooms"]'
+        );
+        if (allRoomsRadio) {
+          allRoomsRadio.checked = true;
+        }
+        floorSelectorContainer.classList.add("hidden");
+        specificRoomsContainer.classList.add("hidden");
+      }
+    };
+
+    // Thêm event listener cho branchSelect
+    branchSelect.addEventListener("change", updateIssueScopeVisibility);
+
     // --- Logic ẩn/hiện mục chọn Tầng và Phòng ---
     const updateScopeVisibility = () => {
+      const selectedBranch = branchSelect.value;
+      // Nếu là "Văn phòng" hoặc "SPACE A&A", không hiển thị phần này
+      if (selectedBranch === "Văn phòng" || selectedBranch === "SPACE A&A") {
+        floorSelectorContainer.classList.add("hidden");
+        specificRoomsContainer.classList.add("hidden");
+        return;
+      }
+      
       const isSpecificScope = mainContentContainer.querySelector(
         'input[name="issueScope"][value="specific_rooms"]'
       ).checked;
@@ -2597,6 +2634,9 @@
       updateScopeVisibility(); // Chạy lần đầu để ẩn các mục không cần thiết
     }
 
+    // Cập nhật hiển thị phần "Phạm vi sự cố" khi khởi tạo
+    updateIssueScopeVisibility();
+
     // --- Đóng dropdown khi click ra ngoài ---
     document.addEventListener("click", function (event) {
       if (
@@ -2681,30 +2721,33 @@
           // Tự động điền branch và floor
           branchSelect.value = result.branch;
           populateFloors(result.branch);
+          updateIssueScopeVisibility(); // Cập nhật hiển thị phần "Phạm vi sự cố"
           
           // Đợi một chút để floor select được cập nhật
           setTimeout(() => {
             floorSelect.value = result.floor;
             populateRooms(result.branch, result.floor);
             
-            // Tự động chọn phòng cụ thể và check phòng đã tìm
-            const specificRoomsRadio = mainContentContainer.querySelector(
-              'input[name="issueScope"][value="specific_rooms"]'
-            );
-            if (specificRoomsRadio) {
-              specificRoomsRadio.checked = true;
-              updateScopeVisibility();
-              
-              // Check phòng đã tìm
-              setTimeout(() => {
-                const roomCheckbox = roomsOptions.querySelector(
-                  `input[value="${result.room}"]`
-                );
-                if (roomCheckbox) {
-                  roomCheckbox.checked = true;
-                  updateSelectedRoomsUI();
-                }
-              }, 100);
+            // Chỉ tự động chọn phòng cụ thể nếu không phải "Văn phòng" hoặc "SPACE A&A"
+            if (result.branch !== "Văn phòng" && result.branch !== "SPACE A&A") {
+              const specificRoomsRadio = mainContentContainer.querySelector(
+                'input[name="issueScope"][value="specific_rooms"]'
+              );
+              if (specificRoomsRadio) {
+                specificRoomsRadio.checked = true;
+                updateScopeVisibility();
+                
+                // Check phòng đã tìm
+                setTimeout(() => {
+                  const roomCheckbox = roomsOptions.querySelector(
+                    `input[value="${result.room}"]`
+                  );
+                  if (roomCheckbox) {
+                    roomCheckbox.checked = true;
+                    updateSelectedRoomsUI();
+                  }
+                }, 100);
+              }
             }
           }, 50);
 
@@ -2715,6 +2758,7 @@
           // Chỉ điền branch
           branchSelect.value = result.branch;
           populateFloors(result.branch);
+          updateIssueScopeVisibility(); // Cập nhật hiển thị phần "Phạm vi sự cố"
           
           locationSearchInput.value = result.branch;
           locationSearchResults.classList.add("hidden");
@@ -7506,13 +7550,17 @@
     const imageFile = mainContentContainer.querySelector("#issueImage").files[0];
     const messageEl = mainContentContainer.querySelector("#issueMessage");
     const button = mainContentContainer.querySelector("#reportIssueBtn");
-    const issueScope = mainContentContainer.querySelector(
+    // Kiểm tra xem có cần phạm vi sự cố không (ẩn nếu là "Văn phòng" hoặc "SPACE A&A")
+    const shouldRequireScope = issueBranch !== "Văn phòng" && issueBranch !== "SPACE A&A";
+    const checkedScopeRadio = mainContentContainer.querySelector(
       'input[name="issueScope"]:checked'
-    ).value;
+    );
+    // Nếu là "Văn phòng" hoặc "SPACE A&A", luôn set là "all_rooms"
+    const issueScope = (!shouldRequireScope || !checkedScopeRadio) ? "all_rooms" : checkedScopeRadio.value;
 
     // Logic lấy danh sách phòng đã chọn từ các checkbox
     let specificRooms = null;
-    if (issueScope === "specific_rooms") {
+    if (shouldRequireScope && issueScope === "specific_rooms") {
       const checkedRooms = mainContentContainer.querySelectorAll(
         ".room-checkbox:checked"
       );
@@ -7539,10 +7587,13 @@
     if (!issueDescription || issueDescription.trim() === "") {
       validationErrors.push("Mô tả chi tiết");
     }
-    if (!imageFile) {
+    // Kiểm tra bắt buộc phải có hình ảnh
+    const imageInput = mainContentContainer.querySelector("#issueImage");
+    if (!imageFile || !imageInput || !imageInput.files || imageInput.files.length === 0) {
       validationErrors.push("Ảnh mô tả lỗi");
     }
-    if (issueScope === "specific_rooms" && !specificRooms) {
+    // Chỉ yêu cầu phạm vi sự cố nếu không phải "Văn phòng" hoặc "SPACE A&A"
+    if (shouldRequireScope && issueScope === "specific_rooms" && !specificRooms) {
       validationErrors.push("Chọn ít nhất 1 phòng cụ thể");
     }
     
@@ -7560,8 +7611,9 @@
         mainContentContainer.querySelector("#issueBranch")?.focus();
       } else if (!issueDescription || issueDescription.trim() === "") {
         mainContentContainer.querySelector("#issueDescription")?.focus();
-      } else if (!imageFile) {
-        mainContentContainer.querySelector("#issueImage")?.focus();
+      } else if (!imageFile || !imageInput || !imageInput.files || imageInput.files.length === 0) {
+        imageInput?.focus();
+        imageInput?.scrollIntoView({ behavior: "smooth", block: "center" });
       }
       
       return;
@@ -7573,17 +7625,24 @@
 
     try {
       let imageUrl = "";
-      // Tải ảnh lên nếu có (với nén trước khi upload)
-      if (imageFile) {
-        // Compress image before upload
-        const compressedImage = await compressImage(imageFile);
-        
-        const storageRef = ref(
-          storage,
-          `issue_images/${currentUser.uid}/${Date.now()}-${compressedImage.name || imageFile.name}`
-        );
-        const snapshot = await uploadBytes(storageRef, compressedImage);
-        imageUrl = await getDownloadURL(snapshot.ref);
+      // Tải ảnh lên (bắt buộc phải có)
+      if (!imageFile) {
+        throw new Error("Ảnh mô tả lỗi là bắt buộc. Vui lòng tải lên ảnh trước khi gửi báo cáo.");
+      }
+      
+      // Compress image before upload
+      const compressedImage = await compressImage(imageFile);
+      
+      const storageRef = ref(
+        storage,
+        `issue_images/${currentUser.uid}/${Date.now()}-${compressedImage.name || imageFile.name}`
+      );
+      const snapshot = await uploadBytes(storageRef, compressedImage);
+      imageUrl = await getDownloadURL(snapshot.ref);
+      
+      // Kiểm tra lại để đảm bảo đã có URL hình ảnh
+      if (!imageUrl || imageUrl.trim() === "") {
+        throw new Error("Không thể tải lên hình ảnh. Vui lòng thử lại.");
       }
 
       // Chuẩn bị dữ liệu để lưu vào Firestore
