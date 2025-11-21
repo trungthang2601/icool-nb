@@ -876,4 +876,114 @@ body {
         z-index: 100 !important;
         pointer-events: auto !important;
     }
+    
+    /* Issue Detail Modal mobile optimizations */
+    #issueDetailModal .modal-content {
+        padding: 1rem;
+        max-height: 95vh;
+        overflow-y: auto;
+        position: relative;
+    }
+    
+    #issueDetailModal h3 {
+        font-size: 1.25rem;
+        line-height: 1.3;
+        word-wrap: break-word;
+        padding-right: 2rem;
+    }
+    
+    #issueDetailModal #closeIssueDetailModalBtn {
+        position: absolute;
+        top: 1rem;
+        right: 1rem;
+        width: 2rem;
+        height: 2rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 10;
+    }
+    
+    #detailIssueLocation {
+        font-size: 0.875rem;
+        word-break: break-word;
+        overflow-wrap: break-word;
+        line-height: 1.5;
+    }
+    
+    /* Grid layout adjustments for mobile */
+    #issueDetailModal .grid {
+        gap: 1rem;
+    }
+    
+    #issueDetailModal .lg\\:col-span-2 {
+        width: 100%;
+    }
+    
+    /* Better spacing for images on mobile */
+    #detailIssueImageContainer,
+    #detailRepairedImageContainer {
+        margin-top: 0.5rem;
+    }
+    
+    #detailIssueImageContainer img,
+    #detailRepairedImageContainer img {
+        width: 100%;
+        height: auto;
+        border-radius: 0.5rem;
+        max-height: 300px;
+        object-fit: contain;
+    }
+    
+    /* Comments section mobile optimization */
+    #detailIssueComments {
+        max-height: 200px;
+        font-size: 0.875rem;
+    }
+    
+    /* Comment input mobile optimization */
+    #newCommentInput {
+        font-size: 0.875rem;
+    }
+    
+    #addCommentBtn {
+        font-size: 0.875rem;
+        padding: 0.625rem 1rem;
+    }
+    
+    /* Action buttons on mobile */
+    #issueDetailModal .btn-primary {
+        width: 100%;
+        padding: 0.75rem;
+        font-size: 0.875rem;
+    }
+    
+    /* Info sidebar mobile adjustments */
+    #issueDetailModal .bg-slate-50 {
+        padding: 1rem;
+        margin-top: 1rem;
+        border-radius: 0.5rem;
+    }
+    
+    #issueDetailModal .space-y-4 > * {
+        margin-bottom: 1rem;
+    }
+    
+    /* Better text wrapping in info sidebar */
+    #issueDetailModal .bg-slate-50 * {
+        word-wrap: break-word;
+        overflow-wrap: break-word;
+    }
+    
+    /* Section headings on mobile */
+    #issueDetailModal h4 {
+        font-size: 0.875rem;
+        margin-bottom: 0.5rem;
+    }
+    
+    /* Description text on mobile */
+    #detailIssueDescription {
+        font-size: 0.875rem;
+        line-height: 1.6;
+    }
 }
