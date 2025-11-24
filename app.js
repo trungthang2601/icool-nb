@@ -930,8 +930,17 @@
       usersCacheLoaded = true;
       console.log(`✅ Đã tải ${allUsersCache.length} người dùng vào cache`);
     } catch (error) {
-      console.error("Error loading users into cache:", error);
+      console.error("❌ Lỗi khi tải danh sách người dùng vào cache:", error);
+      if (error.code === "permission-denied" || error.message?.includes("permissions")) {
+        console.warn("⚠️ Lỗi quyền truy cập Firestore. Vui lòng cập nhật Firestore Security Rules:");
+        console.warn("   1. Vào Firebase Console: https://console.firebase.google.com/project/icool-ea266/firestore/rules");
+        console.warn("   2. Thêm rule: allow read: if true; cho collection users");
+        console.warn("   3. Xem chi tiết trong file: FIRESTORE_RULES_FOR_USERNAME_LOGIN.md");
+      }
       // Continue execution even if cache load fails
+      // App will still work, but some features (like user dropdowns) may not work properly
+      allUsersCache = [];
+      usersCacheLoaded = false;
     }
   }
 
@@ -1153,6 +1162,10 @@
       (error) => {
         if (error.code === 'unavailable' || error.message?.includes('ERR_QUIC') || error.message?.includes('ERR_NAME_NOT_RESOLVED')) {
           console.warn("⚠️ Lỗi kết nối Firebase: Không thể tải thông báo. Ứng dụng sẽ hoạt động ở chế độ offline.");
+        } else if (error.code === "permission-denied" || error.message?.includes("permissions")) {
+          console.error("❌ Lỗi quyền truy cập khi tải thông báo:", error);
+          console.warn("⚠️ Vui lòng cập nhật Firestore Security Rules để cho phép đọc notifications collection.");
+          console.warn("   Xem hướng dẫn trong file: FIRESTORE_RULES_FOR_USERNAME_LOGIN.md");
         } else {
           console.error("Lỗi khi tải thông báo:", error);
         }
@@ -1350,9 +1363,17 @@
         },
       });
     } catch (error) {
-      console.warn(
-        `Could not write to activity log (permissions issue?): ${error.message}`
-      );
+      if (error.code === "permission-denied" || error.message?.includes("permissions")) {
+        console.warn(
+          `⚠️ Không thể ghi activity log (lỗi quyền truy cập): ${error.message}`
+        );
+        console.warn("   Vui lòng cập nhật Firestore Security Rules để cho phép ghi activityLogs collection.");
+        console.warn("   Xem hướng dẫn trong file: FIRESTORE_RULES_FOR_USERNAME_LOGIN.md");
+      } else {
+        console.warn(
+          `⚠️ Không thể ghi activity log: ${error.message}`
+        );
+      }
     }
   }
 
@@ -4897,7 +4918,7 @@
       // No filters: use aggregated data or cached data
       const aggregationDocRef = doc(
         db,
-        `/artifacts/${canvasAppId}/public/data/dashboardAggregation`
+        `/artifacts/${canvasAppId}/public/data/dashboardAggregation/main`
       );
       try {
         const aggregationDoc = await getDoc(aggregationDocRef);
@@ -5000,7 +5021,7 @@
       // Try to use aggregated data if available
       const aggregationDocRef = doc(
         db,
-        `/artifacts/${canvasAppId}/public/data/dashboardAggregation`
+        `/artifacts/${canvasAppId}/public/data/dashboardAggregation/main`
       );
       getDoc(aggregationDocRef).then((doc) => {
         if (doc.exists()) {
@@ -6690,6 +6711,13 @@
         console.warn("⚠️ Lỗi kết nối Firebase: Không thể tải bình luận. Ứng dụng sẽ hoạt động ở chế độ offline.");
         if (commentsContainer) {
           commentsContainer.innerHTML = `<p class="text-sm text-yellow-600 italic">Không thể tải bình luận. Vui lòng kiểm tra kết nối mạng.</p>`;
+        }
+      } else if (error.code === "permission-denied" || error.message?.includes("permissions")) {
+        console.error("❌ Lỗi quyền truy cập khi tải bình luận:", error);
+        console.warn("⚠️ Vui lòng cập nhật Firestore Security Rules để cho phép đọc comments collection.");
+        console.warn("   Xem hướng dẫn trong file: FIRESTORE_RULES_FOR_USERNAME_LOGIN.md");
+        if (commentsContainer) {
+          commentsContainer.innerHTML = `<p class="text-sm text-red-600 italic">Lỗi khi tải bình luận: Missing or insufficient permissions.</p>`;
         }
       } else {
         console.error("Lỗi khi tải bình luận:", error);
@@ -8441,7 +8469,11 @@
           .join("");
       }
     } catch (error) {
-      console.error("Error loading shifts:", error);
+      console.error("❌ Lỗi khi tải danh sách ca làm việc:", error);
+      if (error.code === "permission-denied" || error.message?.includes("permissions")) {
+        console.warn("⚠️ Vui lòng cập nhật Firestore Security Rules để cho phép đọc shifts collection.");
+        console.warn("   Xem hướng dẫn trong file: FIRESTORE_RULES_FOR_USERNAME_LOGIN.md");
+      }
       if (tableBody) {
         tableBody.innerHTML = `<tr><td colspan="7" class="text-center p-4 text-red-500">Lỗi tải dữ liệu: ${error.message}</td></tr>`;
       }
@@ -9093,7 +9125,10 @@
       let errorMessage = `Lỗi: ${error.message || error.code || "Không xác định"}`;
       
       if (error.code === "permission-denied" || error.message?.includes("permission")) {
-        errorMessage = "Lỗi quyền truy cập: Bạn không có quyền đọc dữ liệu chấm công. Vui lòng liên hệ Admin.";
+        console.error("❌ Lỗi quyền truy cập khi tải dữ liệu chấm công:", error);
+        console.warn("⚠️ Vui lòng cập nhật Firestore Security Rules để cho phép đọc attendance subcollection.");
+        console.warn("   Xem hướng dẫn trong file: FIRESTORE_RULES_FOR_USERNAME_LOGIN.md");
+        errorMessage = "Lỗi quyền truy cập: Bạn không có quyền đọc dữ liệu chấm công. Vui lòng cập nhật Firestore Security Rules.";
       } else if (error.code === "unavailable" || error.message?.includes("unavailable")) {
         errorMessage = "Lỗi kết nối: Không thể kết nối đến database. Vui lòng thử lại sau.";
       } else if (error.message?.includes("network") || error.message?.includes("Network")) {
