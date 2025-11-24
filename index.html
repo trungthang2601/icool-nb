@@ -1049,14 +1049,14 @@
 
     <div id="issueDetailModal" class="modal">
       <div class="modal-content w-[95%] !max-w-lg md:!max-w-4xl">
-        <div class="mb-6 relative">
+        <div class="mb-6">
           <!-- Header for mobile -->
-          <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 mb-4 sm:mb-0 pr-8 sm:pr-0">
-            <h3 class="text-xl sm:text-2xl font-bold text-slate-800">Chi Tiết Sự Cố</h3>
-            <span id="closeIssueDetailModalBtn" class="cursor-pointer text-2xl absolute top-0 right-0 sm:relative sm:top-0 sm:right-0 hover:text-slate-600 transition-colors" aria-label="Đóng">&times;</span>
+          <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 mb-4 sm:mb-4 relative">
+            <h3 class="text-xl sm:text-2xl font-bold text-slate-800 flex-1 pr-10 sm:pr-0">Chi Tiết Sự Cố</h3>
+            <span id="closeIssueDetailModalBtn" class="cursor-pointer text-2xl absolute top-0 right-0 sm:relative sm:top-0 sm:right-0 hover:text-slate-600 transition-colors flex items-center justify-center w-8 h-8 sm:w-auto sm:h-auto" aria-label="Đóng">&times;</span>
           </div>
           <!-- Location display -->
-          <div class="flex items-start gap-2 bg-indigo-50 border border-indigo-200 rounded-lg p-3 sm:p-4">
+          <div class="flex items-start gap-2 bg-indigo-50 border border-indigo-200 rounded-lg p-3 sm:p-4 mt-4">
             <div class="flex-1 min-w-0">
               <p id="detailIssueLocation" class="text-sm sm:text-base font-semibold text-indigo-600 break-words" title=""></p>
             </div>
@@ -1381,6 +1381,10 @@
         </p>
         <div class="space-y-4">
           <div>
+            <label for="forceCurrentPassword" class="block text-slate-700 text-sm font-medium mb-2">Mật khẩu hiện tại:</label>
+            <input type="password" id="forceCurrentPassword" class="input-field" placeholder="••••••••" />
+          </div>
+          <div>
             <label for="newPassword" class="block text-slate-700 text-sm font-medium mb-2">Mật khẩu mới:</label>
             <input type="password" id="newPassword" class="input-field" />
           </div>
@@ -1425,14 +1429,14 @@
             src="/assets/images/icool-logo.jpg" 
             alt="ICOOL Logo" 
             class="h-12 object-contain max-w-[150px]"
-            onerror="this.onerror=null; this.src='assets/images/icool-logo.jpg'; console.warn('Trying fallback path for ICOOL logo');"
+            onerror="this.onerror=null; this.src='assets/images/icool-logo.jpg'; console.warn('Đang thử đường dẫn dự phòng cho logo ICOOL');"
           />
           <img 
             id="spaaLogo"
             src="/assets/images/spaa-logo.jpg" 
             alt="SPAA Logo" 
             class="h-12 object-contain max-w-[150px]"
-            onerror="this.onerror=null; this.src='assets/images/spaa-logo.jpg'; console.warn('Trying fallback path for SPAA logo');"
+            onerror="this.onerror=null; this.src='assets/images/spaa-logo.jpg'; console.warn('Đang thử đường dẫn dự phòng cho logo SPAA');"
           />
         </div>
         <!-- Copyright Text -->
@@ -1466,7 +1470,7 @@
         
         const tryNextPath = () => {
           if (currentPathIndex >= logoPaths.length) {
-            console.error(`Failed to load ${logo.file} from all paths`);
+            console.error(`Không thể tải ${logo.file} từ tất cả các đường dẫn`);
             return;
           }
           
@@ -1475,7 +1479,7 @@
           
           testImg.onload = () => {
             img.src = testPath;
-            console.log(`✅ Loaded ${logo.file} from: ${testPath}`);
+            console.log(`✅ Đã tải ${logo.file} từ: ${testPath}`);
           };
           
           testImg.onerror = () => {

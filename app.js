@@ -932,21 +932,92 @@
   }
 
   async function handleLogin() {
-    const email = authEmailInput.value.trim();
+    const input = authEmailInput.value.trim();
     const password = authPasswordInput.value;
-    if (!email || !password) {
-      authMessage.textContent = "Vui lòng nhập email và mật khẩu.";
+    if (!input || !password) {
+      authMessage.textContent = "Vui lòng nhập tên đăng nhập và mật khẩu.";
       authMessage.className = "p-3 rounded-lg text-sm text-center alert-error";
       authMessage.classList.remove("hidden");
       return;
     }
+    
+    let email = input;
+    
+    // Nếu input không phải email (không có @), tìm email từ username bằng Cloud Function
+    if (!input.includes("@")) {
+      try {
+        console.log("Đang tìm username:", input);
+        
+        // Sử dụng Cloud Function để tìm email từ username
+        const getEmailFromUsername = httpsCallable(functions, "getEmailFromUsername");
+        const result = await getEmailFromUsername({ 
+          username: input.trim(),
+          appId: canvasAppId 
+        });
+        
+        if (result.data && result.data.email) {
+          email = result.data.email;
+          console.log("Tìm thấy email từ Cloud Function:", email);
+        } else {
+          authMessage.textContent = "Tên đăng nhập hoặc mật khẩu không đúng.";
+          authMessage.className = "p-3 rounded-lg text-sm text-center alert-error";
+          authMessage.classList.remove("hidden");
+          return;
+        }
+      } catch (error) {
+        console.error("Lỗi khi tìm username:", error);
+        
+        // Xử lý các loại lỗi khác nhau
+        if (error.code === "functions/not-found" || error.message.includes("not-found") || error.message.includes("not found")) {
+          authMessage.textContent = "Tên đăng nhập hoặc mật khẩu không đúng.";
+          authMessage.className = "p-3 rounded-lg text-sm text-center alert-error";
+          authMessage.classList.remove("hidden");
+          return;
+        } else if (error.code === "functions/unavailable" || error.message.includes("unavailable")) {
+          authMessage.textContent = "Dịch vụ tạm thời không khả dụng. Vui lòng thử lại sau hoặc sử dụng email để đăng nhập.";
+          authMessage.className = "p-3 rounded-lg text-sm text-center alert-error";
+          authMessage.classList.remove("hidden");
+          return;
+        } else {
+          // Lỗi khác - thử fallback: query trực tiếp Firestore (nếu có quyền)
+          try {
+            console.log("Thử fallback: query Firestore trực tiếp");
+            const usersRef = collection(db, `/artifacts/${canvasAppId}/users`);
+            const q = query(usersRef, where("displayName", "==", input.trim()));
+            const querySnapshot = await getDocs(q);
+            
+            if (!querySnapshot.empty) {
+              const userDoc = querySnapshot.docs[0];
+              const userData = userDoc.data();
+              email = userData.email;
+              console.log("Tìm thấy email từ Firestore (fallback):", email);
+            } else {
+              authMessage.textContent = "Tên đăng nhập hoặc mật khẩu không đúng.";
+              authMessage.className = "p-3 rounded-lg text-sm text-center alert-error";
+              authMessage.classList.remove("hidden");
+              return;
+            }
+          } catch (fallbackError) {
+            console.error("Fallback cũng thất bại:", fallbackError);
+            authMessage.textContent = `Lỗi khi tìm tên đăng nhập: ${error.message || error.code || "Lỗi không xác định"}. Vui lòng sử dụng email để đăng nhập.`;
+            authMessage.className = "p-3 rounded-lg text-sm text-center alert-error";
+            authMessage.classList.remove("hidden");
+            return;
+          }
+        }
+      }
+    }
+    
+    // Đăng nhập bằng email
     try {
+      console.log("Đang đăng nhập với email:", email);
       await signInWithEmailAndPassword(auth, email, password);
       authMessage.classList.add("hidden");
     } catch (error) {
+      console.error("Lỗi đăng nhập:", error);
       authMessage.textContent = `Lỗi đăng nhập: ${
         error.code === "auth/invalid-credential"
-          ? "Email hoặc mật khẩu không đúng."
+          ? "Tên đăng nhập/email hoặc mật khẩu không đúng."
           : error.message
       }`;
       authMessage.className = "p-3 rounded-lg text-sm text-center alert-error";
@@ -9497,6 +9568,9 @@
   }
 
   async function handleForcePasswordChange() {
+    const currentPassword = forceChangePasswordModal.querySelector(
+      "#forceCurrentPassword"
+    ).value;
     const newPassword =
       forceChangePasswordModal.querySelector("#newPassword").value;
     const confirmPassword = forceChangePasswordModal.querySelector(
@@ -9505,6 +9579,17 @@
     const messageEl = forceChangePasswordModal.querySelector(
       "#changePasswordMessage"
     );
+    const confirmBtn = forceChangePasswordModal.querySelector(
+      "#confirmChangePasswordBtn"
+    );
+
+    // Validation
+    if (!currentPassword) {
+      messageEl.textContent = "Vui lòng nhập mật khẩu hiện tại.";
+      messageEl.className = "p-3 rounded-lg text-sm alert-error";
+      messageEl.classList.remove("hidden");
+      return;
+    }
 
     if (newPassword.length < 6) {
       messageEl.textContent = "Mật khẩu phải có ít nhất 6 ký tự.";
@@ -9520,7 +9605,18 @@
       return;
     }
 
+    confirmBtn.disabled = true;
+    confirmBtn.innerHTML = `<i class="fas fa-spinner fa-spin mr-2"></i>Đang đổi mật khẩu...`;
+
     try {
+      // Reauthenticate user with current password
+      const credential = EmailAuthProvider.credential(
+        currentUser.email,
+        currentPassword
+      );
+      await reauthenticateWithCredential(currentUser, credential);
+
+      // Update password
       await updatePassword(currentUser, newPassword);
       const userDocRef = doc(
         db,
@@ -9535,6 +9631,10 @@
       setTimeout(() => {
         currentUserProfile.requiresPasswordChange = false; // Update local state
         forceChangePasswordModal.style.display = "none";
+        // Clear password fields
+        forceChangePasswordModal.querySelector("#forceCurrentPassword").value = "";
+        forceChangePasswordModal.querySelector("#newPassword").value = "";
+        forceChangePasswordModal.querySelector("#confirmNewPassword").value = "";
         setupUIForLoggedInUser();
         listenToNotifications();
         showInitialView();
@@ -9544,9 +9644,25 @@
       }, 2000);
     } catch (error) {
       console.error("Force Password Change Error:", error);
-      messageEl.textContent = `Lỗi: ${error.message}`;
+      let errorMessage = "Lỗi khi đổi mật khẩu.";
+
+      if (error.code === "auth/wrong-password") {
+        errorMessage = "Mật khẩu hiện tại không đúng.";
+      } else if (error.code === "auth/weak-password") {
+        errorMessage = "Mật khẩu mới quá yếu. Vui lòng chọn mật khẩu mạnh hơn.";
+      } else if (error.code === "auth/requires-recent-login") {
+        errorMessage =
+          "Phiên đăng nhập đã hết hạn. Vui lòng đăng xuất và đăng nhập lại, sau đó thử đổi mật khẩu.";
+      } else {
+        errorMessage = `Lỗi: ${error.message}`;
+      }
+
+      messageEl.textContent = errorMessage;
       messageEl.className = "p-3 rounded-lg text-sm alert-error";
       messageEl.classList.remove("hidden");
+    } finally {
+      confirmBtn.disabled = false;
+      confirmBtn.innerHTML = "Thay Đổi Mật Khẩu";
     }
   }
 
