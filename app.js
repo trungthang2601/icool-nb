@@ -580,7 +580,7 @@
       // This allows the app to work offline and sync when connection is restored
       try {
         await enableIndexedDbPersistence(db);
-        console.log("✅ Offline persistence enabled");
+        console.log("✅ Đã bật chế độ offline persistence");
       } catch (persistenceError) {
         // Handle errors (e.g., multiple tabs open, browser doesn't support it)
         if (persistenceError.code === "failed-precondition") {
@@ -601,7 +601,11 @@
         await signInWithCustomToken(auth, initialAuthToken);
       }
     } catch (error) {
-      console.error("Firebase Init Error:", error);
+      console.error("Lỗi khởi tạo Firebase:", error);
+      // Kiểm tra nếu là lỗi mạng
+      if (error.message?.includes('ERR_QUIC') || error.message?.includes('ERR_NAME_NOT_RESOLVED') || error.code === 'unavailable') {
+        console.warn("⚠️ Lỗi kết nối mạng: Không thể kết nối đến Firebase. Vui lòng kiểm tra kết nối internet.");
+      }
       // Now skeletonLoader and authSection are defined, so this won't throw a TypeError
       skeletonLoader.classList.add("hidden");
       authSection.classList.remove("hidden");
@@ -767,7 +771,7 @@
     const settingsSnap = await getDoc(settingsRef);
 
     if (!settingsSnap.exists() || !settingsSnap.data().escalationEnabled) {
-      console.log("Escalation feature is disabled. Checker will not run.");
+      console.log("Tính năng escalation đã tắt. Trình kiểm tra sẽ không chạy.");
       return;
     }
 
@@ -924,7 +928,7 @@
         ...doc.data(),
       }));
       usersCacheLoaded = true;
-      console.log(`✅ Loaded ${allUsersCache.length} users into cache`);
+      console.log(`✅ Đã tải ${allUsersCache.length} người dùng vào cache`);
     } catch (error) {
       console.error("Error loading users into cache:", error);
       // Continue execution even if cache load fails
@@ -1138,13 +1142,22 @@
       orderBy("timestamp", "desc"),
       limit(20)
     );
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const notifications = snapshot.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-      }));
-      renderNotifications(notifications);
-    });
+    const unsubscribe = onSnapshot(q, 
+      (snapshot) => {
+        const notifications = snapshot.docs.map((doc) => ({
+          id: doc.id,
+          ...doc.data(),
+        }));
+        renderNotifications(notifications);
+      },
+      (error) => {
+        if (error.code === 'unavailable' || error.message?.includes('ERR_QUIC') || error.message?.includes('ERR_NAME_NOT_RESOLVED')) {
+          console.warn("⚠️ Lỗi kết nối Firebase: Không thể tải thông báo. Ứng dụng sẽ hoạt động ở chế độ offline.");
+        } else {
+          console.error("Lỗi khi tải thông báo:", error);
+        }
+      }
+    );
     unsubscribeListeners.push(unsubscribe);
   }
 
@@ -1346,16 +1359,17 @@
   // --- Data Queries ---
   function getScopedIssuesQuery() {
     let q = collection(db, `/artifacts/${canvasAppId}/public/data/issueReports`);
-    if (currentUserProfile.role === "Manager") {
-      const managedBranches = currentUserProfile.managedBranches || [];
-      if (managedBranches.length > 0) {
-        q = query(q, where("issueBranch", "in", managedBranches));
+    // Chỉ filter cho role "Chi nhánh" - chỉ xem báo cáo của chi nhánh đó
+    if (currentUserProfile.role === "Chi nhánh") {
+      const userBranch = currentUserProfile.branch;
+      if (userBranch) {
+        q = query(q, where("issueBranch", "==", userBranch));
       } else {
-        return query(q, where("issueBranch", "==", "__NO_BRANCH_ASSIGNED__")); // Effectively returns no results
+        // Nếu không có branch, trả về empty result
+        return query(q, where("issueBranch", "==", "__NO_BRANCH_ASSIGNED__"));
       }
-    } else if (currentUserProfile.role === "Nhân viên") {
-      q = query(q, where("reporterId", "==", currentUser.uid));
     }
+    // Admin, Manager, Nhân viên: xem tất cả (không filter)
     return q;
   }
 
@@ -2083,7 +2097,7 @@
       // Try to get aggregated data
       const aggregationDocRef = doc(
         db,
-        `/artifacts/${canvasAppId}/public/data/dashboardAggregation`
+        `/artifacts/${canvasAppId}/public/data/dashboardAggregation/main`
       );
       const aggregationDoc = await getDoc(aggregationDocRef);
 
@@ -2103,7 +2117,12 @@
             }
           },
           (error) => {
-            console.error("Error listening to aggregated data:", error);
+            // Xử lý các loại lỗi kết nối Firebase
+            if (error.code === 'unavailable' || error.message?.includes('ERR_QUIC') || error.message?.includes('ERR_NAME_NOT_RESOLVED')) {
+              console.warn("⚠️ Lỗi kết nối Firebase: Không thể kết nối đến Firestore. Đang thử lại...");
+            } else {
+              console.error("Lỗi khi lắng nghe dữ liệu đã tổng hợp:", error);
+            }
             // Fallback to loading all reports
             loadDashboardAllReports();
           }
@@ -2114,7 +2133,7 @@
         // For now, load reports in background for filtering functionality
         loadDashboardReportsForFiltering();
       } else {
-        console.log("Aggregated data not found, loading all reports (fallback)");
+        console.log("Không tìm thấy dữ liệu đã tổng hợp, đang tải tất cả báo cáo (fallback)");
         // Fallback: load all reports if aggregated data doesn't exist
         loadDashboardAllReports();
       }
@@ -2140,7 +2159,13 @@
         }));
         applyFiltersAndRender(dashboardReportsCache);
       },
-      (error) => console.error("Dashboard listener failed:", error)
+      (error) => {
+        if (error.code === 'unavailable' || error.message?.includes('ERR_QUIC') || error.message?.includes('ERR_NAME_NOT_RESOLVED')) {
+          console.warn("⚠️ Lỗi kết nối Firebase: Không thể kết nối đến Firestore. Ứng dụng sẽ hoạt động ở chế độ offline.");
+        } else {
+          console.error("Lỗi listener dashboard:", error);
+        }
+      }
     );
 
     unsubscribeListeners.push(unsubscribe);
@@ -2168,7 +2193,13 @@
         }));
         // Don't auto-render, wait for filter application
       },
-      (error) => console.error("Dashboard filtering data listener failed:", error)
+      (error) => {
+        if (error.code === 'unavailable' || error.message?.includes('ERR_QUIC') || error.message?.includes('ERR_NAME_NOT_RESOLVED')) {
+          console.warn("⚠️ Lỗi kết nối Firebase: Không thể tải dữ liệu lọc. Ứng dụng sẽ hoạt động ở chế độ offline.");
+        } else {
+          console.error("Lỗi listener dữ liệu lọc dashboard:", error);
+        }
+      }
     );
 
     unsubscribeListeners.push(unsubscribe);
@@ -3026,7 +3057,9 @@
       let q;
       
       if (issueHistoryMode === "current") {
-        // Current mode: Query from issueReports (like before)
+        // Current mode: Query from issueReports
+        // Tất cả quyền (Admin, Manager, Nhân viên) xem tất cả
+        // Chỉ role "Chi nhánh" bị giới hạn theo branch
         q = getScopedIssuesQuery();
       } else {
         // Archive mode: Query from issueReports_archive with month filter
@@ -3036,23 +3069,21 @@
         const endDate = new Date(parseInt(year), parseInt(month), 0, 23, 59, 59, 999); // Last day of month
 
         // Build query for archive collection
-        // Query archive collection with scope restrictions
         q = collection(db, `/artifacts/${canvasAppId}/public/data/issueReports_archive`);
         
-        // Apply scope restrictions (same as getScopedIssuesQuery but for archive)
-        if (currentUserProfile.role === "Manager") {
-          const managedBranches = currentUserProfile.managedBranches || [];
-          if (managedBranches.length > 0) {
-            q = query(q, where("issueBranch", "in", managedBranches));
+        // Chỉ filter cho role "Chi nhánh" - chỉ xem báo cáo của chi nhánh đó
+        if (currentUserProfile.role === "Chi nhánh") {
+          const userBranch = currentUserProfile.branch;
+          if (userBranch) {
+            q = query(q, where("issueBranch", "==", userBranch));
           } else {
-            // Return empty result
+            // Nếu không có branch, trả về empty result
             tableBody.innerHTML = `<tr><td colspan="7" class="text-center p-4 text-slate-500">Không có dữ liệu trong tháng này.</td></tr>`;
             issueHistoryFiltered = [];
             return;
           }
-        } else if (currentUserProfile.role === "Nhân viên") {
-          q = query(q, where("reporterId", "==", currentUser.uid));
         }
+        // Admin, Manager, Nhân viên: xem tất cả (không filter theo role)
         
         // Filter by month (using reportDate)
         q = query(
@@ -3175,6 +3206,9 @@
       // Client-side filtering
       let filteredReports = reports;
       
+      // Tất cả quyền (Admin, Manager, Nhân viên) xem tất cả
+      // Chỉ role "Chi nhánh" đã được filter ở server-side theo branch
+      
       // If using fallback, filter by selected month
       if (usingFallback && issueHistorySelectedMonth) {
         const [year, month] = issueHistorySelectedMonth.split("-");
@@ -3216,6 +3250,9 @@
           }));
         }
       }
+      
+      // Tất cả quyền (Admin, Manager, Nhân viên) xem tất cả - không cần filter client-side
+      // Chỉ role "Chi nhánh" đã được filter ở server-side theo branch
       
       // Additional client-side filtering for reporterName and date range
       if (reporterFilter || dateFromFilter || dateToFilter) {
@@ -3286,8 +3323,43 @@
         populateReporterFilter();
       }
     } catch (error) {
-      console.error("Error loading issue history:", error);
-      tableBody.innerHTML = `<tr><td colspan="7" class="text-center p-4 text-red-500">Lỗi tải dữ liệu: ${error.message}</td></tr>`;
+      console.error("Lỗi khi tải lịch sử sự cố:", error);
+      
+      // Kiểm tra nếu là lỗi thiếu index
+      if (error.code === "failed-precondition" && error.message.includes("index")) {
+        // Extract index creation URL if available
+        const indexUrlMatch = error.message.match(/https:\/\/[^\s]+/);
+        const indexUrl = indexUrlMatch ? indexUrlMatch[0] : null;
+        
+        tableBody.innerHTML = `
+          <tr>
+            <td colspan="7" class="text-center p-6">
+              <div class="max-w-md mx-auto">
+                <i class="fas fa-exclamation-triangle text-yellow-500 text-4xl mb-4"></i>
+                <h3 class="text-lg font-semibold text-slate-800 mb-2">Cần tạo Index cho Firestore</h3>
+                <p class="text-sm text-slate-600 mb-4">
+                  Query này cần composite index để hoạt động. Vui lòng tạo index trong Firebase Console.
+                </p>
+                ${indexUrl ? `
+                  <a href="${indexUrl}" target="_blank" class="btn-primary inline-block mb-2">
+                    <i class="fas fa-external-link-alt mr-2"></i>Tạo Index (Tự động)
+                  </a>
+                  <p class="text-xs text-slate-500 mt-2">
+                    Sau khi tạo index, đợi 1-5 phút rồi refresh trang này.
+                  </p>
+                ` : `
+                  <p class="text-xs text-slate-500">
+                    Vào Firebase Console > Firestore > Indexes để tạo index thủ công.
+                  </p>
+                `}
+              </div>
+            </td>
+          </tr>
+        `;
+      } else {
+        // Other errors
+        tableBody.innerHTML = `<tr><td colspan="7" class="text-center p-4 text-red-500">Lỗi tải dữ liệu: ${error.message}</td></tr>`;
+      }
     }
   }
 
@@ -3621,9 +3693,39 @@
       await loadIssueHistoryPage(true);
       
     } catch (error) {
-      console.error("Error loading issue history:", error);
-      messageEl.textContent = `Lỗi tải dữ liệu: ${error.message}`;
-      messageEl.className = "p-3 rounded-lg text-sm text-center alert-error";
+      console.error("Lỗi khi tải lịch sử sự cố:", error);
+      
+      // Kiểm tra nếu là lỗi thiếu index
+      if (error.code === "failed-precondition" && error.message.includes("index")) {
+        const indexUrlMatch = error.message.match(/https:\/\/[^\s]+/);
+        const indexUrl = indexUrlMatch ? indexUrlMatch[0] : null;
+        
+        messageEl.innerHTML = `
+          <div class="text-center">
+            <i class="fas fa-exclamation-triangle text-yellow-500 text-2xl mb-2"></i>
+            <p class="font-semibold text-slate-800 mb-2">Cần tạo Index cho Firestore</p>
+            <p class="text-sm text-slate-600 mb-3">
+              Query này cần composite index để hoạt động.
+            </p>
+            ${indexUrl ? `
+              <a href="${indexUrl}" target="_blank" class="btn-primary inline-block mb-2">
+                <i class="fas fa-external-link-alt mr-2"></i>Tạo Index (Tự động)
+              </a>
+              <p class="text-xs text-slate-500 mt-2">
+                Sau khi tạo index, đợi 1-5 phút rồi refresh trang này.
+              </p>
+            ` : `
+              <p class="text-xs text-slate-500">
+                Vào Firebase Console > Firestore > Indexes để tạo index thủ công.
+              </p>
+            `}
+          </div>
+        `;
+        messageEl.className = "p-4 rounded-lg text-sm text-center bg-yellow-50 border border-yellow-200";
+      } else {
+        messageEl.textContent = `Lỗi tải dữ liệu: ${error.message}`;
+        messageEl.className = "p-3 rounded-lg text-sm text-center alert-error";
+      }
       messageEl.classList.remove("hidden");
     } finally {
       loadBtn.disabled = false;
@@ -6167,9 +6269,13 @@
 
     // --- LOGIC QUẢN LÝ & KHÓA VẤN ĐỀ ---
 
+    // Cho phép quản lý nếu:
+    // 1. Là Admin hoặc Manager
+    // 2. HOẶC là người được giao việc (assignee) - để họ có thể cập nhật trạng thái
     const canManage =
       currentUserProfile.role === "Admin" ||
-      currentUserProfile.role === "Manager";
+      currentUserProfile.role === "Manager" ||
+      report.assigneeId === currentUser.uid;
     const isResolved = report.status === "Đã giải quyết";
 
     // Lấy các element
@@ -6280,9 +6386,14 @@
 
     // 4. KHÓA CÁC TRƯỜNG NẾU (KHÔNG THỂ QUẢN LÝ) HOẶC (ĐÃ GIẢI QUYẾT)
     const shouldLock = !canManage || isResolved;
+    
+    // Phân biệt quyền: Admin/Manager có thể quản lý tất cả, assignee chỉ có thể cập nhật trạng thái
+    const canManageAll = currentUserProfile.role === "Admin" || currentUserProfile.role === "Manager";
+    const isAssignee = report.assigneeId === currentUser.uid && !canManageAll;
 
     statusSelect.disabled = shouldLock;
-    assigneeSelect.disabled = shouldLock;
+    // Assignee không thể thay đổi người được giao, chỉ Admin/Manager mới có thể
+    assigneeSelect.disabled = shouldLock || isAssignee;
     repairedImageInput.disabled = shouldLock;
     newCommentInput.disabled = isResolved; // Cho phép comment nếu chưa giải quyết, kể cả là nhân viên
     addCommentBtn.disabled = isResolved; // Tương tự
@@ -6449,8 +6560,13 @@
         status: newStatus,
       };
       
-      // Only update assignee if user is not "Chi nhánh" role
-      if (currentUserProfile.role !== "Chi nhánh") {
+      // Chỉ cho phép thay đổi assignee nếu:
+      // 1. Không phải role "Chi nhánh"
+      // 2. VÀ là Admin/Manager (không phải chỉ là assignee)
+      const canChangeAssignee = currentUserProfile.role !== "Chi nhánh" && 
+                                 (currentUserProfile.role === "Admin" || currentUserProfile.role === "Manager");
+      
+      if (canChangeAssignee) {
         updateData.assigneeId = newAssigneeId || null;
         updateData.assigneeName = newAssigneeName || null;
         
@@ -6460,6 +6576,7 @@
           updateData.assignedDate = new Date().toISOString();
         }
       }
+      // Nếu chỉ là assignee (không phải Admin/Manager), giữ nguyên assigneeId và assigneeName
 
       // ▼▼▼ THAY ĐỔI QUAN TRỌNG ▼▼▼
       // Ghi nhận người giải quyết và ngày giải quyết
@@ -6568,6 +6685,18 @@
         })
         .join("");
       commentsContainer.scrollTop = commentsContainer.scrollHeight;
+    }, (error) => {
+      if (error.code === 'unavailable' || error.message?.includes('ERR_QUIC') || error.message?.includes('ERR_NAME_NOT_RESOLVED')) {
+        console.warn("⚠️ Lỗi kết nối Firebase: Không thể tải bình luận. Ứng dụng sẽ hoạt động ở chế độ offline.");
+        if (commentsContainer) {
+          commentsContainer.innerHTML = `<p class="text-sm text-yellow-600 italic">Không thể tải bình luận. Vui lòng kiểm tra kết nối mạng.</p>`;
+        }
+      } else {
+        console.error("Lỗi khi tải bình luận:", error);
+        if (commentsContainer) {
+          commentsContainer.innerHTML = `<p class="text-sm text-red-600 italic">Lỗi khi tải bình luận: ${error.message}</p>`;
+        }
+      }
     });
   }
 
