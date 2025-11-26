@@ -472,11 +472,13 @@
       "activityLogView",            // 7. Nhật ký hoạt động
     ],
     "Nhân viên": [
-      "dashboardView",              // 1. Tổng quan
+      "dashboardView",              // 1. Dashboard
       "attendanceView",             // 2. Điểm danh
       "issueReportView",            // 3. Báo lỗi
-      "issueHistoryView",          // 4. Lịch sử báo cáo
+      "issueHistoryView",           // 4. Lịch sử báo cáo
       "myTasksView",                // 5. Nhiệm vụ của tôi
+      // Lưu ý: "Hồ sơ của tôi" (myProfileView) là modal, không cần thêm vào allowedViews
+      // Nhân viên có thể truy cập qua menu dropdown ở header
     ],
     "Chi nhánh": [
       "issueReportView",            // 1. Báo lỗi
@@ -6633,9 +6635,21 @@
 
       logActivity("Update Issue", { issueId, newStatus, newAssigneeName });
 
-      if (newAssigneeId && originalData.assigneeId !== newAssigneeId) {
+      // Gửi thông báo khi gán sự cố cho nhân viên
+      // Kiểm tra: có assignee mới VÀ assignee đã thay đổi (từ null sang có giá trị, hoặc từ người này sang người khác)
+      const finalAssigneeId = updateData.assigneeId || null; // Lấy giá trị cuối cùng đã được cập nhật
+      const originalAssigneeId = originalData.assigneeId || null;
+      
+      // Chỉ gửi thông báo nếu:
+      // 1. Có assignee mới (không null, không rỗng)
+      // 2. Assignee đã thay đổi so với ban đầu
+      const hasNewAssignee = finalAssigneeId && 
+                             finalAssigneeId !== originalAssigneeId && 
+                             String(finalAssigneeId).trim() !== "";
+      
+      if (hasNewAssignee) {
         sendNotification(
-          newAssigneeId,
+          finalAssigneeId,
           `Bạn được giao một nhiệm vụ mới: ${originalData.issueType} tại ${originalData.issueBranch}`,
           issueId
         );
