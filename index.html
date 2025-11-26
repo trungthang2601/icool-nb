@@ -234,10 +234,10 @@
           </h3>
           <p class="text-sm text-slate-600 mb-3">
             Tải lên file Excel (.xlsx, .xls) với các cột: `email`, `password`,
-            `displayName`, `employeeId`, `role`. Nếu `email` đã tồn tại, thông
-            tin tài khoản sẽ được cập nhật. Nếu chưa có, tài khoản mới sẽ được
-            tạo (mật khẩu là bắt buộc cho tài khoản mới). Vai trò hợp lệ là
-            'Admin', 'Manager', 'Nhân viên', 'Chi nhánh'.
+            `displayName`, `employeeId`, `role`. 
+            <br><strong>Lưu ý quan trọng:</strong>
+            <br>• Nếu `email` đã tồn tại: Chỉ cập nhật `displayName` và `employeeId`. <strong>Mật khẩu và quyền (role) sẽ KHÔNG bị thay đổi</strong> để bảo vệ tài khoản hiện có.
+            <br>• Nếu chưa có: Tài khoản mới sẽ được tạo (mật khẩu là bắt buộc cho tài khoản mới). Vai trò hợp lệ là 'Admin', 'Manager', 'Nhân viên', 'Chi nhánh'.
           </p>
           <input type="file" id="excelFileInput" class="input-field mb-3" accept=".xlsx, .xls" />
           <div class="flex space-x-2">
@@ -262,6 +262,9 @@
               </div>
             </div>
             <div class="flex items-center space-x-4">
+              <button id="exportAllAccountsBtn" class="btn-primary">
+                <i class="fas fa-file-excel mr-2"></i>Xuất Excel Danh Sách Tài Khoản
+              </button>
               <button id="exportAllAttendanceBtn" class="btn-secondary hidden">
                 <i class="fas fa-file-excel mr-2"></i>Xuất File Chấm Công (Toàn bộ)
               </button>

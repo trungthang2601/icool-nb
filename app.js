@@ -1608,6 +1608,14 @@
       });
     }
 
+    // Export all accounts button
+    const exportAllAccountsBtn = mainContentContainer.querySelector(
+      "#exportAllAccountsBtn"
+    );
+    if (exportAllAccountsBtn) {
+      exportAllAccountsBtn.addEventListener("click", handleExportAllAccounts);
+    }
+
     const exportAllBtn = mainContentContainer.querySelector(
       "#exportAllAttendanceBtn"
     );
@@ -4461,12 +4469,7 @@
                         report.status
                       }</td>
                       <td data-label="Hành động" class="px-4 py-3 text-right">
-                          ${
-                            currentUserProfile.role === "Admin" ||
-                            currentUserProfile.role === "Manager"
-                              ? `<button class="detail-issue-btn btn-secondary !text-sm !py-1 !px-2" data-id="${report.id}">Chi tiết</button>`
-                              : ""
-                          }
+                          <button class="detail-issue-btn btn-secondary !text-sm !py-1 !px-2" data-id="${report.id}">Chi tiết</button>
                       </td>
                   </tr>
                 `;
@@ -6291,12 +6294,15 @@
     // --- LOGIC QUẢN LÝ & KHÓA VẤN ĐỀ ---
 
     // Cho phép quản lý nếu:
-    // 1. Là Admin hoặc Manager
-    // 2. HOẶC là người được giao việc (assignee) - để họ có thể cập nhật trạng thái
+    // 1. Là Admin hoặc Manager (luôn có quyền)
+    // 2. HOẶC là Nhân viên VÀ (chưa giao cho ai HOẶC đã giao cho chính họ)
+    const isNotAssigned = !report.assigneeId || report.assigneeId === null || report.assigneeId === "";
+    const isAssignedToMe = report.assigneeId === currentUser.uid;
     const canManage =
       currentUserProfile.role === "Admin" ||
       currentUserProfile.role === "Manager" ||
-      report.assigneeId === currentUser.uid;
+      (currentUserProfile.role === "Nhân viên" && (isNotAssigned || isAssignedToMe)) ||
+      (currentUserProfile.role !== "Nhân viên" && isAssignedToMe); // Các role khác (nếu có) chỉ quản lý được khi được giao
     const isResolved = report.status === "Đã giải quyết";
 
     // Lấy các element
@@ -7537,6 +7543,8 @@
 
         if (existingUser) {
           // Update existing user
+          // LƯU Ý: Không reset mật khẩu và không thay đổi role/quyền của tài khoản đã tồn tại
+          // Chỉ cập nhật thông tin cơ bản: displayName, employeeId
           try {
             const userDocRef = doc(
               db,
@@ -7545,11 +7553,15 @@
             const profileUpdate = {
               displayName,
               employeeId, // <-- Dùng employeeId đã qua xử lý
-              role: userRole,
-              allowedViews: DEFAULT_VIEWS[userRole] || DEFAULT_VIEWS["Nhân viên"], // Dùng quyền động
+              // KHÔNG cập nhật role và allowedViews để giữ nguyên quyền của người dùng
+              // role: userRole, // Đã bỏ - không thay đổi role của tài khoản đã tồn tại
+              // allowedViews: DEFAULT_VIEWS[userRole] || DEFAULT_VIEWS["Nhân viên"], // Đã bỏ
             };
             await updateDoc(userDocRef, profileUpdate);
-            await logActivity("Admin Bulk Update User", { updatedEmail: email });
+            await logActivity("Admin Bulk Update User", { 
+              updatedEmail: email,
+              note: "Chỉ cập nhật displayName và employeeId, giữ nguyên role và mật khẩu"
+            });
             updateCount++;
           } catch (error) {
             errorCount++;
@@ -9449,6 +9461,68 @@
     } catch (error) {
       console.error("Error exporting all attendance:", error);
       alert("Đã xảy ra lỗi khi xuất file chấm công toàn bộ.");
+    } finally {
+      button.innerHTML = originalContent;
+      button.disabled = false;
+    }
+  }
+
+  /**
+   * Handles the logic for exporting all accounts to Excel.
+   */
+  async function handleExportAllAccounts() {
+    const button = document.getElementById("exportAllAccountsBtn");
+    if (!button) return;
+    
+    const originalContent = button.innerHTML;
+    button.innerHTML = `<i class="fas fa-spinner fa-spin mr-2"></i>Đang xử lý...`;
+    button.disabled = true;
+
+    try {
+      // Load all accounts from database (not just paginated ones)
+      const allUsersQuery = query(
+        collection(db, `/artifacts/${canvasAppId}/users`),
+        orderBy("displayName")
+      );
+      const allUsersSnapshot = await getDocs(allUsersQuery);
+      const allUsers = allUsersSnapshot.docs.map((doc) => ({
+        uid: doc.id,
+        ...doc.data(),
+      }));
+
+      if (allUsers.length === 0) {
+        alert("Không có tài khoản nào để xuất.");
+        return;
+      }
+
+      // Format accounts data for Excel
+      const excelData = allUsers.map((user) => {
+        const isDisabled = user.status === "disabled" || user.disabled;
+        return {
+          "MSNV": user.employeeId || "N/A",
+          "Tên Người Dùng": user.displayName || "N/A",
+          "Email": user.email || "N/A",
+          "Vai Trò": user.role || "N/A",
+          "Chi Nhánh": user.branch || "N/A",
+          "Trạng Thái": isDisabled ? "Đã vô hiệu hóa" : "Hoạt động",
+        };
+      });
+
+      // Create worksheet and workbook
+      const ws = XLSX.utils.json_to_sheet(excelData);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, "Danh Sách Tài Khoản");
+
+      // Generate filename with current date
+      const now = new Date();
+      const dateStr = now.toISOString().split("T")[0].replace(/-/g, "");
+      const fileName = `danh_sach_tai_khoan_${dateStr}.xlsx`;
+
+      // Export file
+      XLSX.writeFile(wb, fileName);
+    } catch (error) {
+      console.error("Error exporting all accounts:", error);
+      alert("Đã xảy ra lỗi khi xuất file danh sách tài khoản: " + error.message);
     } finally {
       button.innerHTML = originalContent;
       button.disabled = false;
