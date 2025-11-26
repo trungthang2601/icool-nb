@@ -7639,17 +7639,24 @@
             // Xử lý các lỗi Firebase phổ biến với thông báo tiếng Việt
             let errorMsg = "";
             if (error.code === "auth/email-already-in-use") {
-              errorMsg = `Email "${email}" đã được sử dụng`;
+              // Email đã tồn tại trong Firebase Auth nhưng không có trong cache
+              // Có thể là tài khoản đã tồn tại nhưng chưa có profile trong Firestore
+              errorMsg = `Email "${email}" đã được sử dụng trong hệ thống. Vui lòng kiểm tra lại hoặc cập nhật thông tin tài khoản hiện có.`;
             } else if (error.code === "auth/invalid-email") {
               errorMsg = `Email "${email}" không hợp lệ`;
             } else if (error.code === "auth/weak-password") {
-              errorMsg = `Mật khẩu quá yếu cho ${email}`;
+              errorMsg = `Mật khẩu quá yếu cho ${email} (tối thiểu 6 ký tự)`;
+            } else if (error.code === "auth/operation-not-allowed") {
+              errorMsg = `Tạo tài khoản bị chặn cho ${email}`;
+            } else if (error.code === "auth/network-request-failed") {
+              errorMsg = `Lỗi kết nối mạng khi tạo ${email}`;
             } else if (error.message) {
               errorMsg = error.message;
             } else {
-              errorMsg = "Lỗi không xác định";
+              errorMsg = `Lỗi không xác định (code: ${error.code || "N/A"})`;
             }
             
+            console.error(`Lỗi tạo tài khoản ${email}:`, error);
             errors.push(`Tạo mới ${email}: ${errorMsg}`);
           }
         }
