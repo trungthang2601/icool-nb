@@ -3349,6 +3349,21 @@
       // Build room map if needed
       buildRoomToLocationMap();
       
+      // Enable export button if there's data
+      const exportBtn = mainContentContainer.querySelector("#exportIssueHistoryBtn");
+      if (exportBtn) {
+        // Enable if there's data, or if in current mode (data will be available)
+        if (issueHistoryFiltered && issueHistoryFiltered.length > 0) {
+          exportBtn.disabled = false;
+        } else if (issueHistoryMode === "current") {
+          // In current mode, enable button even if no data yet (user can still try to export)
+          exportBtn.disabled = false;
+        } else if (issueHistoryMode === "archive") {
+          // In archive mode, only enable if month is selected
+          exportBtn.disabled = !issueHistorySelectedMonth;
+        }
+      }
+      
       // Update reporter filter dropdown (load all unique reporters for filter)
       if (resetPage) {
         populateReporterFilter();
@@ -3443,6 +3458,12 @@
           // Clear selected month
           issueHistorySelectedMonth = "";
           
+          // Enable export button for current mode (doesn't need month selection)
+          const exportBtn = mainContentContainer.querySelector("#exportIssueHistoryBtn");
+          if (exportBtn) {
+            exportBtn.disabled = false;
+          }
+          
           // Show results section
           if (resultsSection) {
             resultsSection.classList.remove("hidden");
@@ -3487,6 +3508,12 @@
           
           // Clear selected month
           issueHistorySelectedMonth = "";
+          
+          // Disable export button for archive mode until month is selected
+          const exportBtn = mainContentContainer.querySelector("#exportIssueHistoryBtn");
+          if (exportBtn) {
+            exportBtn.disabled = true;
+          }
         }
       }
     }
@@ -3624,11 +3651,13 @@
       });
     }
 
-    // Export to Excel button (only enabled when data is loaded)
+    // Export to Excel button (enabled based on mode and data availability)
     const exportIssueHistoryBtn = mainContentContainer.querySelector("#exportIssueHistoryBtn");
     if (exportIssueHistoryBtn) {
       exportIssueHistoryBtn.addEventListener("click", handleExportIssueHistory);
-      exportIssueHistoryBtn.disabled = !issueHistorySelectedMonth;
+      // For current mode: enable immediately (data will load)
+      // For archive mode: only enable when month is selected
+      exportIssueHistoryBtn.disabled = (issueHistoryMode === "archive" && !issueHistorySelectedMonth);
     }
 
     // Update filter count when filter inputs change
@@ -9309,71 +9338,118 @@
    * Uses the filtered data (issueHistoryFiltered) to export only what's currently displayed.
    */
   function handleExportIssueHistory() {
-    if (!issueHistoryFiltered || issueHistoryFiltered.length === 0) {
-      alert("Không có dữ liệu sự cố để xuất. Vui lòng kiểm tra lại bộ lọc.");
-      return;
-    }
-
-    // Format location detail helper
-    const formatLocationDetail = (report) => {
-      if (report.issueScope === "all_rooms") {
-        return "Tất cả phòng";
-      } else if (report.specificRooms) {
-        const firstRoom = report.specificRooms.split(", ")[0];
-        const locationInfo = roomToLocationMap[firstRoom];
-        const floorName = locationInfo ? locationInfo.floor : "N/A";
-        return `Tầng: ${floorName}, Phòng: ${report.specificRooms}`;
+    try {
+      // Check if XLSX library is loaded
+      if (typeof XLSX === 'undefined') {
+        alert("Lỗi: Thư viện Excel chưa được tải. Vui lòng tải lại trang và thử lại.");
+        console.error("XLSX library is not loaded");
+        return;
       }
-      return "N/A";
-    };
 
-    // Format date helper
-    const formatDate = (dateValue) => {
-      if (!dateValue) return "N/A";
-      try {
-        const date = dateValue.toDate ? dateValue.toDate() : new Date(dateValue);
-        return date.toLocaleString("vi-VN");
-      } catch (e) {
-        return "N/A";
+      if (!issueHistoryFiltered || issueHistoryFiltered.length === 0) {
+        alert("Không có dữ liệu sự cố để xuất. Vui lòng kiểm tra lại bộ lọc.");
+        return;
       }
-    };
 
-    // Convert issue reports to Excel format
-    const excelData = issueHistoryFiltered.map((report) => {
-      return {
-        "Chi nhánh": report.issueBranch || "N/A",
-        "Vị trí cụ thể": formatLocationDetail(report),
-        "Người gửi": report.reporterName || "N/A",
-        "Loại sự cố": report.issueType || "N/A",
-        "Mức độ ưu tiên": report.priority || "N/A",
-        "Ngày báo cáo": formatDate(report.reportDate),
-        "Trạng thái": report.status || "N/A",
-        "Người được giao": report.assigneeName || "Chưa giao",
-        "Người giải quyết": report.resolverName || "Chưa giải quyết",
-        "Ngày giải quyết": report.resolvedDate ? formatDate(report.resolvedDate) : "Chưa giải quyết",
-        "Mô tả": report.issueDescription || "Không có mô tả",
+      // Ensure roomToLocationMap is built
+      if (Object.keys(roomToLocationMap).length === 0) {
+        buildRoomToLocationMap();
+      }
+
+      // Format location detail helper
+      const formatLocationDetail = (report) => {
+        try {
+          if (report.issueScope === "all_rooms") {
+            return "Tất cả phòng";
+          } else if (report.specificRooms) {
+            const firstRoom = report.specificRooms.split(", ")[0];
+            if (firstRoom && roomToLocationMap[firstRoom]) {
+              const locationInfo = roomToLocationMap[firstRoom];
+              const floorName = locationInfo ? locationInfo.floor : "N/A";
+              return `Tầng: ${floorName}, Phòng: ${report.specificRooms}`;
+            } else {
+              // Fallback: just return the room name if map doesn't have it
+              return report.specificRooms;
+            }
+          }
+          return "N/A";
+        } catch (e) {
+          console.warn("Error formatting location detail:", e);
+          return report.specificRooms || "N/A";
+        }
       };
-    });
 
-    // Create worksheet and workbook
-    const ws = XLSX.utils.json_to_sheet(excelData);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "Lịch Sử Sự Cố");
+      // Format date helper
+      const formatDate = (dateValue) => {
+        if (!dateValue) return "N/A";
+        try {
+          const date = dateValue.toDate ? dateValue.toDate() : new Date(dateValue);
+          return date.toLocaleString("vi-VN");
+        } catch (e) {
+          console.warn("Error formatting date:", e);
+          return "N/A";
+        }
+      };
 
-    // Generate filename with selected month/year or current date
-    let fileName;
-    if (issueHistorySelectedMonth) {
-      // Format: lich_su_su_co_2027_10.xlsx
-      const formattedMonth = issueHistorySelectedMonth.replace("-", "_");
-      fileName = `lich_su_su_co_${formattedMonth}.xlsx`;
-    } else {
-      const now = new Date();
-      const dateStr = now.toISOString().split("T")[0].replace(/-/g, "");
-      fileName = `lich_su_su_co_${dateStr}.xlsx`;
+      // Convert issue reports to Excel format
+      const excelData = issueHistoryFiltered.map((report) => {
+        try {
+          return {
+            "Chi nhánh": report.issueBranch || "N/A",
+            "Vị trí cụ thể": formatLocationDetail(report),
+            "Người gửi": report.reporterName || "N/A",
+            "Loại sự cố": report.issueType || "N/A",
+            "Mức độ ưu tiên": report.priority || "N/A",
+            "Ngày báo cáo": formatDate(report.reportDate),
+            "Trạng thái": report.status || "N/A",
+            "Người được giao": report.assigneeName || "Chưa giao",
+            "Người giải quyết": report.resolverName || "Chưa giải quyết",
+            "Ngày giải quyết": report.resolvedDate ? formatDate(report.resolvedDate) : "Chưa giải quyết",
+            "Mô tả": report.issueDescription || "Không có mô tả",
+          };
+        } catch (e) {
+          console.error("Error processing report:", report.id, e);
+          return {
+            "Chi nhánh": "Lỗi",
+            "Vị trí cụ thể": "Lỗi",
+            "Người gửi": "Lỗi",
+            "Loại sự cố": "Lỗi",
+            "Mức độ ưu tiên": "Lỗi",
+            "Ngày báo cáo": "Lỗi",
+            "Trạng thái": "Lỗi",
+            "Người được giao": "Lỗi",
+            "Người giải quyết": "Lỗi",
+            "Ngày giải quyết": "Lỗi",
+            "Mô tả": "Lỗi xử lý dữ liệu",
+          };
+        }
+      });
+
+      // Create worksheet and workbook
+      const ws = XLSX.utils.json_to_sheet(excelData);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, "Lịch Sử Sự Cố");
+
+      // Generate filename with selected month/year or current date
+      let fileName;
+      if (issueHistorySelectedMonth) {
+        // Format: lich_su_su_co_2027_10.xlsx
+        const formattedMonth = issueHistorySelectedMonth.replace("-", "_");
+        fileName = `lich_su_su_co_${formattedMonth}.xlsx`;
+      } else {
+        const now = new Date();
+        const dateStr = now.toISOString().split("T")[0].replace(/-/g, "");
+        fileName = `lich_su_su_co_${dateStr}.xlsx`;
+      }
+
+      // Export file
+      XLSX.writeFile(wb, fileName);
+      
+      console.log(`Đã xuất ${excelData.length} báo cáo ra file Excel: ${fileName}`);
+    } catch (error) {
+      console.error("Lỗi khi xuất Excel:", error);
+      alert(`Đã xảy ra lỗi khi xuất file Excel: ${error.message}\n\nVui lòng kiểm tra console để xem chi tiết.`);
     }
-
-    // Export file
-    XLSX.writeFile(wb, fileName);
   }
 
   /**
