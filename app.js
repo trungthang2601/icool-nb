@@ -905,6 +905,38 @@
     }
     currentUserProfile = userDoc.data();
     
+    // Ensure allowedViews exists and is valid, fallback to DEFAULT_VIEWS if missing or invalid
+    const userRole = currentUserProfile.role || "Nhân viên";
+    let needsUpdate = false;
+    
+    if (!currentUserProfile.allowedViews || !Array.isArray(currentUserProfile.allowedViews) || currentUserProfile.allowedViews.length === 0) {
+      console.warn(`⚠️ User ${authUser.email} (${userRole}) has missing or invalid allowedViews. Falling back to DEFAULT_VIEWS for role.`);
+      currentUserProfile.allowedViews = [...(DEFAULT_VIEWS[userRole] || DEFAULT_VIEWS["Nhân viên"])];
+      needsUpdate = true;
+    } else {
+      // Check if required views are missing based on role
+      const requiredViews = DEFAULT_VIEWS[userRole] || DEFAULT_VIEWS["Nhân viên"];
+      const missingViews = requiredViews.filter(view => !currentUserProfile.allowedViews.includes(view));
+      
+      if (missingViews.length > 0) {
+        console.warn(`⚠️ User ${authUser.email} (${userRole}) is missing required views: ${missingViews.join(", ")}. Adding them.`);
+        currentUserProfile.allowedViews = [...currentUserProfile.allowedViews, ...missingViews];
+        needsUpdate = true;
+      }
+    }
+    
+    // Update in database if needed
+    if (needsUpdate) {
+      try {
+        await updateDoc(userDocRef, {
+          allowedViews: currentUserProfile.allowedViews
+        });
+        console.log(`✅ Đã cập nhật allowedViews cho ${authUser.email}`);
+      } catch (error) {
+        console.error("❌ Lỗi khi cập nhật allowedViews:", error);
+      }
+    }
+    
     // Filter out myProfileView from allowedViews (it's now a modal, not a sidebar view)
     if (currentUserProfile.allowedViews && Array.isArray(currentUserProfile.allowedViews)) {
       currentUserProfile.allowedViews = currentUserProfile.allowedViews.filter(
@@ -1073,10 +1105,19 @@
       return;
     }
     
+    // Debug logging
+    console.log("🔍 Rendering sidebar navigation...");
+    console.log(`   User: ${currentUserProfile?.email || 'N/A'}`);
+    console.log(`   Role: ${currentUserProfile?.role || 'N/A'}`);
+    console.log(`   Allowed views:`, currentUserProfile?.allowedViews || []);
+    
     // Filter out myProfileView (it's now a modal, not a sidebar view)
     const filteredViews = (currentUserProfile.allowedViews || []).filter(
       (viewId) => viewId !== "myProfileView"
     );
+    
+    console.log(`   Filtered views (after removing myProfileView):`, filteredViews);
+    console.log(`   Has issueHistoryView: ${filteredViews.includes("issueHistoryView") ? "✅ YES" : "❌ NO"}`);
     
     filteredViews.forEach((viewId) => {
       if (ALL_VIEWS[viewId]) {
@@ -1096,10 +1137,18 @@
           attendanceReportView: "fa-file-invoice",
         };
         button.innerHTML = `<i class="fas ${icons[viewId]} fa-fw mr-3"></i>${ALL_VIEWS[viewId]}`;
-        button.addEventListener("click", () => showView(viewId));
+        button.addEventListener("click", () => {
+          console.log(`🖱️ Clicked on menu: ${viewId}`);
+          showView(viewId);
+        });
         sidebarNav.appendChild(button);
+        console.log(`   ✅ Added menu item: ${viewId} (${ALL_VIEWS[viewId]})`);
+      } else {
+        console.warn(`   ⚠️ View ${viewId} not found in ALL_VIEWS`);
       }
     });
+    
+    console.log(`✅ Sidebar rendered with ${filteredViews.length} menu items`);
   }
 
   function showInitialView() {
@@ -1386,9 +1435,17 @@
     if (currentUserProfile.role === "Chi nhánh") {
       const userBranch = currentUserProfile.branch;
       if (userBranch) {
+        // Nếu branch là "Tất cả" hoặc "All", không filter (xem tất cả)
+        if (userBranch === "Tất cả" || userBranch === "All" || userBranch === "TẤT CẢ") {
+          console.log(`🔍 User Chi nhánh có branch "Tất cả" - xem tất cả báo cáo`);
+          // Không filter, trả về query gốc để xem tất cả
+          return q;
+        }
+        console.log(`🔍 Filtering reports for branch: ${userBranch}`);
         q = query(q, where("issueBranch", "==", userBranch));
       } else {
-        // Nếu không có branch, trả về empty result
+        // Nếu không có branch, log warning và trả về empty result
+        console.warn(`⚠️ User ${currentUserProfile.email} (role: Chi nhánh) does not have a branch assigned. Cannot load reports.`);
         return query(q, where("issueBranch", "==", "__NO_BRANCH_ASSIGNED__"));
       }
     }
@@ -1498,11 +1555,12 @@
           }>${r}</option>`
       ).join("");
 
-      // 2. Populate branch dropdown
+      // 2. Populate branch dropdown (thêm option "Tất cả")
       const branchContainer = mainContentContainer.querySelector("#createAccountBranchContainer");
       const branchSelect = mainContentContainer.querySelector("#createAccountBranch");
       if (branchSelect) {
         branchSelect.innerHTML = '<option value="">-- Chọn chi nhánh --</option>' + 
+          '<option value="Tất cả">Tất cả (xem tất cả chi nhánh)</option>' +
           ALL_BRANCHES.map(b => `<option value="${b}">${b}</option>`).join("");
       }
 
@@ -1511,7 +1569,8 @@
         const selectedRole = createRoleSelect.value;
         if (selectedRole === "Chi nhánh") {
           employeeIdContainer.classList.add("hidden");
-          if (branchContainer) branchContainer.classList.add("hidden");
+          // Hiển thị branch cho role "Chi nhánh" (bắt buộc)
+          if (branchContainer) branchContainer.classList.remove("hidden");
         } else if (selectedRole === "Nhân viên") {
           employeeIdContainer.classList.remove("hidden");
           if (branchContainer) branchContainer.classList.remove("hidden");
@@ -3055,6 +3114,43 @@
     const tableBody = mainContentContainer.querySelector("#issueHistoryTableBody");
     if (!tableBody) return;
 
+    // Check for role "Chi nhánh" without branch - show message early
+    if (currentUserProfile?.role === "Chi nhánh" && !currentUserProfile?.branch) {
+      console.warn("⚠️ User Chi nhánh không có branch được gán. Hiển thị thông báo.");
+      tableBody.innerHTML = `
+        <tr>
+          <td colspan="7" class="text-center p-8">
+            <div class="max-w-lg mx-auto">
+              <i class="fas fa-exclamation-triangle text-yellow-500 text-5xl mb-4"></i>
+              <h3 class="text-xl font-semibold text-slate-800 mb-3">Chưa được gán chi nhánh</h3>
+              <p class="text-base text-slate-600 mb-4">
+                Tài khoản của bạn có role <strong>"Chi nhánh"</strong> nhưng chưa được gán chi nhánh cụ thể.
+              </p>
+              <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-4 text-left">
+                <p class="text-sm text-slate-700 mb-2">
+                  <strong>Vấn đề:</strong> Hệ thống không thể tải báo cáo vì không biết bạn thuộc chi nhánh nào.
+                </p>
+                <p class="text-sm text-slate-700">
+                  <strong>Giải pháp:</strong> Vui lòng liên hệ quản trị viên để được gán chi nhánh cho tài khoản của bạn.
+                </p>
+              </div>
+              <p class="text-xs text-slate-500">
+                Email: ${currentUserProfile?.email || 'N/A'} | Role: ${currentUserProfile?.role || 'N/A'}
+              </p>
+            </div>
+          </td>
+        </tr>
+      `;
+      issueHistoryFiltered = [];
+      
+      // Update subtitle
+      const resultsSubtitle = mainContentContainer.querySelector("#issueHistoryResultsSubtitle");
+      if (resultsSubtitle) {
+        resultsSubtitle.textContent = "Không thể tải dữ liệu - Chưa được gán chi nhánh";
+      }
+      return;
+    }
+
     // For archive mode, check if month is selected
     if (issueHistoryMode === "archive" && !issueHistorySelectedMonth) {
       tableBody.innerHTML = `<tr>
@@ -3150,10 +3246,12 @@
       let usingFallback = false;
       
       try {
+        console.log(`🔍 Loading issue history (mode: ${issueHistoryMode}, resetPage: ${resetPage}, loadNext: ${loadNext})`);
         snapshot = await getDocs(q);
+        console.log(`📊 Query returned ${snapshot.docs.length} documents`);
         
         // If archive returns no results, try fallback to current reports
-        if (snapshot.empty) {
+        if (snapshot.empty && issueHistoryMode === "archive") {
           console.log("Archive collection is empty, trying fallback to current reports...");
           usingFallback = true;
           
@@ -3228,10 +3326,21 @@
         ...doc.data(),
       }));
       
-      if (usingFallback) {
-        console.log(`Archive collection empty/not found. Loaded ${reports.length} reports from current collection (fallback mode)`);
-      } else {
-        console.log(`Loaded ${reports.length} reports from archive`);
+      console.log(`✅ Processed ${reports.length} reports from ${usingFallback ? 'current collection (fallback)' : issueHistoryMode === 'archive' ? 'archive' : 'current collection'}`);
+      
+      if (reports.length === 0) {
+        console.warn("⚠️ No reports found. Possible reasons:");
+        console.warn(`   - Mode: ${issueHistoryMode}`);
+        console.warn(`   - User role: ${currentUserProfile?.role}`);
+        console.warn(`   - User branch: ${currentUserProfile?.branch || 'N/A'}`);
+        console.warn(`   - Active filters: branch=${branchFilter || 'none'}, type=${issueTypeFilter || 'none'}, status=${statusFilter || 'none'}`);
+        
+        // Special message for Chi nhánh role without branch
+        if (currentUserProfile?.role === "Chi nhánh" && !currentUserProfile?.branch) {
+          console.error("❌ CRITICAL: User Chi nhánh không có branch được gán!");
+          console.error("   Đây là lý do chính tại sao không có dữ liệu.");
+          console.error("   Cần gán branch cho user này trong database.");
+        }
       }
 
       // Client-side filtering
@@ -3331,8 +3440,8 @@
       issueHistoryLastVisible = snapshot.docs[snapshot.docs.length - 1] || null;
       issueHistoryHasMore = snapshot.docs.length === ITEMS_PER_PAGE;
 
-      // Show fallback message if using fallback
-      if (usingFallback) {
+      // Show fallback message if using fallback (only in archive mode)
+      if (usingFallback && issueHistoryMode === "archive") {
         const resultsSubtitle = mainContentContainer.querySelector("#issueHistoryResultsSubtitle");
         if (resultsSubtitle) {
           const originalText = resultsSubtitle.textContent;
@@ -3369,7 +3478,46 @@
         populateReporterFilter();
       }
     } catch (error) {
-      console.error("Lỗi khi tải lịch sử sự cố:", error);
+      console.error("❌ Lỗi khi tải lịch sử sự cố:", error);
+      console.error("   Error code:", error.code);
+      console.error("   Error message:", error.message);
+      
+      // Special handling for role "Chi nhánh" without branch
+      if (currentUserProfile?.role === "Chi nhánh" && !currentUserProfile?.branch) {
+        console.warn("⚠️ User Chi nhánh không có branch được gán. Hiển thị thông báo.");
+        tableBody.innerHTML = `
+          <tr>
+            <td colspan="7" class="text-center p-8">
+              <div class="max-w-lg mx-auto">
+                <i class="fas fa-exclamation-triangle text-yellow-500 text-5xl mb-4"></i>
+                <h3 class="text-xl font-semibold text-slate-800 mb-3">Chưa được gán chi nhánh</h3>
+                <p class="text-base text-slate-600 mb-4">
+                  Tài khoản của bạn có role <strong>"Chi nhánh"</strong> nhưng chưa được gán chi nhánh cụ thể.
+                </p>
+                <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-4 text-left">
+                  <p class="text-sm text-slate-700 mb-2">
+                    <strong>Vấn đề:</strong> Hệ thống không thể tải báo cáo vì không biết bạn thuộc chi nhánh nào.
+                  </p>
+                  <p class="text-sm text-slate-700">
+                    <strong>Giải pháp:</strong> Vui lòng liên hệ quản trị viên để được gán chi nhánh cho tài khoản của bạn.
+                  </p>
+                </div>
+                <p class="text-xs text-slate-500">
+                  Email: ${currentUserProfile?.email || 'N/A'} | Role: ${currentUserProfile?.role || 'N/A'}
+                </p>
+              </div>
+            </td>
+          </tr>
+        `;
+        issueHistoryFiltered = [];
+        
+        // Clear any loading messages
+        const resultsSubtitle = mainContentContainer.querySelector("#issueHistoryResultsSubtitle");
+        if (resultsSubtitle) {
+          resultsSubtitle.textContent = "Không thể tải dữ liệu - Chưa được gán chi nhánh";
+        }
+        return;
+      }
       
       // Kiểm tra nếu là lỗi thiếu index
       if (error.code === "failed-precondition" && error.message.includes("index")) {
@@ -3415,7 +3563,18 @@
   }
 
   window.setup_issueHistoryView = function () {
-    if (!currentUserProfile) return;
+    console.log("🔧 Setting up issueHistoryView...");
+    
+    if (!currentUserProfile) {
+      console.error("❌ Cannot setup issueHistoryView: currentUserProfile is null");
+      return;
+    }
+    
+    console.log(`   User: ${currentUserProfile.email}`);
+    console.log(`   Role: ${currentUserProfile.role}`);
+    console.log(`   Branch: ${currentUserProfile.branch || 'N/A'}`);
+    console.log(`   Allowed views:`, currentUserProfile.allowedViews || []);
+    console.log(`   Has issueHistoryView permission: ${currentUserProfile.allowedViews?.includes("issueHistoryView") ? "✅ YES" : "❌ NO"}`);
     
     // Reset state
     issueHistoryCurrentPage = 1;
@@ -3475,7 +3634,10 @@
           }
           
           // Load current reports immediately
-          loadIssueHistoryPage(true);
+          console.log("🔄 Loading current reports...");
+          loadIssueHistoryPage(true).catch(err => {
+            console.error("❌ Error loading issue history page:", err);
+          });
         } else {
           modeArchiveBtn.classList.add("active", "bg-indigo-600", "text-white");
           modeArchiveBtn.classList.remove("bg-slate-200", "text-slate-700");
@@ -4493,9 +4655,13 @@
                       <td data-label="Loại sự cố" class="px-4 py-3">${
                         report.issueType
                       }</td>
-                      <td data-label="Ngày báo cáo" class="px-4 py-3">${new Date(
-                        report.reportDate
-                      ).toLocaleString("vi-VN")}</td>
+                      <td data-label="Ngày báo cáo" class="px-4 py-3">${
+                        report.reportDate && report.reportDate.toDate 
+                          ? report.reportDate.toDate().toLocaleString("vi-VN")
+                          : report.reportDate 
+                            ? new Date(report.reportDate).toLocaleString("vi-VN")
+                            : "N/A"
+                      }</td>
                       <td data-label="Trạng thái" class="px-4 py-3">${
                         report.status
                       }</td>
@@ -7126,11 +7292,13 @@
       )
       .join("");
 
-    // Populate branch dropdown for Nhân viên
+    // Populate branch dropdown (thêm option "Tất cả")
     const branchContainer = editAccountModal.querySelector("#editAccountBranchContainer");
     const branchSelect = editAccountModal.querySelector("#editAccountBranch");
     if (branchSelect) {
+      const allOption = userData.branch === "Tất cả" ? '<option value="Tất cả" selected>Tất cả (xem tất cả chi nhánh)</option>' : '<option value="Tất cả">Tất cả (xem tất cả chi nhánh)</option>';
       branchSelect.innerHTML = '<option value="">-- Chọn chi nhánh --</option>' + 
+        allOption +
         ALL_BRANCHES.map(b => `<option value="${b}" ${userData.branch === b ? "selected" : ""}>${b}</option>`).join("");
     }
 
@@ -7140,9 +7308,9 @@
         .getElementById("managedBranchesContainer")
         .classList.toggle("hidden", role !== "Manager");
       
-      // Show/hide branch field for Nhân viên
+      // Show/hide branch field for Nhân viên và Chi nhánh
       if (branchContainer) {
-        branchContainer.classList.toggle("hidden", role !== "Nhân viên");
+        branchContainer.classList.toggle("hidden", role !== "Nhân viên" && role !== "Chi nhánh");
       }
     };
 
@@ -7180,11 +7348,11 @@
       ).map((cb) => cb.value),
     };
     
-    // Thêm/xóa branch cho Nhân viên
-    if (role === "Nhân viên" && branch) {
+    // Thêm/xóa branch cho Nhân viên và Chi nhánh
+    if ((role === "Nhân viên" || role === "Chi nhánh") && branch) {
       updatedData.branch = branch;
-    } else if (role !== "Nhân viên") {
-      // Xóa branch nếu không phải Nhân viên
+    } else if (role !== "Nhân viên" && role !== "Chi nhánh") {
+      // Xóa branch nếu không phải Nhân viên hoặc Chi nhánh
       updatedData.branch = null;
     }
 
@@ -7397,9 +7565,12 @@
       validationError = "Mã nhân viên (MSNV) là bắt buộc cho vai trò này.";
     }
 
-    // Yêu cầu branch nếu là "Nhân viên"
+    // Yêu cầu branch nếu là "Nhân viên" hoặc "Chi nhánh"
     if (role === "Nhân viên" && !branch) {
       validationError = "Chi nhánh là bắt buộc cho vai trò Nhân viên.";
+    }
+    if (role === "Chi nhánh" && !branch) {
+      validationError = "Chi nhánh là bắt buộc cho vai trò Chi nhánh. Chọn 'Tất cả' nếu muốn xem tất cả báo cáo.";
     }
 
     // Nếu là "Chi nhánh", tự động gán MSNV là "N/A"
@@ -7450,8 +7621,8 @@
         requiresPasswordChange: true,
       };
       
-      // Thêm branch cho Nhân viên
-      if (role === "Nhân viên" && branch) {
+      // Thêm branch cho Nhân viên và Chi nhánh
+      if ((role === "Nhân viên" || role === "Chi nhánh") && branch) {
         newUserProfile.branch = branch;
       }
 
