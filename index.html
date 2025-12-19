@@ -14,6 +14,35 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/browser-image-compression@2.0.2/dist/browser-image-compression.js"></script>
   <link rel="stylesheet" href="style.css" />
+  <style>
+    .category-tab {
+      @apply px-4 py-2 text-sm font-medium text-slate-600 border-b-2 border-transparent transition-all duration-200;
+      @apply hover:text-indigo-600 hover:border-indigo-300;
+    }
+    .category-tab.active {
+      @apply text-indigo-600 border-indigo-600 font-semibold;
+    }
+    .main-tab {
+      @apply px-6 py-3 text-base font-medium text-slate-600 border-b-2 border-transparent transition-all duration-200;
+      @apply hover:text-indigo-600 hover:border-indigo-300;
+    }
+    .main-tab.active {
+      @apply text-indigo-600 border-indigo-600 font-semibold;
+    }
+    .main-tab-content {
+      display: block !important;
+    }
+    .main-tab-content.hidden {
+      display: none !important;
+    }
+    .activity-time-btn {
+      cursor: pointer;
+      padding: 2px;
+    }
+    .activity-time-btn:hover {
+      color: #475569;
+    }
+  </style>
 </head>
 <script src="app.js" type="module"></script>
 
@@ -910,89 +939,185 @@
 
       <div id="activityLogView">
         <div class="card p-6">
-          <div class="flex flex-wrap justify-between items-center mb-4 gap-4">
-            <h2 class="text-2xl font-bold text-slate-800">
+          <!-- Main Tabs -->
+          <div class="mb-6 border-b border-slate-200 hidden">
+            <div class="flex gap-4">
+              <button class="main-tab active" data-main-tab="activity">
+                <i class="fas fa-clipboard-list mr-2"></i>Nhật Ký Hoạt Động
+              </button>
+              <button class="main-tab" data-main-tab="changes">
+                <i class="fas fa-history mr-2"></i>Thay Đổi Nhật Ký
+              </button>
+            </div>
+          </div>
+
+          <!-- Activity Log Content -->
+          <div id="activityLogContent" class="main-tab-content">
+            <h2 class="text-2xl font-bold text-slate-800 mb-6">
               Nhật Ký Hoạt Động
             </h2>
-            <button id="toggleActivityLogFiltersBtn" class="btn-secondary text-sm">
-              <i class="fas fa-filter mr-2"></i>Bộ Lọc
-            </button>
-          </div>
-          <div class="mb-4">
-            <div class="relative max-w-md">
-              <input type="text" id="activityLogSearchInput" 
-                class="input-field pr-10" 
-                placeholder="Tìm kiếm theo người thực hiện, hành động hoặc chi tiết..."
-                autocomplete="off" />
-              <i class="fas fa-search absolute right-3 top-1/2 transform -translate-y-1/2 text-slate-400 pointer-events-none"></i>
-            </div>
-            <p class="text-xs text-slate-500 mt-1.5 flex items-center">
-              <i class="fas fa-info-circle mr-1.5 text-indigo-500"></i>
-              <span>Gõ để tìm kiếm nhanh trong nhật ký hoạt động</span>
-            </p>
-          </div>
-          
-          <!-- Filter Section -->
-          <div id="activityLogFilterSection" class="mb-6 p-5 bg-gradient-to-br from-slate-50 to-slate-100 rounded-lg border border-slate-200 shadow-sm hidden">
-            <div class="flex items-center justify-between mb-4">
-              <h3 class="text-base font-semibold text-slate-700 flex items-center">
-                <i class="fas fa-sliders-h mr-2 text-indigo-600"></i>Lọc dữ liệu
-              </h3>
-              <span id="activeActivityLogFiltersCount" class="text-xs font-medium text-indigo-600 bg-indigo-50 px-2 py-1 rounded-full hidden"></span>
-            </div>
-            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              <div>
-                <label for="activityLogFilterActor" class="block text-slate-600 text-sm font-medium mb-1.5">Người thực hiện</label>
-                <select id="activityLogFilterActor" class="select-field">
-                  <option value="">Tất cả</option>
-                </select>
+            
+            <!-- Filter Section -->
+            <div id="activityLogFilterSection" class="mb-6 bg-white rounded-lg border border-slate-200">
+              <div class="flex items-center justify-between p-4 border-b border-slate-200 cursor-pointer hover:bg-slate-50 transition-colors" id="activityLogFilterHeader">
+                <h3 class="text-base font-semibold text-slate-700 flex items-center">
+                  <i class="fas fa-sliders-h mr-2 text-indigo-600"></i>Bộ Lọc
+                </h3>
+                <button type="button" id="activityLogFilterToggle" class="text-slate-500 hover:text-slate-700 transition-colors">
+                  <i class="fas fa-chevron-up" id="activityLogFilterToggleIcon"></i>
+                </button>
               </div>
-              <div>
-                <label for="activityLogFilterAction" class="block text-slate-600 text-sm font-medium mb-1.5">Hành động</label>
-                <select id="activityLogFilterAction" class="select-field">
-                  <option value="">Tất cả</option>
-                </select>
+              <div id="activityLogFilterContent" class="p-5">
+              <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
+                <div>
+                  <label for="activityLogFilterActor" class="block text-slate-600 text-sm font-medium mb-1.5">Tên truy cập</label>
+                  <input type="text" id="activityLogFilterActor" class="input-field" placeholder="Nhập tên truy cập" />
+                </div>
+                <div>
+                  <label for="activityLogFilterTimeMin" class="block text-slate-600 text-sm font-medium mb-1.5">Khoảng thời gian</label>
+                  <div class="flex gap-2">
+                    <div class="flex-1 relative">
+                      <input type="number" id="activityLogFilterTimeMin" class="input-field pr-8" placeholder="Min" min="0" />
+                      <div class="absolute right-2 top-1/2 transform -translate-y-1/2 flex flex-col">
+                        <button type="button" class="activity-time-btn text-xs text-slate-400 hover:text-slate-600" data-field="timeMin" data-dir="up">
+                          <i class="fas fa-chevron-up"></i>
+                        </button>
+                        <button type="button" class="activity-time-btn text-xs text-slate-400 hover:text-slate-600" data-field="timeMin" data-dir="down">
+                          <i class="fas fa-chevron-down"></i>
+                        </button>
+                      </div>
+                    </div>
+                    <div class="flex-1 relative">
+                      <input type="number" id="activityLogFilterTimeMax" class="input-field pr-8" placeholder="Max" min="0" />
+                      <div class="absolute right-2 top-1/2 transform -translate-y-1/2 flex flex-col">
+                        <button type="button" class="activity-time-btn text-xs text-slate-400 hover:text-slate-600" data-field="timeMax" data-dir="up">
+                          <i class="fas fa-chevron-up"></i>
+                        </button>
+                        <button type="button" class="activity-time-btn text-xs text-slate-400 hover:text-slate-600" data-field="timeMax" data-dir="down">
+                          <i class="fas fa-chevron-down"></i>
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <div>
+                  <label for="activityLogFilterService" class="block text-slate-600 text-sm font-medium mb-1.5">Dịch vụ</label>
+                  <select id="activityLogFilterService" class="select-field">
+                    <option value="">Tất cả</option>
+                    <option value="success">Thành công</option>
+                    <option value="error">Lỗi</option>
+                  </select>
+                </div>
+                <div>
+                  <label for="activityLogFilterAction" class="block text-slate-600 text-sm font-medium mb-1.5">Hoạt động</label>
+                  <input type="text" id="activityLogFilterAction" class="input-field" placeholder="Nhập hoạt động" />
+                </div>
+                <div class="sm:col-span-2 lg:col-span-2">
+                  <label for="activityLogFilterDateRange" class="block text-slate-600 text-sm font-medium mb-1.5">Phạm vi ngày</label>
+                  <div class="flex gap-2">
+                    <input type="date" id="activityLogFilterDateFrom" class="input-field flex-1" />
+                    <input type="date" id="activityLogFilterDateTo" class="input-field flex-1" />
+                  </div>
+                </div>
+                <div>
+                  <label for="activityLogFilterBrowser" class="block text-slate-600 text-sm font-medium mb-1.5">Trình duyệt</label>
+                  <input type="text" id="activityLogFilterBrowser" class="input-field" placeholder="Tìm kiếm..." />
+                </div>
               </div>
-              <div>
-                <label for="activityLogFilterDateFrom" class="block text-slate-600 text-sm font-medium mb-1.5">Từ ngày</label>
-                <input type="date" id="activityLogFilterDateFrom" class="input-field" />
+              <div class="flex flex-wrap justify-end items-center gap-2 pt-4 border-t border-slate-200">
+                <button id="clearActivityLogFiltersBtn" class="btn-secondary text-sm">
+                  <i class="fas fa-redo mr-1.5"></i>Xóa bộ lọc
+                </button>
+                <button id="applyActivityLogFiltersBtn" class="btn-primary text-sm">
+                  <i class="fas fa-search mr-1.5"></i>Tìm
+                </button>
               </div>
-              <div>
-                <label for="activityLogFilterDateTo" class="block text-slate-600 text-sm font-medium mb-1.5">Đến ngày</label>
-                <input type="date" id="activityLogFilterDateTo" class="input-field" />
               </div>
             </div>
-            <div class="flex flex-wrap justify-end items-center gap-2 mt-4 pt-4 border-t border-slate-200">
-              <button id="clearActivityLogFiltersBtn" class="btn-secondary text-sm">
-                <i class="fas fa-redo mr-1.5"></i>Xóa bộ lọc
-              </button>
-              <button id="applyActivityLogFiltersBtn" class="btn-primary text-sm">
-                <i class="fas fa-search mr-1.5"></i>Áp dụng
-              </button>
+
+            <div class="overflow-x-auto">
+              <table class="min-w-full divide-y divide-slate-200 responsive-table">
+                <thead class="bg-slate-50">
+                  <tr>
+                    <th class="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase cursor-pointer hover:bg-slate-100">
+                      <div class="flex items-center gap-1">
+                        Tên truy cập
+                        <i class="fas fa-sort text-slate-400"></i>
+                      </div>
+                    </th>
+                    <th class="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase">
+                      Dịch vụ
+                    </th>
+                    <th class="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase">
+                      Hoạt động
+                    </th>
+                    <th class="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase">
+                      Khoảng thời gian
+                    </th>
+                    <th class="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase">
+                      Địa chỉ IP
+                    </th>
+                    <th class="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase">
+                      Thiết bị
+                    </th>
+                    <th class="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase">
+                      Nền tảng
+                    </th>
+                    <th class="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase">
+                      Trình duyệt
+                    </th>
+                    <th class="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase">
+                      Thời gian
+                    </th>
+                    <th class="px-4 py-3 text-right text-xs font-semibold text-slate-500 uppercase">
+                      Hành động
+                    </th>
+                  </tr>
+                </thead>
+                <tbody id="activityLogTableBody" class="bg-white divide-y divide-slate-200"></tbody>
+              </table>
+            </div>
+            
+            <div class="flex justify-between items-center mt-4 pt-4 border-t border-slate-200">
+              <div class="flex items-center gap-2">
+                <button id="exportActivityLogBtn" class="btn-primary text-sm">
+                  <i class="fas fa-file-excel mr-2"></i>Xuất sang excel
+                </button>
+              </div>
+              <div id="activityLogPagination" class="flex items-center gap-2">
+                <button id="activityLogFirstPageBtn" class="btn-secondary text-xs px-2 py-1">
+                  <i class="fas fa-angle-double-left"></i>
+                </button>
+                <button id="activityLogPrevPageBtn" class="btn-secondary text-xs px-2 py-1">
+                  <i class="fas fa-angle-left"></i>
+                </button>
+                <span class="text-sm text-slate-600 px-3">
+                  Trang <span id="activityLogCurrentPage">1</span> / <span id="activityLogTotalPages">1</span>
+                </span>
+                <button id="activityLogNextPageBtn" class="btn-secondary text-xs px-2 py-1">
+                  <i class="fas fa-angle-right"></i>
+                </button>
+                <button id="activityLogLastPageBtn" class="btn-secondary text-xs px-2 py-1">
+                  <i class="fas fa-angle-double-right"></i>
+                </button>
+                <button id="activityLogRefreshBtn" class="btn-secondary text-xs px-2 py-1">
+                  <i class="fas fa-sync-alt"></i>
+                </button>
+                <span class="text-sm text-slate-600 ml-2">
+                  Hiển thị <span id="activityLogDisplayRange">0-0</span>/<span id="activityLogTotalCount">0</span>
+                </span>
+              </div>
             </div>
           </div>
-          <div class="overflow-x-auto">
-            <table class="min-w-full divide-y divide-slate-200 responsive-table">
-              <thead class="bg-slate-50">
-                <tr>
-                  <th class="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase">
-                    Thời Gian
-                  </th>
-                  <th class="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase">
-                    Người Thực Hiện
-                  </th>
-                  <th class="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase">
-                    Hành Động
-                  </th>
-                  <th class="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase">
-                    Chi Tiết
-                  </th>
-                </tr>
-              </thead>
-              <tbody id="activityLogTableBody" class="bg-white divide-y divide-slate-200"></tbody>
-            </table>
+
+          <!-- Changes Log Content -->
+          <div id="changesLogContent" class="main-tab-content hidden">
+            <div class="text-center p-8 text-slate-500">
+              <i class="fas fa-history text-4xl mb-4 text-slate-300"></i>
+              <p class="text-lg font-medium">Thay Đổi Nhật Ký</p>
+              <p class="text-sm mt-2">Tính năng đang được phát triển</p>
+            </div>
           </div>
-          <div id="activityLogPagination" class="flex justify-between items-center mt-4"></div>
         </div>
       </div>
     </div>

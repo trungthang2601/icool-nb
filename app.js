@@ -514,10 +514,15 @@
   let usersCacheLoaded = false; // Flag to track if users cache has been loaded
   let activityLogFilters = {
     actor: "",
+    timeMin: "",
+    timeMax: "",
+    service: "",
     action: "",
     dateFrom: "",
-    dateTo: ""
+    dateTo: "",
+    browser: ""
   };
+  let activityLogSelectedCategory = "all"; // Category filter: "all", "auth", "attendance", "issue", "user", "profile", "shift", "notification", "other"
   let escalationInterval = null;
   let dashboardReportsCache = [];
   let activityLogsCache = [];
@@ -865,7 +870,7 @@
             startEscalationChecker();
           }
         }
-        setTimeout(() => logActivity("User Login", { email: user.email }), 500);
+        setTimeout(() => logActivity("User Login", { email: user.email }, "auth"), 500);
       } else {
         console.error(
           "User profile not found or account is disabled. Logging out."
@@ -1074,6 +1079,10 @@
 
   async function handleLogout() {
     try {
+      // Ghi log trước khi đăng xuất (vì sau khi signOut, currentUser sẽ null)
+      if (currentUserProfile) {
+        await logActivity("User Logout", { email: currentUser?.email }, "auth");
+      }
       await signOut(auth);
     } catch (error) {
       console.error("Logout Error:", error);
@@ -1164,20 +1173,45 @@
       return;
     }
 
-    const viewTemplate = viewsContainer.querySelector(`#${viewId}`);
-    mainContentContainer.innerHTML = viewTemplate
-      ? viewTemplate.innerHTML
-      : `<h2>${ALL_VIEWS[viewId] || "Trang không xác định"}</h2>`;
-    document.querySelectorAll(".sidebar-nav-link").forEach((btn) => {
-      btn.classList.toggle("active", btn.dataset.view === viewId);
-    });
-    const setupFunction = window[`setup_${viewId}`];
-    if (typeof setupFunction === "function") {
-      setupFunction();
-    }
+    try {
+      const viewTemplate = viewsContainer.querySelector(`#${viewId}`);
+      mainContentContainer.innerHTML = viewTemplate
+        ? viewTemplate.innerHTML
+        : `<h2>${ALL_VIEWS[viewId] || "Trang không xác định"}</h2>`;
+      document.querySelectorAll(".sidebar-nav-link").forEach((btn) => {
+        btn.classList.toggle("active", btn.dataset.view === viewId);
+      });
+      
+      // Ghi log truy cập trang thành công
+      const viewName = ALL_VIEWS[viewId] || viewId;
+      let category = "other";
+      if (viewId.includes("dashboard")) category = "other";
+      else if (viewId.includes("attendance")) category = "attendance";
+      else if (viewId.includes("issue")) category = "issue";
+      else if (viewId.includes("account") || viewId.includes("user")) category = "user";
+      else if (viewId.includes("profile")) category = "profile";
+      else if (viewId.includes("shift")) category = "shift";
+      else if (viewId.includes("activity") || viewId.includes("log")) category = "other";
+      
+      logActivity(`View ${viewName}`, { viewId: viewId, status: "success" }, category);
+      
+      const setupFunction = window[`setup_${viewId}`];
+      if (typeof setupFunction === "function") {
+        setupFunction();
+      }
 
-    if (window.innerWidth < 1024) {
-      toggleMobileMenu(true);
+      if (window.innerWidth < 1024) {
+        toggleMobileMenu(true);
+      }
+    } catch (error) {
+      // Ghi log lỗi nếu không vào được trang
+      const viewName = ALL_VIEWS[viewId] || viewId;
+      logActivity(`View ${viewName}`, { 
+        viewId: viewId, 
+        status: "error",
+        error: error.message 
+      }, "other");
+      console.error("Error showing view:", error);
     }
   }
 
@@ -1301,7 +1335,7 @@
           // Log to activity log
           await logActivity("Mark Notification as Read", { 
             notificationId: notificationId 
-          });
+          }, "notification");
         }
       });
     });
@@ -1326,7 +1360,7 @@
       // Log to activity log
       await logActivity("Mark All Notifications as Read", { 
         count: snapshot.docs.length 
-      });
+      }, "notification");
     } catch (error) {
       console.error("Error marking all notifications as read:", error);
     }
@@ -1396,21 +1430,198 @@
     }
   }
 
-  async function logActivity(action, details = {}) {
+  /**
+   * Lấy địa chỉ IP public của người dùng
+   * @returns {Promise<string>} IP address hoặc "N/A" nếu lỗi
+   */
+  async function getPublicIP() {
+    try {
+      // Thử nhiều API để lấy IP
+      const apis = [
+        { url: 'https://api.ipify.org?format=json', isJson: true },
+        { url: 'https://api.ip.sb/ip', isJson: false },
+        { url: 'https://api.ipify.org', isJson: false },
+        { url: 'https://ifconfig.me/ip', isJson: false },
+        { url: 'https://icanhazip.com', isJson: false },
+      ];
+      
+      for (const api of apis) {
+        try {
+          const response = await fetch(api.url, { 
+            method: 'GET',
+            headers: api.isJson ? { 'Accept': 'application/json' } : {},
+            signal: AbortSignal.timeout(5000) // Timeout 5 giây
+          });
+          
+          if (response.ok) {
+            if (api.isJson) {
+              const data = await response.json();
+              const ip = data.ip || data;
+              if (ip && ip !== "N/A") return ip;
+            } else {
+              const text = await response.text();
+              const ip = text.trim();
+              // Validate IP format (basic check)
+              if (ip && /^(\d{1,3}\.){3}\d{1,3}$/.test(ip)) {
+                return ip;
+              }
+            }
+          }
+        } catch (err) {
+          console.warn(`Failed to get IP from ${api.url}:`, err);
+          continue;
+        }
+      }
+      
+      return "N/A";
+    } catch (error) {
+      console.warn("Error getting public IP:", error);
+      return "N/A";
+    }
+  }
+
+  /**
+   * Lấy thông tin trình duyệt từ navigator
+   * @returns {object} Thông tin trình duyệt
+   */
+  function getBrowserInfo() {
+    const ua = navigator.userAgent;
+    let browser = "Unknown";
+    let platform = "Unknown";
+    
+    // Detect browser
+    if (ua.includes("Firefox")) {
+      browser = "Firefox";
+    } else if (ua.includes("Chrome") && !ua.includes("Edg")) {
+      browser = "Chrome";
+    } else if (ua.includes("Safari") && !ua.includes("Chrome")) {
+      browser = "Safari";
+    } else if (ua.includes("Edg")) {
+      browser = "Edge";
+    } else if (ua.includes("Opera") || ua.includes("OPR")) {
+      browser = "Opera";
+    } else if (ua.includes("MSIE") || ua.includes("Trident")) {
+      browser = "IE";
+    }
+    
+    // Detect platform
+    if (ua.includes("Windows")) {
+      platform = "Windows";
+    } else if (ua.includes("Mac")) {
+      platform = "Mac";
+    } else if (ua.includes("Linux")) {
+      platform = "Linux";
+    } else if (ua.includes("Android")) {
+      platform = "Android";
+    } else if (ua.includes("iOS") || ua.includes("iPhone") || ua.includes("iPad")) {
+      platform = "iOS";
+    }
+    
+    return {
+      browser,
+      platform,
+      userAgent: ua,
+      fullBrowser: ua.length > 100 ? ua.substring(0, 100) + "..." : ua
+    };
+  }
+
+  // Cache IP để tránh gọi API nhiều lần
+  let cachedPublicIP = null;
+  let ipFetchPromise = null;
+
+  /**
+   * Ghi nhật ký hoạt động vào hệ thống với phân loại tự động
+   * @param {string} action - Tên hành động (ví dụ: "User Login", "Check-In", "Create Issue")
+   * @param {object} details - Chi tiết hành động (optional)
+   * @param {string} category - Loại log (optional, sẽ tự động phân loại nếu không cung cấp)
+   *                            Các loại: "auth", "attendance", "issue", "user", "profile", "shift", "notification", "other"
+   */
+  async function logActivity(action, details = {}, category = null) {
     try {
       if (!currentUserProfile) return;
+      
+      // Tự động phân loại category nếu không được cung cấp
+      if (!category) {
+        const actionLower = action.toLowerCase();
+        if (actionLower.includes("login") || actionLower.includes("logout") || actionLower.includes("password")) {
+          category = "auth";
+        } else if (actionLower.includes("check-in") || actionLower.includes("check-out") || actionLower.includes("attendance")) {
+          category = "attendance";
+        } else if (actionLower.includes("issue") || actionLower.includes("comment") || actionLower.includes("cancel")) {
+          category = "issue";
+        } else if (actionLower.includes("user") || actionLower.includes("account") || actionLower.includes("create") || actionLower.includes("disable") || actionLower.includes("enable")) {
+          category = "user";
+        } else if (actionLower.includes("profile") || actionLower.includes("own")) {
+          category = "profile";
+        } else if (actionLower.includes("shift") || actionLower.includes("assign")) {
+          category = "shift";
+        } else if (actionLower.includes("notification") || actionLower.includes("read")) {
+          category = "notification";
+        } else {
+          category = "other";
+        }
+      }
+      
+      // Lấy IP và browser info nếu chưa có trong details
+      let ipAddress = details.ipAddress || details.ip;
+      let browserInfo = details.browser || details.userAgent;
+      let platform = details.platform;
+      
+      // Luôn lấy browser info từ navigator để đảm bảo có thông tin
+      const browserData = getBrowserInfo();
+      
+      // Lấy IP từ cache hoặc fetch mới nếu chưa có
+      if (!ipAddress || ipAddress === "N/A") {
+        if (!cachedPublicIP && !ipFetchPromise) {
+          ipFetchPromise = getPublicIP();
+          cachedPublicIP = await ipFetchPromise;
+          ipFetchPromise = null;
+        } else if (ipFetchPromise) {
+          cachedPublicIP = await ipFetchPromise;
+          ipFetchPromise = null;
+        }
+        ipAddress = cachedPublicIP || "N/A";
+      }
+      
+      // Luôn cập nhật browser info từ navigator để đảm bảo có thông tin mới nhất
+      if (!browserInfo || browserInfo === "N/A" || browserInfo === "Unknown") {
+        browserInfo = browserData.browser;
+      }
+      if (!platform || platform === "N/A" || platform === "Unknown") {
+        platform = browserData.platform;
+      }
+      
+      // Xác định status: success hoặc error
+      const hasErrorInDetails = details.error || details.status === "error" || details.status === "failed";
+      const hasErrorInAction = /error|fail|failed|lỗi|thất bại/i.test(action);
+      const status = hasErrorInDetails || hasErrorInAction ? "error" : "success";
+      
+      // Merge thông tin IP và browser vào details
+      const enhancedDetails = {
+        ...details,
+        ipAddress: ipAddress,
+        ip: ipAddress, // Alias
+        browser: browserInfo, // Tên browser ngắn (Chrome, Firefox, etc.)
+        userAgent: navigator.userAgent, // Full userAgent để reference
+        platform: platform || "Web",
+        client: "Web",
+        status: status // Thêm status để phân biệt thành công/lỗi
+      };
+      
       const logCollection = collection(
         db,
         `/artifacts/${canvasAppId}/public/data/activityLogs`
       );
       await addDoc(logCollection, {
         action,
-        details,
+        category, // Thêm category để phân loại
+        details: enhancedDetails,
         timestamp: serverTimestamp(),
         actor: {
           uid: currentUser?.uid,
           email: currentUser?.email,
           displayName: currentUserProfile?.displayName,
+          role: currentUserProfile?.role,
         },
       });
     } catch (error) {
@@ -4146,15 +4357,68 @@
       console.error("Error populating activity log filters:", error);
     });
 
-    // Set up toggle filter section
-    const toggleFiltersBtn = mainContentContainer.querySelector("#toggleActivityLogFiltersBtn");
-    const filterSection = mainContentContainer.querySelector("#activityLogFilterSection");
+    // Set up main tabs (Activity Log / Changes Log)
+    const mainTabs = mainContentContainer.querySelectorAll(".main-tab");
+    const activityContent = mainContentContainer.querySelector("#activityLogContent");
+    const changesContent = mainContentContainer.querySelector("#changesLogContent");
     
-    if (toggleFiltersBtn && filterSection) {
-      toggleFiltersBtn.addEventListener("click", () => {
-        filterSection.classList.toggle("hidden");
-        if (!filterSection.classList.contains("hidden")) {
-          updateActiveActivityLogFiltersCount();
+    if (mainTabs.length > 0) {
+      mainTabs.forEach((tab) => {
+        tab.addEventListener("click", () => {
+          // Remove active class from all tabs
+          mainTabs.forEach((t) => t.classList.remove("active"));
+          // Add active class to clicked tab
+          tab.classList.add("active");
+          
+          const tabType = tab.getAttribute("data-main-tab");
+          if (tabType === "activity") {
+            if (activityContent) activityContent.classList.remove("hidden");
+            if (changesContent) changesContent.classList.add("hidden");
+          } else if (tabType === "changes") {
+            if (activityContent) activityContent.classList.add("hidden");
+            if (changesContent) changesContent.classList.remove("hidden");
+          }
+        });
+      });
+      
+      // Ensure activity content is visible by default
+      if (activityContent) activityContent.classList.remove("hidden");
+      if (changesContent) changesContent.classList.add("hidden");
+    }
+
+    // Set up time range buttons
+    const timeButtons = mainContentContainer.querySelectorAll(".activity-time-btn");
+    timeButtons.forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const field = btn.getAttribute("data-field");
+        const dir = btn.getAttribute("data-dir");
+        const input = mainContentContainer.querySelector(`#activityLogFilter${field === "timeMin" ? "TimeMin" : "TimeMax"}`);
+        if (input) {
+          const currentValue = parseInt(input.value) || 0;
+          input.value = dir === "up" ? currentValue + 1 : Math.max(0, currentValue - 1);
+        }
+      });
+    });
+
+    // Set up filter collapse/expand toggle
+    const filterHeader = mainContentContainer.querySelector("#activityLogFilterHeader");
+    const filterContent = mainContentContainer.querySelector("#activityLogFilterContent");
+    const filterToggleIcon = mainContentContainer.querySelector("#activityLogFilterToggleIcon");
+    
+    if (filterHeader && filterContent) {
+      // Default: expanded
+      let isExpanded = true;
+      
+      filterHeader.addEventListener("click", () => {
+        isExpanded = !isExpanded;
+        if (isExpanded) {
+          filterContent.style.display = "block";
+          filterToggleIcon.classList.remove("fa-chevron-down");
+          filterToggleIcon.classList.add("fa-chevron-up");
+        } else {
+          filterContent.style.display = "none";
+          filterToggleIcon.classList.remove("fa-chevron-up");
+          filterToggleIcon.classList.add("fa-chevron-down");
         }
       });
     }
@@ -4171,20 +4435,32 @@
       clearFiltersBtn.addEventListener("click", () => {
         // Clear all filter inputs
         const actorFilter = mainContentContainer.querySelector("#activityLogFilterActor");
+        const timeMinFilter = mainContentContainer.querySelector("#activityLogFilterTimeMin");
+        const timeMaxFilter = mainContentContainer.querySelector("#activityLogFilterTimeMax");
+        const serviceFilter = mainContentContainer.querySelector("#activityLogFilterService");
         const actionFilter = mainContentContainer.querySelector("#activityLogFilterAction");
         const dateFromFilter = mainContentContainer.querySelector("#activityLogFilterDateFrom");
         const dateToFilter = mainContentContainer.querySelector("#activityLogFilterDateTo");
+        const browserFilter = mainContentContainer.querySelector("#activityLogFilterBrowser");
 
         if (actorFilter) actorFilter.value = "";
+        if (timeMinFilter) timeMinFilter.value = "";
+        if (timeMaxFilter) timeMaxFilter.value = "";
+        if (serviceFilter) serviceFilter.value = "";
         if (actionFilter) actionFilter.value = "";
         if (dateFromFilter) dateFromFilter.value = "";
         if (dateToFilter) dateToFilter.value = "";
+        if (browserFilter) browserFilter.value = "";
 
         activityLogFilters = {
           actor: "",
+          timeMin: "",
+          timeMax: "",
+          service: "",
           action: "",
           dateFrom: "",
-          dateTo: ""
+          dateTo: "",
+          browser: ""
         };
 
         // Re-render table with cleared filters
@@ -4194,21 +4470,16 @@
     }
 
     // Update filter count when filter inputs change
-    const filterSelects = [
-      mainContentContainer.querySelector("#activityLogFilterActor"),
-      mainContentContainer.querySelector("#activityLogFilterAction")
-    ];
-
     const filterInputs = [
+      mainContentContainer.querySelector("#activityLogFilterActor"),
+      mainContentContainer.querySelector("#activityLogFilterService"),
+      mainContentContainer.querySelector("#activityLogFilterAction"),
+      mainContentContainer.querySelector("#activityLogFilterTimeMin"),
+      mainContentContainer.querySelector("#activityLogFilterTimeMax"),
+      mainContentContainer.querySelector("#activityLogFilterBrowser"),
       mainContentContainer.querySelector("#activityLogFilterDateFrom"),
       mainContentContainer.querySelector("#activityLogFilterDateTo")
     ];
-
-    filterSelects.forEach((select) => {
-      if (select) {
-        select.addEventListener("change", updateActiveActivityLogFiltersCount);
-      }
-    });
 
     filterInputs.forEach((input) => {
       if (input) {
@@ -4217,9 +4488,76 @@
       }
     });
     
+    // Set up export button
+    const exportBtn = mainContentContainer.querySelector("#exportActivityLogBtn");
+    if (exportBtn) {
+      exportBtn.addEventListener("click", () => {
+        exportActivityLogToExcel();
+      });
+    }
+    
     // Load initial page with server-side pagination
     loadActivityLogPage(true);
   };
+
+  function exportActivityLogToExcel() {
+    // Get filtered logs from current table
+    const filteredLogs = activityLogsCache.filter((log) => {
+      // Apply all current filters
+      if (activityLogFilters.actor) {
+        const actorName = (log.actor?.displayName || "").toLowerCase();
+        const actorEmail = (log.actor?.email || "").toLowerCase();
+        const searchTerm = activityLogFilters.actor.toLowerCase();
+        if (!actorName.includes(searchTerm) && !actorEmail.includes(searchTerm)) return false;
+      }
+      if (activityLogFilters.service) {
+        // Filter theo status: success hoặc error
+        const hasError = log.details?.error || 
+                        log.details?.status === "error" || 
+                        log.details?.status === "failed" ||
+                        /error|fail|failed|lỗi|thất bại/i.test(log.action || "");
+        
+        if (activityLogFilters.service === "success" && hasError) return false;
+        if (activityLogFilters.service === "error" && !hasError) return false;
+      }
+      if (activityLogFilters.action) {
+        const action = (log.action || "").toLowerCase();
+        if (!action.includes(activityLogFilters.action.toLowerCase())) return false;
+      }
+      // Add other filters as needed
+      return true;
+    });
+
+    const data = filteredLogs.map((log) => {
+      const timestamp = log.timestamp ? new Date(log.timestamp.toDate()) : null;
+      return {
+        "Thời gian": timestamp ? timestamp.toLocaleString("vi-VN") : "",
+        "Tên truy cập": log.actor?.displayName || log.actor?.email || "",
+        "Dịch vụ": (() => {
+          const hasError = log.details?.error || 
+                          log.details?.status === "error" || 
+                          log.details?.status === "failed" ||
+                          /error|fail|failed|lỗi|thất bại/i.test(log.action || "");
+          return hasError ? "Lỗi" : "Thành công";
+        })(),
+        "Hoạt động": log.action || "",
+        "Khoảng thời gian": `${log.details?.duration || log.details?.timeTaken || 0} mili giây`,
+        "Địa chỉ IP": log.details?.ipAddress || log.details?.ip || "N/A",
+        "Khách hàng": log.details?.client || "Web",
+        "Nền tảng": log.details?.platform || "Web",
+        "Trình duyệt": log.details?.browser || log.details?.userAgent || "N/A",
+        "Chi tiết": JSON.stringify(log.details || {}),
+      };
+    });
+
+    const ws = XLSX.utils.json_to_sheet(data);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Nhật Ký Hoạt Động");
+    XLSX.writeFile(wb, `Nhat_Ky_Hoat_Dong_${new Date().toISOString().split("T")[0]}.xlsx`);
+    
+    // Log export action
+    logActivity("Export Activity Log to Excel", { recordCount: filteredLogs.length }, "other");
+  }
 
   /**
    * Opens the My Profile modal and populates it with current user data
@@ -4316,129 +4654,14 @@
 
   /**
    * Populates activity log filter dropdowns
-   * - Actor filter: queries all users from users collection
-   * - Action filter: populated from activity logs cache
+   * Note: Most filters are now input text fields, so no population needed
+   * Only error status dropdown needs to be populated (already done in HTML)
    */
   async function populateActivityLogFilters() {
-    const actorFilter = mainContentContainer.querySelector("#activityLogFilterActor");
-    const actionFilter = mainContentContainer.querySelector("#activityLogFilterAction");
-    
-    // Populate actor filter from users collection (all users, not just from cache)
-    if (actorFilter) {
-      const currentValue = actorFilter.value;
-      
-      try {
-        // Query all users from users collection
-        // Try with orderBy first, fallback to no orderBy if index doesn't exist
-        let usersSnapshot;
-        try {
-          const usersQuery = query(
-            collection(db, `/artifacts/${canvasAppId}/users`),
-            orderBy("displayName")
-          );
-          usersSnapshot = await getDocs(usersQuery);
-        } catch (orderByError) {
-          // If orderBy fails (likely missing index), query without orderBy and sort client-side
-          console.warn("orderBy('displayName') failed, querying without orderBy:", orderByError);
-          const usersQuery = query(collection(db, `/artifacts/${canvasAppId}/users`));
-          usersSnapshot = await getDocs(usersQuery);
-        }
-
-        const users = usersSnapshot.docs.map((doc) => ({
-          uid: doc.id,
-          ...doc.data(),
-        }));
-
-        // Filter out disabled users (optional, you might want to show all)
-        const activeUsers = users.filter((user) => !user.disabled && user.status !== "disabled");
-
-        // Sort by displayName (client-side if orderBy wasn't used)
-        activeUsers.sort((a, b) => {
-          const nameA = (a.displayName || a.email || "").toLowerCase();
-          const nameB = (b.displayName || b.email || "").toLowerCase();
-          return nameA.localeCompare(nameB);
-        });
-
-        // Build actor options
-        actorFilter.innerHTML = '<option value="">Tất cả</option>';
-        activeUsers.forEach((user) => {
-          const displayName = user.displayName || "";
-          const email = user.email || "";
-          const displayText = displayName || email || "N/A";
-          // Use displayName as primary value, fallback to email
-          const filterValue = displayName || email;
-          
-          if (filterValue) {
-            const option = document.createElement("option");
-            option.value = filterValue;
-            option.textContent = displayText;
-            // Store email as data attribute for filtering
-            if (email && email !== filterValue) {
-              option.setAttribute("data-email", email);
-            }
-            actorFilter.appendChild(option);
-          }
-        });
-
-        // Restore previous selection if it still exists
-        if (currentValue) {
-          const optionExists = Array.from(actorFilter.options).some(
-            (opt) => opt.value === currentValue
-          );
-          if (optionExists) {
-            actorFilter.value = currentValue;
-          }
-        }
-      } catch (error) {
-        console.error("Error loading users for activity log filter:", error);
-        // Fallback to cache if query fails
-        if (activityLogsCache.length > 0) {
-          const currentValue = actorFilter.value;
-          const uniqueActors = new Set();
-          
-          activityLogsCache.forEach((log) => {
-            const actorName = log.actor?.displayName || "";
-            const actorEmail = log.actor?.email || "";
-            if (actorName) uniqueActors.add(actorName);
-            if (actorEmail) uniqueActors.add(actorEmail);
-          });
-          
-          actorFilter.innerHTML = '<option value="">Tất cả</option>';
-          Array.from(uniqueActors).sort().forEach((actor) => {
-            const option = document.createElement("option");
-            option.value = actor;
-            option.textContent = actor;
-            actorFilter.appendChild(option);
-          });
-          
-          if (currentValue && uniqueActors.has(currentValue)) {
-            actorFilter.value = currentValue;
-          }
-        }
-      }
-    }
-
-    // Populate action filter from cache (actions are not stored in users collection)
-    if (actionFilter && activityLogsCache.length > 0) {
-      const currentValue = actionFilter.value;
-      const uniqueActions = new Set();
-      
-      activityLogsCache.forEach((log) => {
-        if (log.action) uniqueActions.add(log.action);
-      });
-      
-      actionFilter.innerHTML = '<option value="">Tất cả</option>';
-      Array.from(uniqueActions).sort().forEach((action) => {
-        const option = document.createElement("option");
-        option.value = action;
-        option.textContent = action;
-        actionFilter.appendChild(option);
-      });
-      
-      if (currentValue && uniqueActions.has(currentValue)) {
-        actionFilter.value = currentValue;
-      }
-    }
+    // Filters are now input text fields, no need to populate
+    // Error status dropdown is already populated in HTML
+    // This function is kept for compatibility but does nothing
+    return Promise.resolve();
   }
 
   /**
@@ -4449,15 +4672,21 @@
     if (!activeFiltersCount) return;
 
     const actorFilter = mainContentContainer.querySelector("#activityLogFilterActor")?.value || "";
+    const timeMinFilter = mainContentContainer.querySelector("#activityLogFilterTimeMin")?.value || "";
+    const timeMaxFilter = mainContentContainer.querySelector("#activityLogFilterTimeMax")?.value || "";
+    const serviceFilter = mainContentContainer.querySelector("#activityLogFilterService")?.value || "";
     const actionFilter = mainContentContainer.querySelector("#activityLogFilterAction")?.value || "";
     const dateFromFilter = mainContentContainer.querySelector("#activityLogFilterDateFrom")?.value || "";
     const dateToFilter = mainContentContainer.querySelector("#activityLogFilterDateTo")?.value || "";
+    const browserFilter = mainContentContainer.querySelector("#activityLogFilterBrowser")?.value || "";
 
     let count = 0;
     if (actorFilter) count++;
+    if (timeMinFilter || timeMaxFilter) count++;
+    if (serviceFilter) count++;
     if (actionFilter) count++;
-    if (dateFromFilter) count++;
-    if (dateToFilter) count++;
+    if (dateFromFilter || dateToFilter) count++;
+    if (browserFilter) count++;
 
     if (count > 0) {
       activeFiltersCount.textContent = `${count} bộ lọc đang hoạt động`;
@@ -4472,15 +4701,23 @@
    */
   function filterActivityLog() {
     const actorFilter = mainContentContainer.querySelector("#activityLogFilterActor")?.value || "";
+    const timeMinFilter = mainContentContainer.querySelector("#activityLogFilterTimeMin")?.value || "";
+    const timeMaxFilter = mainContentContainer.querySelector("#activityLogFilterTimeMax")?.value || "";
+    const serviceFilter = mainContentContainer.querySelector("#activityLogFilterService")?.value || "";
     const actionFilter = mainContentContainer.querySelector("#activityLogFilterAction")?.value || "";
     const dateFromFilter = mainContentContainer.querySelector("#activityLogFilterDateFrom")?.value || "";
     const dateToFilter = mainContentContainer.querySelector("#activityLogFilterDateTo")?.value || "";
+    const browserFilter = mainContentContainer.querySelector("#activityLogFilterBrowser")?.value || "";
 
     activityLogFilters = {
       actor: actorFilter,
+      timeMin: timeMinFilter,
+      timeMax: timeMaxFilter,
+      service: serviceFilter,
       action: actionFilter,
       dateFrom: dateFromFilter,
-      dateTo: dateToFilter
+      dateTo: dateToFilter,
+      browser: browserFilter
     };
 
     // Re-render table with filters applied
@@ -4515,18 +4752,60 @@
       });
     }
 
+    // Category filter removed - using service filter instead
+
     // Apply filters
     if (activityLogFilters.actor) {
       filteredLogs = filteredLogs.filter((log) => {
-        const actorName = log.actor?.displayName || "";
-        const actorEmail = log.actor?.email || "";
-        return actorName === activityLogFilters.actor || actorEmail === activityLogFilters.actor;
+        const actorName = (log.actor?.displayName || "").toLowerCase();
+        const actorEmail = (log.actor?.email || "").toLowerCase();
+        const searchTerm = activityLogFilters.actor.toLowerCase();
+        return actorName.includes(searchTerm) || actorEmail.includes(searchTerm);
+      });
+    }
+
+    if (activityLogFilters.service) {
+      filteredLogs = filteredLogs.filter((log) => {
+        // Filter theo status: success hoặc error
+        const hasError = log.details?.error || 
+                        log.details?.status === "error" || 
+                        log.details?.status === "failed" ||
+                        /error|fail|failed|lỗi|thất bại/i.test(log.action || "");
+        
+        if (activityLogFilters.service === "success") {
+          return !hasError;
+        } else if (activityLogFilters.service === "error") {
+          return hasError;
+        }
+        return true;
       });
     }
 
     if (activityLogFilters.action) {
       filteredLogs = filteredLogs.filter((log) => {
-        return (log.action || "") === activityLogFilters.action;
+        const action = (log.action || "").toLowerCase();
+        return action.includes(activityLogFilters.action.toLowerCase());
+      });
+    }
+
+    if (activityLogFilters.timeMin) {
+      filteredLogs = filteredLogs.filter((log) => {
+        const duration = parseInt(log.details?.duration || log.details?.timeTaken || 0);
+        return duration >= parseInt(activityLogFilters.timeMin);
+      });
+    }
+
+    if (activityLogFilters.timeMax) {
+      filteredLogs = filteredLogs.filter((log) => {
+        const duration = parseInt(log.details?.duration || log.details?.timeTaken || 0);
+        return duration <= parseInt(activityLogFilters.timeMax);
+      });
+    }
+
+    if (activityLogFilters.browser) {
+      filteredLogs = filteredLogs.filter((log) => {
+        const browser = (log.details?.browser || log.details?.userAgent || "").toLowerCase();
+        return browser.includes(activityLogFilters.browser.toLowerCase());
       });
     }
 
@@ -4551,68 +4830,525 @@
       });
     }
 
+    // Service status labels - hiển thị Thành công hoặc Lỗi
+    const getServiceStatus = (log) => {
+      // Kiểm tra nếu có error trong details hoặc action có chứa từ khóa lỗi
+      const hasError = log.details?.error || 
+                      log.details?.status === "error" || 
+                      log.details?.status === "failed" ||
+                      /error|fail|failed|lỗi|thất bại/i.test(log.action || "");
+      
+      if (hasError) {
+        return { label: "Lỗi", icon: "fa-times-circle", color: "text-red-600 bg-red-50" };
+      } else {
+        return { label: "Thành công", icon: "fa-check-circle", color: "text-green-600 bg-green-50" };
+      }
+    };
+
+    // Update count display - removed, using pagination display instead
+
     // With server-side pagination, show all loaded logs (no client-side slicing)
     tableBody.innerHTML =
       filteredLogs.length > 0
         ? filteredLogs
             .map(
-              (log) => `
-          <tr class="hover:bg-gray-50">
-              <td data-label="Thời Gian" class="px-4 py-3">${
-                log.timestamp
-                  ? new Date(log.timestamp.toDate()).toLocaleString("vi-VN")
-                  : ""
-              }</td>
-              <td data-label="Người Thực Hiện" class="px-4 py-3">${
-                log.actor.displayName || log.actor.email
-              }</td>
-              <td data-label="Hành Động" class="px-4 py-3">${log.action}</td>
-              <td data-label="Chi Tiết" class="px-4 py-3 text-xs font-mono">${JSON.stringify(
-                log.details
-              )}</td>
+              (log, index) => {
+                // Xác định trạng thái dịch vụ (Thành công/Lỗi)
+                const serviceStatus = getServiceStatus(log);
+                const hasError = log.details?.error || 
+                                log.details?.status === "error" || 
+                                log.details?.status === "failed" ||
+                                /error|fail|failed|lỗi|thất bại/i.test(log.action || "");
+                
+                const timestamp = log.timestamp ? new Date(log.timestamp.toDate()) : null;
+                const timeStr = timestamp ? timestamp.toLocaleString("vi-VN") : "";
+                
+                // Extract data from details
+                const duration = log.details?.duration || log.details?.timeTaken || "0";
+                // IP address - show "N/A" if truly unavailable, but try to get from any available field
+                let ipAddress = log.details?.ipAddress || log.details?.ip;
+                if (!ipAddress || ipAddress === "" || ipAddress === "undefined") {
+                  ipAddress = "N/A";
+                }
+                // Device info
+                let device = log.details?.device || "Máy tính";
+                if (!device || device === "N/A") {
+                  const ua = log.details?.userAgent || "";
+                  const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(ua);
+                  const isTablet = /iPad|Android/i.test(ua) && !/Mobile/i.test(ua);
+                  if (isTablet) device = "Máy tính bảng";
+                  else if (isMobile) device = "Điện thoại";
+                  else device = "Máy tính";
+                }
+                
+                // Platform - try to infer from userAgent if missing
+                let platform = log.details?.platform;
+                if (!platform || platform === "N/A" || platform === "Unknown" || platform === "Web") {
+                  // Try to infer from userAgent
+                  const ua = log.details?.userAgent || "";
+                  if (ua.includes("Windows")) platform = "Windows";
+                  else if (ua.includes("Mac")) platform = "Mac";
+                  else if (ua.includes("Linux")) platform = "Linux";
+                  else if (ua.includes("Android")) platform = "Android";
+                  else if (ua.includes("iOS") || ua.includes("iPhone") || ua.includes("iPad")) platform = "iOS";
+                  else platform = log.details?.platform || "Web";
+                }
+                
+                // Parse browser info - prefer short name if available, otherwise parse from userAgent
+                let browserDisplay = "N/A";
+                const parseBrowserFromUA = (ua) => {
+                  if (!ua || typeof ua !== 'string') return "N/A";
+                  // If it's a short browser name, use it directly
+                  if (ua.length < 30 && (ua.includes("Chrome") || ua.includes("Firefox") || ua.includes("Safari") || ua.includes("Edge") || ua.includes("Opera") || ua.includes("IE") || ua.includes("Unknown"))) {
+                    return ua;
+                  }
+                  // Parse from full userAgent
+                  if (ua.includes("Firefox")) return "Firefox";
+                  else if (ua.includes("Chrome") && !ua.includes("Edg")) return "Chrome";
+                  else if (ua.includes("Safari") && !ua.includes("Chrome")) return "Safari";
+                  else if (ua.includes("Edg")) return "Edge";
+                  else if (ua.includes("Opera") || ua.includes("OPR")) return "Opera";
+                  else if (ua.includes("MSIE") || ua.includes("Trident")) return "IE";
+                  else return ua.length > 50 ? ua.substring(0, 50) + "..." : ua;
+                };
+                
+                // Try to get browser from details.browser first
+                if (log.details?.browser && typeof log.details.browser === 'string') {
+                  browserDisplay = parseBrowserFromUA(log.details.browser);
+                } 
+                // Fallback to userAgent if browser field is missing or invalid
+                else if (log.details?.userAgent && typeof log.details.userAgent === 'string') {
+                  browserDisplay = parseBrowserFromUA(log.details.userAgent);
+                }
+                // Last resort: try to parse from current navigator if available (for display only, not stored)
+                else if (typeof navigator !== 'undefined' && navigator.userAgent) {
+                  browserDisplay = parseBrowserFromUA(navigator.userAgent);
+                }
+                
+                return `
+          <tr class="hover:bg-gray-50" data-log-index="${index}">
+              <td data-label="Tên truy cập" class="px-4 py-3">
+                ${log.actor?.displayName || log.actor?.email || "N/A"}
+              </td>
+              <td data-label="Dịch vụ" class="px-4 py-3">
+                ${hasError ? `
+                <span 
+                  class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${serviceStatus.color} cursor-pointer hover:opacity-80 transition-opacity" 
+                  title="Click để xem chi tiết lỗi"
+                  data-log-index="${index}"
+                  data-service-status="error"
+                >
+                  <i class="fas ${serviceStatus.icon} mr-1.5"></i>${serviceStatus.label}
+                </span>
+                ` : `
+                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${serviceStatus.color}">
+                  <i class="fas ${serviceStatus.icon} mr-1.5"></i>${serviceStatus.label}
+                </span>
+                `}
+              </td>
+              <td data-label="Hoạt động" class="px-4 py-3">${log.action || "N/A"}</td>
+              <td data-label="Khoảng thời gian" class="px-4 py-3 text-sm">${duration} mili giây</td>
+              <td data-label="Địa chỉ IP" class="px-4 py-3 text-xs font-mono">${ipAddress}</td>
+              <td data-label="Thiết bị" class="px-4 py-3">${device}</td>
+              <td data-label="Nền tảng" class="px-4 py-3">${platform}</td>
+              <td data-label="Trình duyệt" class="px-4 py-3 text-xs" title="${log.details?.browser || log.details?.userAgent || 'N/A'}">
+                ${browserDisplay}
+              </td>
+              <td data-label="Thời gian" class="px-4 py-3 text-sm">${timeStr}</td>
+              <td data-label="Hành động" class="px-4 py-3 text-right">
+                <button 
+                  class="btn-secondary text-xs px-3 py-1.5 activity-log-detail-btn" 
+                  data-log-index="${index}"
+                  title="Xem chi tiết"
+                >
+                  <i class="fas fa-search mr-1"></i>Chi tiết
+                </button>
+              </td>
           </tr>
-      `
+      `;
+              }
             )
             .join("")
-        : `<tr><td colspan="4" class="text-center p-4">Không có hoạt động nào.</td></tr>`;
+        : `<tr><td colspan="10" class="text-center p-4">Không có hoạt động nào.</td></tr>`;
 
+    // Attach detail button event listeners
+    attachActivityLogDetailButtons();
     renderActivityLogPagination(filteredLogs.length);
   }
 
-  function renderActivityLogPagination(totalLogs) {
-    const paginationContainer = mainContentContainer.querySelector(
-      "#activityLogPagination"
-    );
-    if (!paginationContainer) return;
+  function attachActivityLogDetailButtons() {
+    const detailButtons = mainContentContainer.querySelectorAll(".activity-log-detail-btn");
+    
+    detailButtons.forEach((button) => {
+      button.addEventListener("click", (e) => {
+        const logIndex = parseInt(button.getAttribute("data-log-index"));
+        if (!isNaN(logIndex) && activityLogsCache[logIndex]) {
+          showActivityLogDetails([logIndex]);
+        }
+      });
+    });
+    
+    // Attach click event cho badge "Lỗi" để xem chi tiết
+    const errorBadges = mainContentContainer.querySelectorAll('[data-service-status="error"]');
+    errorBadges.forEach((badge) => {
+      badge.addEventListener("click", (e) => {
+        e.stopPropagation(); // Ngăn event bubbling
+        const logIndex = parseInt(badge.getAttribute("data-log-index"));
+        if (!isNaN(logIndex) && activityLogsCache[logIndex]) {
+          showActivityLogDetails([logIndex]);
+        }
+      });
+    });
+  }
 
-    // Server-side pagination with Load More button
-    if (activityLogHasMore) {
-      paginationContainer.innerHTML = `
-          <div class="text-sm text-slate-600">
-              Hiển thị <strong>${totalLogs}</strong> kết quả (còn thêm dữ liệu)
-          </div>
-          <div class="flex items-center space-x-2">
-              <button id="loadMoreActivityLogBtn" class="btn-primary !py-1 !px-3">
-                  <i class="fas fa-chevron-down mr-1"></i>Tải thêm
-              </button>
-          </div>`;
+  function showActivityLogDetails(selectedIds) {
+    if (!selectedIds || selectedIds.length === 0) {
+      return;
+    }
 
-      const loadMoreBtn = mainContentContainer.querySelector("#loadMoreActivityLogBtn");
-      if (loadMoreBtn) {
-        loadMoreBtn.addEventListener("click", async () => {
-          loadMoreBtn.disabled = true;
-          loadMoreBtn.innerHTML = `<i class="fas fa-spinner fa-spin mr-1"></i>Đang tải...`;
-          await loadActivityLogPage(false, true);
-          loadMoreBtn.disabled = false;
-          loadMoreBtn.innerHTML = `<i class="fas fa-chevron-down mr-1"></i>Tải thêm`;
+    // Lấy log đầu tiên được chọn (selectedIds là array các index)
+    const logIndex = parseInt(selectedIds[0]);
+    const log = activityLogsCache[logIndex];
+    
+    if (!log) {
+      alert("Không tìm thấy bản ghi được chọn.");
+      return;
+    }
+
+    // Xác định trạng thái dịch vụ
+    const hasError = log.details?.error || 
+                    log.details?.status === "error" || 
+                    log.details?.status === "failed" ||
+                    /error|fail|failed|lỗi|thất bại/i.test(log.action || "");
+    const serviceStatus = hasError ? "Lỗi" : "Thành công";
+    const serviceColor = hasError ? "text-red-600" : "text-green-600";
+
+    // Parse browser info
+    const parseBrowserFromUA = (ua) => {
+      if (!ua || typeof ua !== 'string') return "N/A";
+      if (ua.includes("CocCoc") || ua.includes("coccoc")) return "Cốc Cốc";
+      else if (ua.includes("Edg")) return "Edge";
+      else if (ua.includes("OPR") || ua.includes("Opera")) return "Opera";
+      else if (ua.includes("Firefox")) return "Firefox";
+      else if (ua.includes("Chrome") && !ua.includes("Edg") && !ua.includes("CocCoc")) return "Chrome";
+      else if (ua.includes("Safari") && !ua.includes("Chrome")) return "Safari";
+      else if (ua.includes("MSIE") || ua.includes("Trident")) return "IE";
+      else if (ua.includes("Brave")) return "Brave";
+      else if (ua.includes("Vivaldi")) return "Vivaldi";
+      else return ua.length > 50 ? ua.substring(0, 50) + "..." : ua;
+    };
+
+    let browserDisplay = "N/A";
+    if (log.details?.browser && typeof log.details.browser === 'string') {
+      browserDisplay = parseBrowserFromUA(log.details.browser);
+    } else if (log.details?.userAgent && typeof log.details.userAgent === 'string') {
+      browserDisplay = parseBrowserFromUA(log.details.userAgent);
+    }
+
+    // Device info
+    let device = log.details?.device || "Máy tính";
+    if (!device || device === "N/A") {
+      const ua = log.details?.userAgent || "";
+      const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(ua);
+      const isTablet = /iPad|Android/i.test(ua) && !/Mobile/i.test(ua);
+      if (isTablet) device = "Máy tính bảng";
+      else if (isMobile) device = "Điện thoại";
+      else device = "Máy tính";
+    }
+
+    // Format timestamp
+    const timestamp = log.timestamp ? new Date(log.timestamp.toDate()) : null;
+    const timeStr = timestamp ? timestamp.toISOString() : "N/A";
+    const timeDisplay = timestamp ? timestamp.toLocaleString("vi-VN") : "N/A";
+
+    // Duration
+    const duration = log.details?.duration || log.details?.timeTaken || "0";
+
+    // IP Address
+    const ipAddress = log.details?.ipAddress || log.details?.ip || "N/A";
+
+    // Extract error information - xử lý nhiều định dạng lỗi khác nhau
+    let errorInfo = {
+      error: null,
+      errorMessage: null,
+      errorCode: null,
+      errorStack: null,
+      status: log.details?.status || null,
+      failedReason: null
+    };
+
+    // Kiểm tra các nguồn thông tin lỗi khác nhau
+    if (log.details?.error) {
+      if (typeof log.details.error === 'string') {
+        errorInfo.error = log.details.error;
+        errorInfo.errorMessage = log.details.error;
+      } else if (typeof log.details.error === 'object') {
+        errorInfo.error = log.details.error;
+        errorInfo.errorMessage = log.details.error.message || log.details.error.error || log.details.error.toString();
+        errorInfo.errorCode = log.details.error.code || log.details.error.errorCode;
+        errorInfo.errorStack = log.details.error.stack;
+      }
+    }
+
+    // Kiểm tra các field lỗi riêng lẻ
+    if (log.details?.errorMessage) {
+      errorInfo.errorMessage = log.details.errorMessage;
+    }
+    if (log.details?.errorCode) {
+      errorInfo.errorCode = log.details.errorCode;
+    }
+    if (log.details?.errorStack) {
+      errorInfo.errorStack = log.details.errorStack;
+    }
+    if (log.details?.failedReason || log.details?.failureReason) {
+      errorInfo.failedReason = log.details.failedReason || log.details.failureReason;
+    }
+
+    // Nếu có error object nhưng chưa có message, thử lấy từ các field khác
+    if (errorInfo.error && !errorInfo.errorMessage) {
+      if (typeof errorInfo.error === 'object') {
+        errorInfo.errorMessage = errorInfo.error.message || errorInfo.error.error || JSON.stringify(errorInfo.error);
+      } else {
+        errorInfo.errorMessage = String(errorInfo.error);
+      }
+    }
+
+    // Parameters/Details (loại bỏ các field đã hiển thị riêng)
+    const excludedFields = ['ipAddress', 'ip', 'browser', 'userAgent', 'platform', 'device', 'client', 'status', 'error', 'errorMessage', 'errorCode', 'errorStack', 'failedReason', 'failureReason', 'duration', 'timeTaken'];
+    const customDetails = {};
+    if (log.details) {
+      Object.keys(log.details).forEach(key => {
+        if (!excludedFields.includes(key)) {
+          customDetails[key] = log.details[key];
+        }
       });
     }
-    } else {
-      paginationContainer.innerHTML = `
-          <div class="text-sm text-slate-600">
-              Hiển thị <strong>${totalLogs}</strong> kết quả
-          </div>`;
+
+    // Build HTML content
+    const content = `
+      <div class="space-y-6">
+        ${hasError ? `
+        <!-- Thông tin lỗi -->
+        <div class="bg-red-50 rounded-lg p-4 border border-red-200">
+          <h4 class="text-lg font-semibold text-red-700 mb-4 flex items-center">
+            <i class="fas fa-exclamation-triangle mr-2 text-red-600"></i>Thông tin lỗi
+          </h4>
+          <div class="space-y-3">
+            ${errorInfo.errorMessage ? `
+            <div>
+              <label class="block text-sm font-medium text-red-700 mb-1">Thông báo lỗi</label>
+              <p class="text-red-800 bg-white p-2 rounded border border-red-200">${errorInfo.errorMessage}</p>
+            </div>
+            ` : ''}
+            ${errorInfo.errorCode ? `
+            <div>
+              <label class="block text-sm font-medium text-red-700 mb-1">Mã lỗi</label>
+              <p class="text-red-800 bg-white p-2 rounded border border-red-200 font-mono text-sm">${errorInfo.errorCode}</p>
+            </div>
+            ` : ''}
+            ${errorInfo.failedReason ? `
+            <div>
+              <label class="block text-sm font-medium text-red-700 mb-1">Lý do thất bại</label>
+              <p class="text-red-800 bg-white p-2 rounded border border-red-200">${errorInfo.failedReason}</p>
+            </div>
+            ` : ''}
+            ${errorInfo.error && typeof errorInfo.error === 'object' ? `
+            <div>
+              <label class="block text-sm font-medium text-red-700 mb-1">Chi tiết lỗi</label>
+              <pre class="bg-white p-3 rounded border border-red-200 text-xs overflow-x-auto text-red-800">${JSON.stringify(errorInfo.error, null, 2)}</pre>
+            </div>
+            ` : errorInfo.error ? `
+            <div>
+              <label class="block text-sm font-medium text-red-700 mb-1">Chi tiết lỗi</label>
+              <p class="text-red-800 bg-white p-2 rounded border border-red-200">${errorInfo.error}</p>
+            </div>
+            ` : ''}
+            ${errorInfo.errorStack ? `
+            <div>
+              <label class="block text-sm font-medium text-red-700 mb-1">Stack trace</label>
+              <pre class="bg-white p-3 rounded border border-red-200 text-xs overflow-x-auto text-red-800 font-mono whitespace-pre-wrap">${errorInfo.errorStack}</pre>
+            </div>
+            ` : ''}
+            ${!errorInfo.errorMessage && !errorInfo.errorCode && !errorInfo.failedReason && !errorInfo.error ? `
+            <div>
+              <p class="text-red-700 italic">Lỗi được phát hiện từ action hoặc status, nhưng không có thông tin lỗi chi tiết.</p>
+              ${log.action ? `<p class="text-sm text-red-600 mt-2">Action: ${log.action}</p>` : ''}
+              ${errorInfo.status ? `<p class="text-sm text-red-600">Status: ${errorInfo.status}</p>` : ''}
+            </div>
+            ` : ''}
+          </div>
+        </div>
+        ` : ''}
+        <!-- Thông tin người dùng -->
+        <div class="bg-slate-50 rounded-lg p-4 border border-slate-200">
+          <h4 class="text-lg font-semibold text-slate-700 mb-4 flex items-center">
+            <i class="fas fa-user mr-2 text-indigo-600"></i>Thông tin người dùng
+          </h4>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label class="block text-sm font-medium text-slate-600 mb-1">Tên truy cập</label>
+              <p class="text-slate-800">${log.actor?.displayName || log.actor?.email || "N/A"}</p>
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-slate-600 mb-1">Địa chỉ IP</label>
+              <p class="text-slate-800 font-mono text-sm">${ipAddress}</p>
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-slate-600 mb-1">Thiết bị</label>
+              <p class="text-slate-800">${device}</p>
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-slate-600 mb-1">Trình duyệt</label>
+              <p class="text-slate-800">${browserDisplay}</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Thông tin hành động -->
+        <div class="bg-slate-50 rounded-lg p-4 border border-slate-200">
+          <h4 class="text-lg font-semibold text-slate-700 mb-4 flex items-center">
+            <i class="fas fa-info-circle mr-2 text-indigo-600"></i>Thông tin hành động
+          </h4>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label class="block text-sm font-medium text-slate-600 mb-1">Dịch vụ</label>
+              <p class="text-slate-800">
+                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${serviceColor} bg-opacity-10">
+                  <i class="fas ${hasError ? 'fa-times-circle' : 'fa-check-circle'} mr-1.5"></i>${serviceStatus}
+                </span>
+              </p>
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-slate-600 mb-1">Hoạt động</label>
+              <p class="text-slate-800">${log.action || "N/A"}</p>
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-slate-600 mb-1">Thời gian</label>
+              <p class="text-slate-800 text-sm">${timeStr}</p>
+              <p class="text-slate-500 text-xs mt-1">${timeDisplay}</p>
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-slate-600 mb-1">Khoảng thời gian</label>
+              <p class="text-slate-800">${duration} mili giây</p>
+            </div>
+            ${Object.keys(customDetails).length > 0 ? `
+            <div class="md:col-span-2">
+              <label class="block text-sm font-medium text-slate-600 mb-1">Thông số</label>
+              <pre class="bg-white p-3 rounded border border-slate-200 text-xs overflow-x-auto">${JSON.stringify(customDetails, null, 2)}</pre>
+            </div>
+            ` : ''}
+          </div>
+        </div>
+
+        <!-- Dữ liệu tùy chỉnh -->
+        <div class="bg-slate-50 rounded-lg p-4 border border-slate-200">
+          <h4 class="text-lg font-semibold text-slate-700 mb-4 flex items-center">
+            <i class="fas fa-database mr-2 text-indigo-600"></i>Dữ liệu tùy chỉnh
+          </h4>
+          ${Object.keys(customDetails).length > 0 ? `
+          <textarea class="w-full h-48 p-3 border border-slate-200 rounded text-sm font-mono" readonly>${JSON.stringify(customDetails, null, 2)}</textarea>
+          ` : `
+          <p class="text-slate-500 text-sm italic">Không có dữ liệu tùy chỉnh</p>
+          `}
+        </div>
+      </div>
+    `;
+
+    // Show modal
+    const modal = document.getElementById("drillDownModal");
+    const titleEl = modal.querySelector("#drillDownTitle");
+    const contentEl = modal.querySelector("#drillDownContent");
+
+    titleEl.textContent = "Chi tiết nhật ký kiểm tra";
+    contentEl.innerHTML = content;
+    modal.style.display = "block";
+    document.body.style.overflow = "hidden";
+  }
+
+  // Checkbox and details functions removed - simplified interface
+
+  function renderActivityLogPagination(totalLogs) {
+    const displayRangeEl = mainContentContainer.querySelector("#activityLogDisplayRange");
+    const totalCountEl = mainContentContainer.querySelector("#activityLogTotalCount");
+    const currentPageEl = mainContentContainer.querySelector("#activityLogCurrentPage");
+    const totalPagesEl = mainContentContainer.querySelector("#activityLogTotalPages");
+    
+    if (displayRangeEl) {
+      const start = totalLogs > 0 ? ((activityLogCurrentPage - 1) * ITEMS_PER_PAGE + 1) : 0;
+      const end = Math.min(activityLogCurrentPage * ITEMS_PER_PAGE, totalLogs);
+      displayRangeEl.textContent = `${start}-${end}`;
     }
+    
+    if (totalCountEl) {
+      totalCountEl.textContent = totalLogs;
+    }
+
+    const totalPages = Math.ceil(totalLogs / ITEMS_PER_PAGE) || 1;
+    if (currentPageEl) currentPageEl.textContent = activityLogCurrentPage;
+    if (totalPagesEl) totalPagesEl.textContent = totalPages;
+
+    // Update pagination buttons
+    const firstBtn = mainContentContainer.querySelector("#activityLogFirstPageBtn");
+    const prevBtn = mainContentContainer.querySelector("#activityLogPrevPageBtn");
+    const nextBtn = mainContentContainer.querySelector("#activityLogNextPageBtn");
+    const lastBtn = mainContentContainer.querySelector("#activityLogLastPageBtn");
+    const refreshBtn = mainContentContainer.querySelector("#activityLogRefreshBtn");
+
+    if (firstBtn) {
+      firstBtn.disabled = activityLogCurrentPage === 1;
+      const newFirstBtn = firstBtn.cloneNode(true);
+      firstBtn.parentNode.replaceChild(newFirstBtn, firstBtn);
+      newFirstBtn.addEventListener("click", async () => {
+        if (activityLogCurrentPage > 1) {
+          activityLogCurrentPage = 1;
+          await loadActivityLogPage(true);
+        }
+      });
+    }
+
+    if (prevBtn) {
+      prevBtn.disabled = activityLogCurrentPage === 1;
+      const newPrevBtn = prevBtn.cloneNode(true);
+      prevBtn.parentNode.replaceChild(newPrevBtn, prevBtn);
+      newPrevBtn.addEventListener("click", async () => {
+        if (activityLogCurrentPage > 1) {
+          activityLogCurrentPage--;
+          await loadActivityLogPage(true);
+        }
+      });
+    }
+
+    if (nextBtn) {
+      nextBtn.disabled = !activityLogHasMore;
+      const newNextBtn = nextBtn.cloneNode(true);
+      nextBtn.parentNode.replaceChild(newNextBtn, nextBtn);
+      newNextBtn.addEventListener("click", async () => {
+        if (activityLogHasMore) {
+          await loadActivityLogPage(false, true);
+          activityLogCurrentPage++;
+        }
+      });
+    }
+
+    if (lastBtn) {
+      lastBtn.disabled = !activityLogHasMore;
+      const newLastBtn = lastBtn.cloneNode(true);
+      lastBtn.parentNode.replaceChild(newLastBtn, lastBtn);
+      newLastBtn.addEventListener("click", () => {
+        // TODO: Jump to last page
+        console.log("Jump to last page");
+      });
+    }
+
+    if (refreshBtn) {
+      const newRefreshBtn = refreshBtn.cloneNode(true);
+      refreshBtn.parentNode.replaceChild(newRefreshBtn, refreshBtn);
+      newRefreshBtn.addEventListener("click", () => {
+        loadActivityLogPage(true);
+      });
+    }
+
+    // Note: Pagination controls are already in HTML, we just update their state above
   }
 
   function renderIssueHistoryTable(reports) {
@@ -4998,19 +5734,31 @@
       todayStart.getTime() - 7 * 24 * 60 * 60 * 1000
     );
 
-    const todaysIncidentsCount = allReports.filter(
-      (r) => new Date(r.reportDate) >= todayStart
-    ).length;
+    // Helper function to safely convert reportDate to Date
+    const getReportDate = (r) => {
+      if (!r.reportDate) return null;
+      return r.reportDate?.toDate 
+        ? r.reportDate.toDate() 
+        : new Date(r.reportDate);
+    };
+
+    const todaysIncidentsCount = allReports.filter((r) => {
+      const reportDate = getReportDate(r);
+      return reportDate && reportDate >= todayStart;
+    }).length;
 
     const last7DaysIncidents = allReports.filter((r) => {
-      const reportDate = new Date(r.reportDate);
-      return reportDate >= sevenDaysAgoStart && reportDate < todayStart;
+      const reportDate = getReportDate(r);
+      return reportDate && reportDate >= sevenDaysAgoStart && reportDate < todayStart;
     });
 
     const uniqueDaysInPast = new Set(
-      last7DaysIncidents.map(
-        (r) => new Date(r.reportDate).toISOString().split("T")[0]
-      )
+      last7DaysIncidents
+        .map((r) => {
+          const reportDate = getReportDate(r);
+          return reportDate ? reportDate.toISOString().split("T")[0] : null;
+        })
+        .filter((date) => date !== null)
     ).size;
     const daysToAverage = uniqueDaysInPast > 0 ? uniqueDaysInPast : 1; // Avoid division by zero
     const averageDailyIncidents = last7DaysIncidents.length / daysToAverage;
@@ -6434,17 +7182,34 @@
     if (!docSnap.exists()) {
       modal.querySelector("#detailIssueDescription").textContent =
         "Không tìm thấy sự cố.";
+      // Log lỗi khi không tìm thấy báo cáo
+      logActivity("View Issue Detail", { 
+        issueId: issueId,
+        status: "error",
+        error: "Issue not found"
+      }, "issue");
       return;
     }
     const report = docSnap.data();
 
     modal.querySelector("#detailIssueId").value = issueId;
+    
+    // Log hành động xem chi tiết báo cáo sự cố
+    logActivity("View Issue Detail", { 
+      issueId: issueId,
+      issueType: report.issueType || "N/A",
+      issueBranch: report.issueBranch || "N/A",
+      issueStatus: report.status || "N/A",
+      status: "success"
+    }, "issue");
 
     // ▼▼▼ THAY ĐỔI LOGIC HIỂN THỊ VỊ TRÍ ▼▼▼
     const locationEl = modal.querySelector("#detailIssueLocation");
     // Thêm "Vị trí: " vào đầu chuỗi
     let locationString = `Vị trí: ${
-      report.issueBranch.replace("ICOOL ", "") || "Không xác định"
+      report.issueBranch 
+        ? report.issueBranch.replace("ICOOL ", "") 
+        : "Không xác định"
     }`;
 
     if (report.issueScope === "all_rooms") {
@@ -6461,9 +7226,13 @@
 
     // Phần còn lại của hàm giữ nguyên...
     modal.querySelector("#detailReporterName").textContent = report.reporterName;
-    modal.querySelector("#detailReportDate").textContent = new Date(
-      report.reportDate
-    ).toLocaleString("vi-VN");
+    // Xử lý reportDate an toàn (có thể là Timestamp hoặc Date)
+    const reportDateValue = report.reportDate?.toDate 
+      ? report.reportDate.toDate() 
+      : report.reportDate 
+        ? new Date(report.reportDate) 
+        : new Date();
+    modal.querySelector("#detailReportDate").textContent = reportDateValue.toLocaleString("vi-VN");
     modal.querySelector("#detailIssuePriority").textContent = report.priority;
     modal.querySelector("#detailIssueDescription").textContent =
       report.issueDescription;
@@ -6521,8 +7290,14 @@
     if (isResolved) {
       modal.querySelector("#detailResolverName").textContent =
         report.resolverName || "Không rõ";
-      modal.querySelector("#detailResolvedDate").textContent = report.resolvedDate
-        ? new Date(report.resolvedDate).toLocaleString("vi-VN")
+      // Xử lý resolvedDate an toàn (có thể là Timestamp hoặc Date)
+      const resolvedDateValue = report.resolvedDate?.toDate 
+        ? report.resolvedDate.toDate() 
+        : report.resolvedDate 
+          ? new Date(report.resolvedDate) 
+          : null;
+      modal.querySelector("#detailResolvedDate").textContent = resolvedDateValue
+        ? resolvedDateValue.toLocaleString("vi-VN")
         : "Không rõ";
       resolutionInfoContainer.classList.remove("hidden");
     } else {
@@ -6690,7 +7465,7 @@
         status: "Đã hủy",
       });
 
-      await logActivity("Cancel Issue", { issueId });
+      await logActivity("Cancel Issue", { issueId }, "issue");
 
       // Đóng modal xác nhận
       modal.style.display = "none";
@@ -6828,7 +7603,22 @@
 
       await updateDoc(docRef, updateData);
 
-      logActivity("Update Issue", { issueId, newStatus, newAssigneeName });
+      // Log với thông tin chi tiết về các thay đổi
+      const logDetails = {
+        issueId: issueId,
+        oldStatus: originalData.status || "N/A",
+        newStatus: newStatus,
+        oldAssigneeId: originalData.assigneeId || null,
+        newAssigneeId: updateData.assigneeId || null,
+        oldAssigneeName: originalData.assigneeName || null,
+        newAssigneeName: newAssigneeName || null,
+        hasRepairedImageUpload: !!repairedImageFile,
+        repairedImageUrl: updateData.repairedImageUrl || null,
+        resolverName: updateData.resolverName || null,
+        resolvedDate: updateData.resolvedDate || null
+      };
+      
+      logActivity("Update Issue", logDetails, "issue");
 
       // Gửi thông báo khi gán sự cố cho nhân viên
       // Kiểm tra: có assignee mới VÀ assignee đã thay đổi (từ null sang có giá trị, hoặc từ người này sang người khác)
@@ -7020,7 +7810,7 @@
         messageEl.classList.add("hidden");
       }
       
-      logActivity("Add Comment", { issueId, commentText, mentionsCount: mentions.length });
+      logActivity("Add Comment", { issueId, commentText, mentionsCount: mentions.length }, "issue");
     } catch (error) {
       console.error("Error adding comment:", error);
     }
@@ -7349,8 +8139,24 @@
     };
     
     // Thêm/xóa branch cho Nhân viên và Chi nhánh
-    if ((role === "Nhân viên" || role === "Chi nhánh") && branch) {
-      updatedData.branch = branch;
+    if (role === "Nhân viên" || role === "Chi nhánh") {
+      // Nếu có chọn branch, lưu giá trị đó
+      // Nếu không chọn (empty string), giữ nguyên giá trị hiện tại (có thể là null)
+      if (branch) {
+        updatedData.branch = branch;
+      } else {
+        // Nếu không chọn branch và role là "Chi nhánh", yêu cầu bắt buộc
+        if (role === "Chi nhánh") {
+          messageEl.className = "p-3 rounded-lg text-sm text-center alert-error";
+          messageEl.textContent = "Chi nhánh là bắt buộc cho vai trò Chi nhánh. Vui lòng chọn một chi nhánh hoặc 'Tất cả'.";
+          messageEl.classList.remove("hidden");
+          saveBtn.disabled = false;
+          saveBtn.innerHTML = `<i class="fas fa-save mr-2"></i>Lưu Thay Đổi`;
+          return;
+        }
+        // Với "Nhân viên", có thể không có branch (tùy chọn)
+        // Không cập nhật branch nếu không chọn
+      }
     } else if (role !== "Nhân viên" && role !== "Chi nhánh") {
       // Xóa branch nếu không phải Nhân viên hoặc Chi nhánh
       updatedData.branch = null;
@@ -7362,7 +8168,7 @@
     try {
       const userDocRef = doc(db, `/artifacts/${canvasAppId}/users/${uid}`);
       await updateDoc(userDocRef, updatedData);
-      await logActivity("Update User Profile", { targetUid: uid });
+      await logActivity("Update User Profile", { targetUid: uid }, "user");
 
       // Invalidate users cache (reload cache to reflect changes)
       usersCacheLoaded = false;
@@ -7424,7 +8230,7 @@
     try {
       const userDocRef = doc(db, `/artifacts/${canvasAppId}/users/${currentUser.uid}`);
       await updateDoc(userDocRef, { displayName: newDisplayName });
-      await logActivity("Update Own Profile", { field: "displayName", newValue: newDisplayName });
+      await logActivity("Update Own Profile", { field: "displayName", newValue: newDisplayName }, "profile");
 
       // Update local state
       currentUserProfile.displayName = newDisplayName;
@@ -7504,7 +8310,7 @@
         currentUserProfile.requiresPasswordChange = false;
       }
 
-      await logActivity("Change Own Password", {});
+      await logActivity("Change Own Password", {}, "auth");
 
       // Clear password fields
       currentPasswordInput.value = "";
@@ -7640,7 +8446,7 @@
       // 6. Ghi lại hoạt động (với tư cách là Admin - `currentUser` vẫn là Admin)
       //    Hàm `logActivity` sẽ tự động sử dụng `currentUserProfile` CỦA ADMIN
       //    vì phiên đăng nhập chính không hề bị thay đổi.
-      await logActivity("Admin Create User", { newEmail: email, newUid: newUid });
+      await logActivity("Admin Create User", { newEmail: email, newUid: newUid }, "user");
       
       // 7. Invalidate users cache (reload cache to include new user)
       usersCacheLoaded = false;
@@ -7775,7 +8581,7 @@
             await logActivity("Admin Bulk Update User", { 
               updatedEmail: email,
               note: "Chỉ cập nhật displayName và employeeId, giữ nguyên role và mật khẩu"
-            });
+            }, "user");
             updateCount++;
           } catch (error) {
             errorCount++;
@@ -7830,7 +8636,7 @@
             }
             
             // Log activity as the admin (currentUserProfile vẫn là Admin vì không bị đăng xuất)
-            await logActivity("Admin Bulk Create User", { newEmail: email });
+            await logActivity("Admin Bulk Create User", { newEmail: email }, "user");
             
             createCount++;
           } catch (error) {
@@ -7963,7 +8769,8 @@
 
       await logActivity(
         anonymize ? "Disable and Anonymize User" : "Disable User",
-        { disabledUid: uid }
+        { disabledUid: uid },
+        "user"
       );
 
       // Invalidate users cache (reload cache to reflect changes)
@@ -7987,7 +8794,7 @@
         status: null,
       });
 
-      await logActivity("Enable User", { enabledUid: uid });
+      await logActivity("Enable User", { enabledUid: uid }, "user");
       
       // Invalidate users cache (reload cache to reflect changes)
       usersCacheLoaded = false;
@@ -8132,10 +8939,19 @@
       };
 
       // Thêm báo cáo mới vào collection
-      await addDoc(
+      const issueDocRef = await addDoc(
         collection(db, `/artifacts/${canvasAppId}/public/data/issueReports`),
         reportData
       );
+
+      // Ghi nhật ký hoạt động
+      await logActivity("Create Issue Report", {
+        issueId: issueDocRef.id,
+        issueType: issueType,
+        priority: priority,
+        issueBranch: issueBranch,
+        issueScope: issueScope,
+      }, "issue");
 
       // Hiển thị thông báo thành công
       messageEl.textContent = "Báo cáo sự cố thành công!";
@@ -8470,6 +9286,17 @@
     confirmBtn.innerHTML = `<i class="fas fa-spinner fa-spin"></i>`;
 
     try {
+      // Kiểm tra xác thực người dùng
+      if (!currentUser || !currentUser.uid) {
+        throw new Error("Bạn chưa đăng nhập. Vui lòng đăng nhập lại.");
+      }
+
+      // Kiểm tra xác thực Firebase Auth
+      const authUser = auth.currentUser;
+      if (!authUser) {
+        throw new Error("Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.");
+      }
+
       // Compress photo before upload
       const compressedPhoto = await compressImage(capturedPhotoBlob, {
         fileType: "image/jpeg", // Keep as JPEG for attendance photos
@@ -8496,13 +9323,34 @@
         }
       );
 
+      // Ghi nhật ký hoạt động vào hệ thống
+      await logActivity(currentAttendanceAction, {
+        photoUrl: photoUrl,
+        location: capturedLocationInfo || { error: "No location captured" },
+        timestamp: new Date().toISOString(),
+      }, "attendance");
+
       const successTime = new Date().toLocaleString("vi-VN");
       messageEl.textContent = `${currentAttendanceAction} thành công lúc ${successTime}!`;
       messageEl.className = "p-3 rounded-lg text-sm text-center alert-success";
       messageEl.classList.remove("hidden");
       closeCameraModal();
     } catch (error) {
-      modalMessageEl.textContent = `Lỗi: ${error.message}`;
+      console.error("Attendance upload error:", error);
+      
+      // Xử lý lỗi cụ thể cho Firebase Storage
+      let errorMessage = error.message;
+      if (error.code === "storage/unauthorized") {
+        errorMessage = "Không có quyền truy cập Firebase Storage. Vui lòng liên hệ quản trị viên để cấu hình quyền truy cập.";
+      } else if (error.code === "storage/canceled") {
+        errorMessage = "Upload đã bị hủy. Vui lòng thử lại.";
+      } else if (error.code === "storage/unknown") {
+        errorMessage = "Lỗi không xác định khi upload ảnh. Vui lòng thử lại.";
+      } else if (error.message.includes("permission")) {
+        errorMessage = "Lỗi quyền truy cập: " + error.message + ". Vui lòng liên hệ quản trị viên.";
+      }
+      
+      modalMessageEl.textContent = `Lỗi: ${errorMessage}`;
       modalMessageEl.className = "p-3 rounded-lg text-sm text-center alert-error";
       modalMessageEl.classList.remove("hidden");
     } finally {
@@ -8816,6 +9664,14 @@
       messageEl.className = "p-3 rounded-lg text-sm text-center alert-success";
       messageEl.classList.remove("hidden");
 
+      // Log create shift action
+      await logActivity("Create Shift", { 
+        shiftName: shiftName, 
+        startTime: startTime, 
+        endTime: endTime, 
+        breakDuration: breakDuration 
+      }, "shift");
+
       // Reload shifts
       await loadShifts();
 
@@ -8920,7 +9776,7 @@
         employeeName: employeeName,
         shiftId: shiftId,
         shiftName: shiftName,
-      });
+      }, "shift");
 
       setTimeout(() => {
         messageEl.classList.add("hidden");
@@ -9426,6 +10282,13 @@
     });
 
     const fileName = `bang_cham_cong_${stats.month.replace("-", "_")}.xlsx`;
+    
+    // Log export action
+    logActivity("Export Attendance Report to Excel", { 
+      month: stats.month,
+      recordCount: window.currentAttendanceReportData.length 
+    }, "attendance");
+    
     exportToExcel(data, fileName);
   }
 
@@ -9613,6 +10476,13 @@
         fileName = `lich_su_su_co_${dateStr}.xlsx`;
       }
 
+      // Log export action
+      logActivity("Export Issue History to Excel", { 
+        recordCount: excelData.length,
+        month: issueHistorySelectedMonth || "current",
+        mode: issueHistoryMode 
+      }, "issue");
+      
       // Export file
       XLSX.writeFile(wb, fileName);
       
@@ -9725,6 +10595,12 @@
         return new Date(b["Thời Gian"]) - new Date(a["Thời Gian"]);
       });
 
+      // Log export action
+      logActivity("Export All Attendance to Excel", { 
+        recordCount: allAttendanceRecords.length,
+        employeeCount: activeUsers.length 
+      }, "attendance");
+      
       exportToExcel(allAttendanceRecords, "cham_cong_toan_bo_nhan_vien.xlsx");
     } catch (error) {
       console.error("Error exporting all attendance:", error);
@@ -9786,6 +10662,11 @@
       const dateStr = now.toISOString().split("T")[0].replace(/-/g, "");
       const fileName = `danh_sach_tai_khoan_${dateStr}.xlsx`;
 
+      // Log export action
+      logActivity("Export All Accounts to Excel", { 
+        recordCount: excelData.length 
+      }, "user");
+      
       // Export file
       XLSX.writeFile(wb, fileName);
     } catch (error) {
