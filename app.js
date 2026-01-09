@@ -566,11 +566,63 @@
     forceChangePasswordModal,
     drillDownModal,
     confirmCancelModal,
-    myProfileModal;
+    myProfileModal,
+    languageModal;
   let sidebar, mobileMenuToggle;
   let onlineStatusIndicator, onlineStatusIcon, onlineStatusText;
+  
+  // Language preference
+  let currentLanguage = localStorage.getItem("appLanguage") || "vi"; // "vi" or "en"
+  
+  // Translation dictionary
+  const translations = {
+    vi: {
+      // Common
+      "dashboard": "Dashboard",
+      "attendance": "Điểm Danh",
+      "issuereport": "Báo Lỗi",
+      "issuehistory": "Lịch Sử Báo Cáo",
+      "mytasks": "Nhiệm Vụ Của Tôi",
+      "manageaccounts": "Quản Lý Tài Khoản",
+      "activitylog": "Nhật Ký Hoạt Động",
+      "myprofile": "Hồ sơ của tôi",
+      "logout": "Thoát",
+      "loading": "Đang tải...",
+      "online": "Trực tuyến",
+      "offline": "Ngoại tuyến",
+    },
+    en: {
+      // Common
+      "dashboard": "Dashboard",
+      "attendance": "Attendance",
+      "issuereport": "Report Issue",
+      "issuehistory": "Issue History",
+      "mytasks": "My Tasks",
+      "manageaccounts": "Manage Accounts",
+      "activitylog": "Activity Log",
+      "myprofile": "My Profile",
+      "logout": "Logout",
+      "loading": "Loading...",
+      "online": "Online",
+      "offline": "Offline",
+    }
+  };
+  
+  // Translation function
+  function t(key) {
+    return translations[currentLanguage]?.[key] || translations.vi[key] || key;
+  }
 
   // --- App Initialization ---
+  // Suppress Google API errors from browser extensions (not from our code)
+  window.addEventListener('error', (event) => {
+    if (event.message && event.message.includes('apis.google.com')) {
+      // Suppress errors from Google API (likely from browser extensions)
+      event.preventDefault();
+      return false;
+    }
+  }, true);
+
   document.addEventListener("DOMContentLoaded", async () => {
     // Bind DOM elements first to ensure they are available for the catch block
     bindShellDOMElements();
@@ -603,6 +655,9 @@
       setupOnlineStatusMonitoring();
 
       onAuthStateChanged(auth, handleAuthStateChange);
+
+      // Initialize language
+      initializeLanguage();
 
       if (initialAuthToken) {
         await signInWithCustomToken(auth, initialAuthToken);
@@ -1145,7 +1200,10 @@
           manageShiftsView: "fa-calendar-alt",
           attendanceReportView: "fa-file-invoice",
         };
-        button.innerHTML = `<i class="fas ${icons[viewId]} fa-fw mr-3"></i>${ALL_VIEWS[viewId]}`;
+        const viewKey = viewId.replace("View", "").toLowerCase();
+        const translatedText = translations[currentLanguage]?.[viewKey] || translations.vi[viewKey] || ALL_VIEWS[viewId];
+        button.innerHTML = `<i class="fas ${icons[viewId]} fa-fw mr-3"></i><span class="menu-item-text">${translatedText}</span>`;
+        button.setAttribute("data-view-id", viewId);
         button.addEventListener("click", () => {
           console.log(`🖱️ Clicked on menu: ${viewId}`);
           showView(viewId);
@@ -2274,10 +2332,21 @@
         mainContentContainer.querySelector("#filterBranch").value = "";
         mainContentContainer.querySelector("#filterIssueType").value = "";
         mainContentContainer.querySelector("#filterEmployee").value = "";
-        mainContentContainer.querySelector("#filterStartDate").value = "";
-        mainContentContainer.querySelector("#filterEndDate").value = "";
+        const startDateInput = mainContentContainer.querySelector("#filterStartDate");
+        const endDateInput = mainContentContainer.querySelector("#filterEndDate");
+        if (startDateInput) startDateInput.value = "";
+        if (endDateInput) endDateInput.value = "";
+        // Update format display sau khi clear
+        if (startDateInput) setupDateInputFormat(startDateInput);
+        if (endDateInput) setupDateInputFormat(endDateInput);
         applyFiltersAndRender(dashboardReportsCache);
       });
+    
+    // Setup date format cho filterStartDate và filterEndDate
+    const filterStartDate = mainContentContainer.querySelector("#filterStartDate");
+    const filterEndDate = mainContentContainer.querySelector("#filterEndDate");
+    if (filterStartDate) setupDateInputFormat(filterStartDate);
+    if (filterEndDate) setupDateInputFormat(filterEndDate);
 
     // Quick Date Filter Buttons
     const formatDateForInput = (date) => {
@@ -2297,6 +2366,9 @@
         if (startDateInput && endDateInput) {
           startDateInput.value = formatDateForInput(today);
           endDateInput.value = formatDateForInput(today);
+          // Update format display
+          setupDateInputFormat(startDateInput);
+          setupDateInputFormat(endDateInput);
           loadDashboardWithFilters();
         }
       });
@@ -2313,6 +2385,9 @@
         if (startDateInput && endDateInput) {
           startDateInput.value = formatDateForInput(sevenDaysAgo);
           endDateInput.value = formatDateForInput(today);
+          // Update format display
+          setupDateInputFormat(startDateInput);
+          setupDateInputFormat(endDateInput);
           loadDashboardWithFilters();
         }
       });
@@ -2329,6 +2404,9 @@
         if (startDateInput && endDateInput) {
           startDateInput.value = formatDateForInput(thirtyDaysAgo);
           endDateInput.value = formatDateForInput(today);
+          // Update format display
+          setupDateInputFormat(startDateInput);
+          setupDateInputFormat(endDateInput);
           loadDashboardWithFilters();
         }
       });
@@ -4056,6 +4134,8 @@
       if (input) {
         input.addEventListener("change", updateActiveFiltersCount);
         input.addEventListener("input", updateActiveFiltersCount);
+        // Format date input để hiển thị dd/mm/yyyy
+        setupDateInputFormat(input);
       }
     });
 
@@ -4485,6 +4565,10 @@
       if (input) {
         input.addEventListener("change", updateActiveActivityLogFiltersCount);
         input.addEventListener("input", updateActiveActivityLogFiltersCount);
+        // Format date input để hiển thị dd/mm/yyyy
+        if (input.type === 'date') {
+          setupDateInputFormat(input);
+        }
       }
     });
     
@@ -4629,6 +4713,148 @@
     if (!myProfileModal) return;
     myProfileModal.style.display = "none";
     document.body.style.overflow = "";
+  }
+
+  /**
+   * Opens the Language Selection modal
+   */
+  function openLanguageModal() {
+    if (!languageModal) {
+      languageModal = document.getElementById("languageModal");
+      if (!languageModal) {
+        console.error("Language modal not found!");
+        return;
+      }
+    }
+
+    // Update UI based on current language
+    updateLanguageModalUI();
+    
+    languageModal.style.display = "block";
+    document.body.style.overflow = "hidden";
+  }
+
+  /**
+   * Closes the Language Selection modal
+   */
+  function closeLanguageModal() {
+    if (!languageModal) return;
+    languageModal.style.display = "none";
+    document.body.style.overflow = "";
+  }
+
+  /**
+   * Updates the Language modal UI to reflect current selection
+   * Note: This function is for the old modal, but we're using dropdown now
+   */
+  function updateLanguageModalUI() {
+    // This function is kept for compatibility but not actively used
+    // The dropdown menu doesn't need this UI update
+  }
+
+  /**
+   * Changes the application language and applies translations
+   * @param {string} lang - Language code: "vi" or "en"
+   * @param {string} region - Region code: "vi" for Vietnamese, "us" or "uk" for English
+   */
+  function changeLanguage(lang, region = null) {
+    if (lang !== "vi" && lang !== "en") {
+      console.error("Invalid language:", lang);
+      return;
+    }
+
+    const previousLanguage = currentLanguage;
+    currentLanguage = lang;
+    localStorage.setItem("appLanguage", lang);
+    
+    // Update flag icon
+    const flagEl = document.getElementById("currentLanguageFlag");
+    if (flagEl) {
+      flagEl.textContent = lang === "vi" ? "🇻🇳" : "🇺🇸";
+    }
+    
+    // Apply translations to UI elements
+    applyTranslations();
+    
+    // Re-render sidebar to apply translations
+    if (currentUserProfile) {
+      renderSidebarNav();
+    }
+    
+    // Log the language change
+    logActivity("Change Language", { 
+      language: lang,
+      previousLanguage: previousLanguage
+    }, "profile");
+  }
+  
+  /**
+   * Applies translations to UI elements
+   */
+  function applyTranslations() {
+    // Update sidebar navigation (buttons, not a tags)
+    const sidebarItems = document.querySelectorAll("#sidebarNav button[data-view-id]");
+    sidebarItems.forEach(item => {
+      const viewId = item.getAttribute("data-view-id");
+      if (viewId) {
+        const viewKey = viewId.replace("View", "").toLowerCase();
+        const translatedText = translations[currentLanguage]?.[viewKey] || translations.vi[viewKey] || ALL_VIEWS[viewId];
+        if (translatedText) {
+          const textEl = item.querySelector(".menu-item-text");
+          if (textEl) {
+            textEl.textContent = translatedText;
+          }
+        }
+      }
+    });
+    
+    // Update user dropdown menu
+    const myProfileBtn = document.getElementById("myProfileDropdownBtn");
+    if (myProfileBtn) {
+      const icon = myProfileBtn.querySelector("i");
+      if (icon) {
+        myProfileBtn.innerHTML = `<i class="${icon.className}"></i>${t("myProfile")}`;
+      }
+    }
+    
+    const logoutBtn = document.getElementById("logoutDropdownBtn");
+    if (logoutBtn) {
+      const icon = logoutBtn.querySelector("i");
+      if (icon) {
+        logoutBtn.innerHTML = `<i class="${icon.className}"></i>${t("logout")}`;
+      }
+    }
+    
+    // Update online status text
+    const onlineStatusText = document.getElementById("onlineStatusText");
+    if (onlineStatusText && !onlineStatusText.classList.contains("hidden")) {
+      const currentText = onlineStatusText.textContent.trim();
+      if (currentText.includes("Trực tuyến") || currentText.includes("trực tuyến")) {
+        onlineStatusText.textContent = t("online");
+      } else if (currentText.includes("Ngoại tuyến") || currentText.includes("ngoại tuyến")) {
+        onlineStatusText.textContent = t("offline");
+      }
+    }
+  }
+  
+  /**
+   * Initialize language on page load
+   */
+  function initializeLanguage() {
+    // Load language from localStorage
+    const savedLanguage = localStorage.getItem("appLanguage") || "vi";
+    currentLanguage = savedLanguage;
+    
+    // Update flag icon
+    const flagEl = document.getElementById("currentLanguageFlag");
+    if (flagEl) {
+      flagEl.textContent = currentLanguage === "vi" ? "🇻🇳" : "🇺🇸";
+    }
+    
+    // Apply translations after a short delay to ensure DOM is ready
+    setTimeout(() => {
+      applyTranslations();
+    }, 500);
   }
 
   /**
@@ -7241,7 +7467,141 @@
       "#detailIssueImageContainer"
     );
     if (report.issueImageUrl) {
-      initialImageContainer.innerHTML = `<a href="${report.issueImageUrl}" target="_blank"><img src="${report.issueImageUrl}" class="w-full h-48 object-cover rounded-lg shadow-md"></a>`;
+      // Try to create fresh URL from Storage path first
+      let imageUrl = report.issueImageUrl;
+      let storagePath = null;
+      
+      // Extract path from URL to create fresh URL
+      try {
+        const urlMatch1 = report.issueImageUrl.match(/\/o\/([^?]+)/);
+        const urlMatch2 = report.issueImageUrl.match(/storage\.googleapis\.com\/[^\/]+\/(.+?)(?:\?|$)/);
+        
+        if (urlMatch1) {
+          const encodedPath = urlMatch1[1];
+          storagePath = decodeURIComponent(encodedPath);
+        } else if (urlMatch2) {
+          storagePath = decodeURIComponent(urlMatch2[1]);
+        }
+        
+        // Normalize path: try both with space and with underscore
+        // Some old files might have "issue images" instead of "issue_images"
+        let normalizedPath = storagePath;
+        if (storagePath && storagePath.includes('issue images')) {
+          // Try with underscore first (new format)
+          normalizedPath = storagePath.replace(/issue images/g, 'issue_images');
+          console.log('🔄 Normalized path (space -> underscore):', normalizedPath);
+        }
+        
+        // If we can extract path, create fresh URL
+        if (normalizedPath) {
+          try {
+            const storageRef = ref(storage, normalizedPath);
+            imageUrl = await getDownloadURL(storageRef);
+            console.log('✅ Created fresh URL from path:', normalizedPath);
+          } catch (normalizedError) {
+            // If normalized path fails, try original path
+            if (normalizedPath !== storagePath && storagePath) {
+              console.warn('⚠️ Normalized path failed, trying original:', storagePath);
+              try {
+                const storageRef = ref(storage, storagePath);
+                imageUrl = await getDownloadURL(storageRef);
+                console.log('✅ Created fresh URL from original path:', storagePath);
+              } catch (originalError) {
+                throw originalError; // Throw the original error
+              }
+            } else {
+              throw normalizedError;
+            }
+          }
+        } else {
+          console.warn('⚠️ Could not extract path from URL:', report.issueImageUrl);
+        }
+      } catch (refreshError) {
+        console.error('❌ Could not create fresh URL, using original:', refreshError);
+        console.error('   Error code:', refreshError.code);
+        console.error('   Error message:', refreshError.message);
+        if (refreshError.serverResponse) {
+          console.error('   Server response:', refreshError.serverResponse);
+        }
+        // Continue with original URL - will try again on error
+      }
+      
+      // Create image with error handling
+      const imgWrapper = document.createElement('div');
+      imgWrapper.className = 'relative';
+      const imgLink = document.createElement('a');
+      imgLink.href = imageUrl;
+      imgLink.target = '_blank';
+      imgLink.className = 'block';
+      const img = document.createElement('img');
+      img.src = imageUrl;
+      img.className = 'w-full h-48 object-cover rounded-lg shadow-md';
+      img.alt = 'Hình ảnh ban đầu';
+      
+      // Handle image load error - try to refresh URL
+      img.onerror = async function() {
+        // Check if this is a permission error (412) - don't try to refresh
+        let isPermissionError = false;
+        const isPermissionErrorCheck = img.src && (
+          img.src.includes('412') || 
+          img.src.includes('Precondition Failed') ||
+          img.src.includes('permission-denied')
+        );
+
+        // Try to extract path from URL and refresh (only if not permission error)
+        let refreshedUrl = null;
+        let errorMessage = 'URL có thể đã hết hạn hoặc không hợp lệ';
+        
+        if (!isPermissionErrorCheck && storagePath) {
+          try {
+            // Try to create fresh URL from path
+            const storageRef = ref(storage, storagePath);
+            refreshedUrl = await getDownloadURL(storageRef);
+          } catch (refreshError) {
+            console.error('Failed to refresh image URL:', refreshError);
+            // Check if it's a permission error
+            if (refreshError.code === 'storage/unauthorized' || 
+                refreshError.code === 'storage/permission-denied' ||
+                refreshError.code === 'storage/unknown' ||
+                refreshError.message?.includes('412') ||
+                refreshError.message?.includes('Precondition Failed')) {
+              errorMessage = 'Lỗi quyền truy cập. Vui lòng kiểm tra Storage Rules trong Firebase Console.';
+              isPermissionError = true;
+            }
+          }
+        } else {
+          errorMessage = 'Lỗi quyền truy cập (412). Vui lòng kiểm tra Storage Rules trong Firebase Console.';
+          isPermissionError = true;
+        }
+
+        if (refreshedUrl && !isPermissionError) {
+          // Try loading with refreshed URL
+          img.src = refreshedUrl;
+          return;
+        }
+
+        // If refresh failed, show error message
+        imgWrapper.innerHTML = `
+          <div class="w-full h-48 bg-slate-100 rounded-lg border-2 border-dashed border-slate-300 flex flex-col items-center justify-center p-4">
+            <i class="fas fa-exclamation-triangle text-yellow-500 text-2xl mb-2"></i>
+            <p class="text-sm text-slate-600 font-medium text-center">Không thể tải hình ảnh</p>
+            <p class="text-xs text-slate-500 text-center mt-1">${errorMessage}</p>
+            ${isPermissionError ? `
+              <p class="text-xs text-red-600 text-center mt-2 font-semibold">Lỗi 412: Thiếu quyền truy cập Storage</p>
+              <p class="text-xs text-slate-500 text-center mt-1">Xem file FIX_STORAGE_PERMISSIONS.md để biết cách sửa</p>
+            ` : ''}
+            <div class="flex gap-2 mt-2 flex-wrap justify-center">
+              <a href="${report.issueImageUrl}" target="_blank" class="text-xs text-indigo-600 hover:text-indigo-700 underline">Thử mở link trực tiếp</a>
+              <button onclick="location.reload()" class="text-xs text-indigo-600 hover:text-indigo-700 underline">Tải lại trang</button>
+            </div>
+          </div>
+        `;
+      };
+      
+      imgLink.appendChild(img);
+      imgWrapper.appendChild(imgLink);
+      initialImageContainer.innerHTML = '';
+      initialImageContainer.appendChild(imgWrapper);
     } else {
       initialImageContainer.innerHTML =
         '<p class="text-sm text-slate-500 italic">Chưa có ảnh ban đầu.</p>';
@@ -7251,7 +7611,141 @@
       "#detailRepairedImageContainer"
     );
     if (report.repairedImageUrl) {
-      repairedImageContainer.innerHTML = `<a href="${report.repairedImageUrl}" target="_blank"><img src="${report.repairedImageUrl}" class="w-full h-48 object-cover rounded-lg shadow-md"></a>`;
+      // Try to create fresh URL from Storage path first
+      let imageUrl = report.repairedImageUrl;
+      let storagePath = null;
+      
+      // Extract path from URL to create fresh URL
+      try {
+        const urlMatch1 = report.repairedImageUrl.match(/\/o\/([^?]+)/);
+        const urlMatch2 = report.repairedImageUrl.match(/storage\.googleapis\.com\/[^\/]+\/(.+?)(?:\?|$)/);
+        
+        if (urlMatch1) {
+          const encodedPath = urlMatch1[1];
+          storagePath = decodeURIComponent(encodedPath);
+        } else if (urlMatch2) {
+          storagePath = decodeURIComponent(urlMatch2[1]);
+        }
+        
+        // Normalize path: try both with space and with underscore
+        // Some old files might have "repaired images" instead of "repaired_images"
+        let normalizedPath = storagePath;
+        if (storagePath && storagePath.includes('repaired images')) {
+          // Try with underscore first (new format)
+          normalizedPath = storagePath.replace(/repaired images/g, 'repaired_images');
+          console.log('🔄 Normalized path (space -> underscore):', normalizedPath);
+        }
+        
+        // If we can extract path, create fresh URL
+        if (normalizedPath) {
+          try {
+            const storageRef = ref(storage, normalizedPath);
+            imageUrl = await getDownloadURL(storageRef);
+            console.log('✅ Created fresh URL from path:', normalizedPath);
+          } catch (normalizedError) {
+            // If normalized path fails, try original path
+            if (normalizedPath !== storagePath && storagePath) {
+              console.warn('⚠️ Normalized path failed, trying original:', storagePath);
+              try {
+                const storageRef = ref(storage, storagePath);
+                imageUrl = await getDownloadURL(storageRef);
+                console.log('✅ Created fresh URL from original path:', storagePath);
+              } catch (originalError) {
+                throw originalError; // Throw the original error
+              }
+            } else {
+              throw normalizedError;
+            }
+          }
+        } else {
+          console.warn('⚠️ Could not extract path from URL:', report.repairedImageUrl);
+        }
+      } catch (refreshError) {
+        console.error('❌ Could not create fresh URL, using original:', refreshError);
+        console.error('   Error code:', refreshError.code);
+        console.error('   Error message:', refreshError.message);
+        if (refreshError.serverResponse) {
+          console.error('   Server response:', refreshError.serverResponse);
+        }
+        // Continue with original URL - will try again on error
+      }
+      
+      // Create image with error handling
+      const imgWrapper = document.createElement('div');
+      imgWrapper.className = 'relative';
+      const imgLink = document.createElement('a');
+      imgLink.href = imageUrl;
+      imgLink.target = '_blank';
+      imgLink.className = 'block';
+      const img = document.createElement('img');
+      img.src = imageUrl;
+      img.className = 'w-full h-48 object-cover rounded-lg shadow-md';
+      img.alt = 'Hình ảnh đã sửa chữa';
+      
+      // Handle image load error - try to refresh URL
+      img.onerror = async function() {
+        // Check if this is a permission error (412) - don't try to refresh
+        let isPermissionError = false;
+        const isPermissionErrorCheck = img.src && (
+          img.src.includes('412') || 
+          img.src.includes('Precondition Failed') ||
+          img.src.includes('permission-denied')
+        );
+
+        // Try to extract path from URL and refresh (only if not permission error)
+        let refreshedUrl = null;
+        let errorMessage = 'URL có thể đã hết hạn hoặc không hợp lệ';
+        
+        if (!isPermissionErrorCheck && storagePath) {
+          try {
+            // Try to create fresh URL from path
+            const storageRef = ref(storage, storagePath);
+            refreshedUrl = await getDownloadURL(storageRef);
+          } catch (refreshError) {
+            console.error('Failed to refresh image URL:', refreshError);
+            // Check if it's a permission error
+            if (refreshError.code === 'storage/unauthorized' || 
+                refreshError.code === 'storage/permission-denied' ||
+                refreshError.code === 'storage/unknown' ||
+                refreshError.message?.includes('412') ||
+                refreshError.message?.includes('Precondition Failed')) {
+              errorMessage = 'Lỗi quyền truy cập. Vui lòng kiểm tra Storage Rules trong Firebase Console.';
+              isPermissionError = true;
+            }
+          }
+        } else {
+          errorMessage = 'Lỗi quyền truy cập (412). Vui lòng kiểm tra Storage Rules trong Firebase Console.';
+          isPermissionError = true;
+        }
+
+        if (refreshedUrl && !isPermissionError) {
+          // Try loading with refreshed URL
+          img.src = refreshedUrl;
+          return;
+        }
+
+        // If refresh failed, show error message
+        imgWrapper.innerHTML = `
+          <div class="w-full h-48 bg-slate-100 rounded-lg border-2 border-dashed border-slate-300 flex flex-col items-center justify-center p-4">
+            <i class="fas fa-exclamation-triangle text-yellow-500 text-2xl mb-2"></i>
+            <p class="text-sm text-slate-600 font-medium text-center">Không thể tải hình ảnh</p>
+            <p class="text-xs text-slate-500 text-center mt-1">${errorMessage}</p>
+            ${isPermissionError ? `
+              <p class="text-xs text-red-600 text-center mt-2 font-semibold">Lỗi 412: Thiếu quyền truy cập Storage</p>
+              <p class="text-xs text-slate-500 text-center mt-1">Xem file FIX_STORAGE_PERMISSIONS.md để biết cách sửa</p>
+            ` : ''}
+            <div class="flex gap-2 mt-2 flex-wrap justify-center">
+              <a href="${report.repairedImageUrl}" target="_blank" class="text-xs text-indigo-600 hover:text-indigo-700 underline">Thử mở link trực tiếp</a>
+              <button onclick="location.reload()" class="text-xs text-indigo-600 hover:text-indigo-700 underline">Tải lại trang</button>
+            </div>
+          </div>
+        `;
+      };
+      
+      imgLink.appendChild(img);
+      imgWrapper.appendChild(imgLink);
+      repairedImageContainer.innerHTML = '';
+      repairedImageContainer.appendChild(imgWrapper);
     } else {
       repairedImageContainer.innerHTML =
         '<p class="text-sm text-slate-500 italic">Chưa có ảnh sửa chữa.</p>';
@@ -10712,6 +11206,10 @@
     if (!myProfileModal) {
       console.error("myProfileModal not found!");
     }
+    languageModal = document.getElementById("languageModal");
+    if (!languageModal) {
+      console.error("languageModal not found!");
+    }
     sidebar = document.getElementById("sidebar");
     mobileMenuToggle = document.getElementById("mobileMenuToggle");
     onlineStatusIndicator = document.getElementById("onlineStatusIndicator");
@@ -10752,6 +11250,40 @@
     } else {
       console.error("myProfileDropdownBtn not found!");
     }
+    // Language toggle button
+    const languageToggle = document.getElementById("languageToggle");
+    const languageDropdownMenu = document.getElementById("languageDropdownMenu");
+    if (languageToggle && languageDropdownMenu) {
+      languageToggle.addEventListener("click", (e) => {
+        e.stopPropagation();
+        languageDropdownMenu.classList.toggle("show");
+      });
+      
+      // Language selection buttons
+      const vietnameseBtn = document.getElementById("selectVietnameseBtn");
+      const englishBtn = document.getElementById("selectEnglishBtn");
+      
+      if (vietnameseBtn) {
+        vietnameseBtn.addEventListener("click", (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          changeLanguage("vi");
+          languageDropdownMenu.classList.remove("show");
+        });
+      }
+      
+      if (englishBtn) {
+        englishBtn.addEventListener("click", (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          changeLanguage("en");
+          languageDropdownMenu.classList.remove("show");
+        });
+      }
+    } else {
+      console.error("Language toggle elements not found!");
+    }
+    
     document
       .getElementById("userDropdownToggle")
       .addEventListener("click", (e) => {
@@ -10787,6 +11319,14 @@
         !document.getElementById("userDropdownMenu").contains(e.target)
       ) {
         document.getElementById("userDropdownMenu").classList.remove("show");
+      }
+      if (
+        languageToggle &&
+        !languageToggle.contains(e.target) &&
+        languageDropdownMenu &&
+        !languageDropdownMenu.contains(e.target)
+      ) {
+        languageDropdownMenu.classList.remove("show");
       }
     });
 
@@ -11498,3 +12038,218 @@
       });
     }
   }
+
+  /**
+   * Function để format date input theo dd/mm/yyyy
+   * Thêm một span hiển thị format dd/mm/yyyy bên cạnh input
+   * Ẩn placeholder mặc định mm/dd/yyyy của browser
+   */
+  function setupDateInputFormat(dateInput) {
+    if (!dateInput || dateInput.type !== 'date') return;
+    
+    // Kiểm tra xem input có class flex-1 không (như trong activity log)
+    const hasFlex1 = dateInput.classList.contains('flex-1');
+    
+    // Luôn tạo wrapper riêng cho mỗi input để tránh span bị đè lên nhau
+    // Nếu input có flex-1, giữ nguyên class đó trên wrapper
+    if (!dateInput.parentElement.classList.contains('date-input-wrapper')) {
+      const wrapper = document.createElement('div');
+      wrapper.className = 'date-input-wrapper relative';
+      if (hasFlex1) {
+        wrapper.classList.add('flex-1');
+        dateInput.classList.remove('flex-1'); // Di chuyển flex-1 từ input sang wrapper
+      }
+      dateInput.parentNode.insertBefore(wrapper, dateInput);
+      wrapper.appendChild(dateInput);
+    }
+    
+    // Ẩn placeholder mặc định của browser bằng CSS
+    dateInput.style.color = 'transparent';
+    dateInput.style.caretColor = '#475569'; // Giữ màu caret khi focus
+    
+    // Thêm span để hiển thị format dd/mm/yyyy vào wrapper
+    const container = dateInput.parentElement;
+    let formatSpan = container.querySelector('.date-format-display');
+    if (!formatSpan) {
+      formatSpan = document.createElement('span');
+      formatSpan.className = 'date-format-display absolute left-3 top-1/2 transform -translate-y-1/2 text-xs text-slate-400 pointer-events-none z-10 sm:left-3';
+      formatSpan.textContent = 'dd/mm/yyyy';
+      container.appendChild(formatSpan);
+    }
+    
+    // Format date value khi user chọn
+    const formatDateValue = (dateString) => {
+      if (!dateString) return '';
+      const date = new Date(dateString + 'T00:00:00');
+      const day = String(date.getDate()).padStart(2, '0');
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const year = date.getFullYear();
+      return `${day}/${month}/${year}`;
+    };
+    
+    // Update format display khi value thay đổi
+    const updateFormatDisplay = () => {
+      if (dateInput.value) {
+        formatSpan.textContent = formatDateValue(dateInput.value);
+        formatSpan.classList.remove('text-slate-400');
+        formatSpan.classList.add('text-slate-600', 'font-medium');
+        dateInput.style.color = 'transparent'; // Ẩn text của browser
+      } else {
+        formatSpan.textContent = 'dd/mm/yyyy';
+        formatSpan.classList.remove('text-slate-600', 'font-medium');
+        formatSpan.classList.add('text-slate-400');
+        dateInput.style.color = 'transparent'; // Ẩn placeholder của browser
+      }
+    };
+    
+    // Lắng nghe sự kiện change và input
+    dateInput.addEventListener('change', updateFormatDisplay);
+    dateInput.addEventListener('input', updateFormatDisplay);
+    dateInput.addEventListener('focus', () => {
+      dateInput.style.color = 'transparent'; // Giữ ẩn khi focus
+    });
+    dateInput.addEventListener('blur', updateFormatDisplay);
+    
+    // Update lần đầu
+    updateFormatDisplay();
+  }
+
+  /**
+   * Function để cập nhật các báo cáo tháng 12/2025
+   * - Đổi trạng thái thành "Đã giải quyết"
+   * - Set ngày giải quyết = ngày báo cáo + random thời gian < 2 giờ
+   * - Lấy ảnh đã upload (repairedImageUrl nếu có, nếu không thì issueImageUrl)
+   * 
+   * Cách sử dụng: Gọi từ Console: updateDecemberReports()
+   */
+  window.updateDecemberReports = async function() {
+    try {
+      if (!db || !canvasAppId) {
+        throw new Error('Firebase chưa được khởi tạo. Vui lòng đảm bảo bạn đã đăng nhập.');
+      }
+
+      console.log('🔍 Đang tìm các báo cáo tháng 12/2025...');
+
+      // Tạo khoảng thời gian: 1/12/2025 00:00:00 đến 31/12/2025 23:59:59
+      const startDate = new Date('2025-12-01T00:00:00');
+      const endDate = new Date('2025-12-31T23:59:59');
+
+      // Query Firestore
+      const reportsRef = collection(db, `/artifacts/${canvasAppId}/public/data/issueReports`);
+      const q = query(
+        reportsRef,
+        where('reportDate', '>=', startDate.toISOString()),
+        where('reportDate', '<=', endDate.toISOString())
+      );
+
+      const snapshot = await getDocs(q);
+      const reports = [];
+
+      snapshot.forEach((docSnap) => {
+        const data = docSnap.data();
+        reports.push({
+          id: docSnap.id,
+          ...data
+        });
+      });
+
+      console.log(`✅ Tìm thấy ${reports.length} báo cáo trong tháng 12/2025`);
+
+      if (reports.length === 0) {
+        console.log('⚠️ Không có báo cáo nào để cập nhật.');
+        return;
+      }
+
+      // Hiển thị danh sách báo cáo sẽ được cập nhật
+      console.table(reports.map(r => ({
+        ID: r.id,
+        'Ngày báo cáo': r.reportDate,
+        'Trạng thái hiện tại': r.status,
+        'Chi nhánh': r.issueBranch || 'N/A',
+        'Vị trí': r.issueLocation || 'N/A'
+      })));
+
+      // Xác nhận trước khi cập nhật
+      const confirmMessage = `Bạn có chắc muốn cập nhật ${reports.length} báo cáo?\n\n` +
+        `- Trạng thái: "Đã giải quyết"\n` +
+        `- Ngày giải quyết: Ngày báo cáo + random < 2 giờ\n` +
+        `- Ảnh: Lấy ảnh đã upload (repairedImageUrl hoặc issueImageUrl)`;
+
+      if (!confirm(confirmMessage)) {
+        console.log('❌ Đã hủy cập nhật.');
+        return;
+      }
+
+      console.log('🔄 Đang cập nhật...');
+
+      let successCount = 0;
+      let errorCount = 0;
+      const errors = [];
+
+      // Cập nhật từng báo cáo
+      for (const report of reports) {
+        try {
+          const reportDate = new Date(report.reportDate);
+
+          // Tạo ngày giải quyết = ngày báo cáo + random thời gian < 2 giờ (0-120 phút)
+          const randomMinutes = Math.floor(Math.random() * 120); // 0-119 phút
+          const resolvedDate = new Date(reportDate.getTime() + randomMinutes * 60 * 1000);
+
+          // Lấy ảnh: ưu tiên repairedImageUrl, nếu không có thì dùng issueImageUrl
+          let imageUrl = report.repairedImageUrl || report.issueImageUrl || null;
+
+          // Chuẩn bị dữ liệu cập nhật
+          const updateData = {
+            status: 'Đã giải quyết',
+            resolvedDate: resolvedDate.toISOString()
+          };
+
+          // Nếu có ảnh và chưa có repairedImageUrl, set repairedImageUrl
+          if (imageUrl && !report.repairedImageUrl) {
+            updateData.repairedImageUrl = imageUrl;
+          }
+
+          // Nếu chưa có resolverId, set resolverId và resolverName
+          if (!report.resolverId) {
+            updateData.resolverId = report.reporterId || null;
+            updateData.resolverName = report.reporterName || null;
+          }
+
+          // Cập nhật document
+          const docRef = doc(db, `/artifacts/${canvasAppId}/public/data/issueReports`, report.id);
+          await updateDoc(docRef, updateData);
+
+          successCount++;
+          console.log(`✅ [${successCount}/${reports.length}] Đã cập nhật báo cáo ${report.id}`);
+
+          // Delay nhỏ để tránh rate limit
+          await new Promise(resolve => setTimeout(resolve, 100));
+
+        } catch (error) {
+          errorCount++;
+          errors.push({
+            reportId: report.id,
+            error: error.message
+          });
+          console.error(`❌ Lỗi khi cập nhật báo cáo ${report.id}:`, error);
+        }
+      }
+
+      // Tóm tắt kết quả
+      console.log('\n📊 TÓM TẮT:');
+      console.log(`✅ Thành công: ${successCount}/${reports.length}`);
+      console.log(`❌ Lỗi: ${errorCount}/${reports.length}`);
+
+      if (errors.length > 0) {
+        console.log('\n❌ Chi tiết lỗi:');
+        console.table(errors);
+      }
+
+      console.log('\n✨ Hoàn tất! Vui lòng refresh trang để xem kết quả.');
+
+    } catch (error) {
+      console.error('❌ Lỗi khi chạy script:', error);
+      console.error('   Error code:', error.code);
+      console.error('   Error message:', error.message);
+    }
+  };
