@@ -12045,8 +12045,8 @@
    * Ẩn placeholder mặc định mm/dd/yyyy của browser
    */
   /**
-   * Function đơn giản - chỉ xử lý wrapper cho flex-1, không thêm hint
-   * Để browser hiển thị date input bình thường
+   * Function để format date input hiển thị dd/mm/yyyy
+   * Ẩn text của browser và hiển thị format đúng trong span overlay
    */
   function setupDateInputFormat(dateInput) {
     if (!dateInput || dateInput.type !== 'date') return;
@@ -12054,16 +12054,56 @@
     // Kiểm tra xem input có class flex-1 không (như trong activity log)
     const hasFlex1 = dateInput.classList.contains('flex-1');
     
-    // Chỉ tạo wrapper nếu input có flex-1 (để tránh layout bị lỗi)
-    if (hasFlex1 && !dateInput.parentElement.classList.contains('date-input-wrapper')) {
+    // Tạo wrapper nếu chưa có
+    if (!dateInput.parentElement.classList.contains('date-input-wrapper')) {
       const wrapper = document.createElement('div');
-      wrapper.className = 'date-input-wrapper relative flex-1';
-      dateInput.classList.remove('flex-1');
+      wrapper.className = 'date-input-wrapper relative';
+      if (hasFlex1) {
+        wrapper.classList.add('flex-1');
+        dateInput.classList.remove('flex-1');
+      }
       dateInput.parentNode.insertBefore(wrapper, dateInput);
       wrapper.appendChild(dateInput);
     }
     
-    // Không thêm hint, để browser hiển thị bình thường
+    // Ẩn text của browser
+    dateInput.style.color = 'transparent';
+    dateInput.style.caretColor = '#475569';
+    
+    // Tạo span để hiển thị format dd/mm/yyyy
+    const container = dateInput.parentElement;
+    let formatSpan = container.querySelector('.date-format-overlay');
+    if (!formatSpan) {
+      formatSpan = document.createElement('span');
+      formatSpan.className = 'date-format-overlay absolute left-3 top-1/2 transform -translate-y-1/2 text-sm text-slate-700 pointer-events-none z-10';
+      container.appendChild(formatSpan);
+    }
+    
+    // Format date value
+    const formatDate = (dateString) => {
+      if (!dateString) return 'dd/mm/yyyy';
+      const date = new Date(dateString + 'T00:00:00');
+      const day = String(date.getDate()).padStart(2, '0');
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const year = date.getFullYear();
+      return `${day}/${month}/${year}`;
+    };
+    
+    // Update display
+    const updateDisplay = () => {
+      formatSpan.textContent = formatDate(dateInput.value);
+      if (dateInput.value) {
+        formatSpan.classList.remove('text-slate-400');
+        formatSpan.classList.add('text-slate-700');
+      } else {
+        formatSpan.classList.remove('text-slate-700');
+        formatSpan.classList.add('text-slate-400');
+      }
+    };
+    
+    dateInput.addEventListener('change', updateDisplay);
+    dateInput.addEventListener('input', updateDisplay);
+    updateDisplay();
   }
 
   /**

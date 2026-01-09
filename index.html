@@ -43,9 +43,20 @@
       color: #475569;
     }
     /* Date input - không ẩn text, chỉ dùng span để hiển thị format hint */
-    /* Date input wrapper - chỉ để xử lý layout */
+    /* Date input - ẩn text browser, hiển thị format dd/mm/yyyy */
     .date-input-wrapper {
       position: relative;
+    }
+    input[type="date"] {
+      color: transparent;
+    }
+    input[type="date"]:focus {
+      color: transparent;
+      caret-color: #475569;
+    }
+    .date-format-overlay {
+      pointer-events: none;
+      user-select: none;
     }
   </style>
 </head>
