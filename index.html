@@ -42,39 +42,10 @@
     .activity-time-btn:hover {
       color: #475569;
     }
-    /* Ẩn placeholder mặc định của date input và hiển thị format dd/mm/yyyy */
-    input[type="date"] {
-      color: transparent;
-    }
-    input[type="date"]:focus {
-      color: transparent;
-      caret-color: #475569;
-    }
-    input[type="date"]::-webkit-calendar-picker-indicator {
-      cursor: pointer;
-      z-index: 1;
-      opacity: 1;
-    }
+    /* Date input - không ẩn text, chỉ dùng span để hiển thị format hint */
+    /* Date input wrapper - chỉ để xử lý layout */
     .date-input-wrapper {
       position: relative;
-    }
-    .date-format-display {
-      pointer-events: none;
-      user-select: none;
-    }
-    /* Responsive cho date input trên mobile */
-    @media (max-width: 640px) {
-      .date-format-display {
-        font-size: 0.65rem;
-        left: 0.5rem;
-      }
-      .date-input-wrapper input[type="date"] {
-        padding-right: 2.5rem;
-      }
-      input[type="date"]::-webkit-calendar-picker-indicator {
-        width: 1.5rem;
-        height: 1.5rem;
-      }
     }
   </style>
 </head>

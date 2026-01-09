@@ -12044,74 +12044,26 @@
    * Thêm một span hiển thị format dd/mm/yyyy bên cạnh input
    * Ẩn placeholder mặc định mm/dd/yyyy của browser
    */
+  /**
+   * Function đơn giản - chỉ xử lý wrapper cho flex-1, không thêm hint
+   * Để browser hiển thị date input bình thường
+   */
   function setupDateInputFormat(dateInput) {
     if (!dateInput || dateInput.type !== 'date') return;
     
     // Kiểm tra xem input có class flex-1 không (như trong activity log)
     const hasFlex1 = dateInput.classList.contains('flex-1');
     
-    // Luôn tạo wrapper riêng cho mỗi input để tránh span bị đè lên nhau
-    // Nếu input có flex-1, giữ nguyên class đó trên wrapper
-    if (!dateInput.parentElement.classList.contains('date-input-wrapper')) {
+    // Chỉ tạo wrapper nếu input có flex-1 (để tránh layout bị lỗi)
+    if (hasFlex1 && !dateInput.parentElement.classList.contains('date-input-wrapper')) {
       const wrapper = document.createElement('div');
-      wrapper.className = 'date-input-wrapper relative';
-      if (hasFlex1) {
-        wrapper.classList.add('flex-1');
-        dateInput.classList.remove('flex-1'); // Di chuyển flex-1 từ input sang wrapper
-      }
+      wrapper.className = 'date-input-wrapper relative flex-1';
+      dateInput.classList.remove('flex-1');
       dateInput.parentNode.insertBefore(wrapper, dateInput);
       wrapper.appendChild(dateInput);
     }
     
-    // Ẩn placeholder mặc định của browser bằng CSS
-    dateInput.style.color = 'transparent';
-    dateInput.style.caretColor = '#475569'; // Giữ màu caret khi focus
-    
-    // Thêm span để hiển thị format dd/mm/yyyy vào wrapper
-    const container = dateInput.parentElement;
-    let formatSpan = container.querySelector('.date-format-display');
-    if (!formatSpan) {
-      formatSpan = document.createElement('span');
-      formatSpan.className = 'date-format-display absolute left-3 top-1/2 transform -translate-y-1/2 text-xs text-slate-400 pointer-events-none z-10 sm:left-3';
-      formatSpan.textContent = 'dd/mm/yyyy';
-      container.appendChild(formatSpan);
-    }
-    
-    // Format date value khi user chọn
-    const formatDateValue = (dateString) => {
-      if (!dateString) return '';
-      const date = new Date(dateString + 'T00:00:00');
-      const day = String(date.getDate()).padStart(2, '0');
-      const month = String(date.getMonth() + 1).padStart(2, '0');
-      const year = date.getFullYear();
-      return `${day}/${month}/${year}`;
-    };
-    
-    // Update format display khi value thay đổi
-    const updateFormatDisplay = () => {
-      if (dateInput.value) {
-        formatSpan.textContent = formatDateValue(dateInput.value);
-        formatSpan.classList.remove('text-slate-400');
-        formatSpan.classList.add('text-slate-600', 'font-medium');
-        dateInput.style.color = 'transparent'; // Ẩn text của browser
-      } else {
-        formatSpan.textContent = 'dd/mm/yyyy';
-        formatSpan.classList.remove('text-slate-600', 'font-medium');
-        formatSpan.classList.add('text-slate-400');
-        dateInput.style.color = 'transparent'; // Ẩn placeholder của browser
-      }
-    };
-    
-    // Lắng nghe sự kiện change và input
-    dateInput.addEventListener('change', updateFormatDisplay);
-    dateInput.addEventListener('input', updateFormatDisplay);
-    dateInput.addEventListener('focus', () => {
-      dateInput.style.color = 'transparent'; // Giữ ẩn khi focus
-    });
-    dateInput.addEventListener('blur', updateFormatDisplay);
-    
-    // Update lần đầu
-    updateFormatDisplay();
+    // Không thêm hint, để browser hiển thị bình thường
   }
 
   /**
@@ -12128,7 +12080,17 @@
         throw new Error('Firebase chưa được khởi tạo. Vui lòng đảm bảo bạn đã đăng nhập.');
       }
 
+      // Kiểm tra user đã đăng nhập chưa
+      if (!currentUser || !currentUserProfile) {
+        throw new Error('Bạn chưa đăng nhập. Vui lòng đăng nhập trước khi chạy script.');
+      }
+
+      // Lấy thông tin admin hiện tại làm người giải quyết
+      const resolverId = currentUser.uid;
+      const resolverName = currentUserProfile.displayName || currentUserProfile.email || 'Admin';
+
       console.log('🔍 Đang tìm các báo cáo tháng 12/2025...');
+      console.log(`👤 Người giải quyết: ${resolverName} (${resolverId})`);
 
       // Tạo khoảng thời gian: 1/12/2025 00:00:00 đến 31/12/2025 23:59:59
       const startDate = new Date('2025-12-01T00:00:00');
@@ -12172,6 +12134,7 @@
       // Xác nhận trước khi cập nhật
       const confirmMessage = `Bạn có chắc muốn cập nhật ${reports.length} báo cáo?\n\n` +
         `- Trạng thái: "Đã giải quyết"\n` +
+        `- Người giải quyết: ${resolverName}\n` +
         `- Ngày giải quyết: Ngày báo cáo + random < 2 giờ\n` +
         `- Ảnh: Lấy ảnh đã upload (repairedImageUrl hoặc issueImageUrl)`;
 
@@ -12209,11 +12172,9 @@
             updateData.repairedImageUrl = imageUrl;
           }
 
-          // Nếu chưa có resolverId, set resolverId và resolverName
-          if (!report.resolverId) {
-            updateData.resolverId = report.reporterId || null;
-            updateData.resolverName = report.reporterName || null;
-          }
+          // Set resolverId và resolverName = tài khoản admin hiện tại
+          updateData.resolverId = resolverId;
+          updateData.resolverName = resolverName;
 
           // Cập nhật document
           const docRef = doc(db, `/artifacts/${canvasAppId}/public/data/issueReports`, report.id);
