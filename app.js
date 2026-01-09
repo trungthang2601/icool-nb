@@ -443,7 +443,7 @@
     myTasksView: "Nhiệm Vụ Của Tôi",
     manageAccountsView: "Quản Lý Tài Khoản",
     activityLogView: "Nhật Ký Hoạt Động",
-    myProfileView: "Hồ sơ của tôi",
+    myProfileView: "Hồ Sơ Của Tôi",
     manageShiftsView: "Quản Lý Ca Làm Việc",
     attendanceReportView: "Bảng Chấm Công",
   };
@@ -585,7 +585,7 @@
       "mytasks": "Nhiệm Vụ Của Tôi",
       "manageaccounts": "Quản Lý Tài Khoản",
       "activitylog": "Nhật Ký Hoạt Động",
-      "myprofile": "Hồ sơ của tôi",
+      "myprofile": "Hồ Sơ Của Tôi",
       "logout": "Thoát",
       "loading": "Đang tải...",
       "online": "Trực tuyến",
@@ -2092,8 +2092,8 @@
                           <div><label for="filterBranch" class="text-sm font-medium text-slate-600">Chi nhánh</label><select id="filterBranch" class="select-field text-sm mt-1"><option value="">Tất cả</option></select></div>
                           <div><label for="filterIssueType" class="text-sm font-medium text-slate-600">Loại sự cố</label><select id="filterIssueType" class="select-field text-sm mt-1"><option value="">Tất cả</option></select></div>
                           <div><label for="filterEmployee" class="text-sm font-medium text-slate-600">Nhân viên</label><select id="filterEmployee" class="select-field text-sm mt-1"><option value="">Tất cả</option></select></div>
-                          <div><label for="filterStartDate" class="text-sm font-medium text-slate-600">Từ ngày</label><input type="date" id="filterStartDate" class="input-field text-sm mt-1"></div>
-                          <div><label for="filterEndDate" class="text-sm font-medium text-slate-600">Đến ngày</label><input type="date" id="filterEndDate" class="input-field text-sm mt-1"></div>
+                          <div><label for="filterStartDate" class="text-sm font-medium text-slate-600">Từ ngày <span class="text-xs text-slate-400 font-normal">(dd/mm/yyyy)</span></label><input type="date" id="filterStartDate" class="input-field text-sm mt-1"></div>
+                          <div><label for="filterEndDate" class="text-sm font-medium text-slate-600">Đến ngày <span class="text-xs text-slate-400 font-normal">(dd/mm/yyyy)</span></label><input type="date" id="filterEndDate" class="input-field text-sm mt-1"></div>
                           <div class="flex items-end space-x-2"><button id="applyFiltersBtn" class="btn-primary flex-grow">Lọc</button><button id="resetFiltersBtn" class="btn-secondary"><i class="fas fa-undo"></i></button></div>
                       </div>
                       <div class="mt-3 flex flex-wrap items-center gap-2">
@@ -4813,7 +4813,7 @@
     if (myProfileBtn) {
       const icon = myProfileBtn.querySelector("i");
       if (icon) {
-        myProfileBtn.innerHTML = `<i class="${icon.className}"></i>${t("myProfile")}`;
+        myProfileBtn.innerHTML = `<i class="${icon.className}"></i>${t("myprofile")}`;
       }
     }
     
@@ -12094,12 +12094,22 @@
       formatSpan.textContent = formatDate(dateInput.value);
       if (dateInput.value) {
         formatSpan.classList.remove('text-slate-400');
-        formatSpan.classList.add('text-slate-700');
+        formatSpan.classList.add('text-slate-700', 'font-medium');
       } else {
-        formatSpan.classList.remove('text-slate-700');
+        formatSpan.classList.remove('text-slate-700', 'font-medium');
         formatSpan.classList.add('text-slate-400');
       }
     };
+    
+    // Khi mở date picker, làm mờ overlay để user thấy date picker rõ hơn
+    dateInput.addEventListener('focus', () => {
+      formatSpan.style.opacity = '0.3';
+    });
+    
+    dateInput.addEventListener('blur', () => {
+      formatSpan.style.opacity = '1';
+      updateDisplay();
+    });
     
     dateInput.addEventListener('change', updateDisplay);
     dateInput.addEventListener('input', updateDisplay);
