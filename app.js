@@ -3,6 +3,7 @@
     getAuth,
     sendPasswordResetEmail,
     updatePassword,
+    updateEmail,
     signInWithEmailAndPassword,
     onAuthStateChanged,
     signOut,
@@ -1048,71 +1049,25 @@
       return;
     }
     
+    // Xử lý đăng nhập: Nếu email đã là @mail.icool.com.vn thì giữ nguyên, ngược lại tạo từ tên đăng nhập
     let email = input;
     
-    // Nếu input không phải email (không có @), tìm email từ username bằng Cloud Function
-    if (!input.includes("@")) {
-      try {
-        console.log("Đang tìm username:", input);
-        
-        // Sử dụng Cloud Function để tìm email từ username
-        const getEmailFromUsername = httpsCallable(functions, "getEmailFromUsername");
-        const result = await getEmailFromUsername({ 
-          username: input.trim(),
-          appId: canvasAppId 
-        });
-        
-        if (result.data && result.data.email) {
-          email = result.data.email;
-          console.log("Tìm thấy email từ Cloud Function:", email);
-        } else {
-          authMessage.textContent = "Tên đăng nhập hoặc mật khẩu không đúng.";
-          authMessage.className = "p-3 rounded-lg text-sm text-center alert-error";
-          authMessage.classList.remove("hidden");
-          return;
-        }
-      } catch (error) {
-        console.error("Lỗi khi tìm username:", error);
-        
-        // Xử lý các loại lỗi khác nhau
-        if (error.code === "functions/not-found" || error.message.includes("not-found") || error.message.includes("not found")) {
-          authMessage.textContent = "Tên đăng nhập hoặc mật khẩu không đúng.";
-          authMessage.className = "p-3 rounded-lg text-sm text-center alert-error";
-          authMessage.classList.remove("hidden");
-          return;
-        } else if (error.code === "functions/unavailable" || error.message.includes("unavailable")) {
-          authMessage.textContent = "Dịch vụ tạm thời không khả dụng. Vui lòng thử lại sau hoặc sử dụng email để đăng nhập.";
-          authMessage.className = "p-3 rounded-lg text-sm text-center alert-error";
-          authMessage.classList.remove("hidden");
-          return;
-        } else {
-          // Lỗi khác - thử fallback: query trực tiếp Firestore (nếu có quyền)
-          try {
-            console.log("Thử fallback: query Firestore trực tiếp");
-            const usersRef = collection(db, `/artifacts/${canvasAppId}/users`);
-            const q = query(usersRef, where("displayName", "==", input.trim()));
-            const querySnapshot = await getDocs(q);
-            
-            if (!querySnapshot.empty) {
-              const userDoc = querySnapshot.docs[0];
-              const userData = userDoc.data();
-              email = userData.email;
-              console.log("Tìm thấy email từ Firestore (fallback):", email);
-            } else {
-              authMessage.textContent = "Tên đăng nhập hoặc mật khẩu không đúng.";
-              authMessage.className = "p-3 rounded-lg text-sm text-center alert-error";
-              authMessage.classList.remove("hidden");
-              return;
-            }
-          } catch (fallbackError) {
-            console.error("Fallback cũng thất bại:", fallbackError);
-            authMessage.textContent = `Lỗi khi tìm tên đăng nhập: ${error.message || error.code || "Lỗi không xác định"}. Vui lòng sử dụng email để đăng nhập.`;
-            authMessage.className = "p-3 rounded-lg text-sm text-center alert-error";
-            authMessage.classList.remove("hidden");
-            return;
-          }
-        }
+    if (input.includes("@")) {
+      // Nếu có @, kiểm tra xem có phải là @mail.icool.com.vn không
+      if (input.endsWith("@mail.icool.com.vn")) {
+        // Email đã đúng định dạng, giữ nguyên
+        email = input;
+        console.log("Email đã đúng định dạng, giữ nguyên:", email);
+      } else {
+        // Email khác, lấy phần trước @ và tạo lại
+        const username = input.split("@")[0].trim();
+        email = `${username}@mail.icool.com.vn`;
+        console.log("Chuyển đổi email:", input, "->", email);
       }
+    } else {
+      // Không có @, tạo email từ tên đăng nhập
+      email = `${input.trim()}@mail.icool.com.vn`;
+      console.log("Tạo email từ tên đăng nhập:", email);
     }
     
     // Đăng nhập bằng email
@@ -1124,7 +1079,7 @@
       console.error("Lỗi đăng nhập:", error);
       authMessage.textContent = `Lỗi đăng nhập: ${
         error.code === "auth/invalid-credential"
-          ? "Tên đăng nhập/email hoặc mật khẩu không đúng."
+          ? "Tên đăng nhập hoặc mật khẩu không đúng."
           : error.message
       }`;
       authMessage.className = "p-3 rounded-lg text-sm text-center alert-error";
@@ -8694,13 +8649,16 @@
     if (!currentUser || !currentUserProfile || !myProfileModal) return;
 
     const displayNameInput = myProfileModal.querySelector("#profileDisplayName");
+    const emailInput = myProfileModal.querySelector("#profileEmail");
     const messageEl = myProfileModal.querySelector("#profileUpdateMessage");
     const updateBtn = myProfileModal.querySelector("#updateProfileBtn");
 
-    if (!displayNameInput || !messageEl || !updateBtn) return;
+    if (!displayNameInput || !emailInput || !messageEl || !updateBtn) return;
 
     const newDisplayName = displayNameInput.value.trim();
+    const newEmail = emailInput.value.trim();
 
+    // Validation
     if (!newDisplayName) {
       messageEl.className = "p-3 rounded-lg text-sm alert-error";
       messageEl.textContent = "Vui lòng nhập tên hiển thị.";
@@ -8708,9 +8666,29 @@
       return;
     }
 
-    if (newDisplayName === currentUserProfile.displayName) {
+    if (!newEmail) {
+      messageEl.className = "p-3 rounded-lg text-sm alert-error";
+      messageEl.textContent = "Vui lòng nhập email.";
+      messageEl.classList.remove("hidden");
+      return;
+    }
+
+    // Kiểm tra email hợp lệ
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(newEmail)) {
+      messageEl.className = "p-3 rounded-lg text-sm alert-error";
+      messageEl.textContent = "Email không hợp lệ.";
+      messageEl.classList.remove("hidden");
+      return;
+    }
+
+    // Kiểm tra xem có thay đổi gì không
+    const displayNameChanged = newDisplayName !== currentUserProfile.displayName;
+    const emailChanged = newEmail !== (currentUserProfile.email || currentUser.email);
+
+    if (!displayNameChanged && !emailChanged) {
       messageEl.className = "p-3 rounded-lg text-sm alert-info";
-      messageEl.textContent = "Tên hiển thị không thay đổi.";
+      messageEl.textContent = "Không có thay đổi nào.";
       messageEl.classList.remove("hidden");
       setTimeout(() => {
         messageEl.classList.add("hidden");
@@ -8722,17 +8700,59 @@
     updateBtn.innerHTML = `<i class="fas fa-spinner fa-spin mr-2"></i>Đang cập nhật...`;
 
     try {
-      const userDocRef = doc(db, `/artifacts/${canvasAppId}/users/${currentUser.uid}`);
-      await updateDoc(userDocRef, { displayName: newDisplayName });
-      await logActivity("Update Own Profile", { field: "displayName", newValue: newDisplayName }, "profile");
+      const updates = {};
+      const activityLogs = [];
 
-      // Update local state
-      currentUserProfile.displayName = newDisplayName;
-      loggedInUserDisplay.textContent = newDisplayName;
-      dropdownUserName.textContent = newDisplayName;
+      // Cập nhật displayName nếu thay đổi
+      if (displayNameChanged) {
+        updates.displayName = newDisplayName;
+        activityLogs.push({ field: "displayName", newValue: newDisplayName });
+      }
+
+      // Cập nhật email nếu thay đổi
+      if (emailChanged) {
+        // Cập nhật email trong Firebase Auth
+        await updateEmail(currentUser, newEmail);
+        // Cập nhật email trong Firestore
+        updates.email = newEmail;
+        activityLogs.push({ field: "email", newValue: newEmail });
+        
+        // Tự động cập nhật loginName từ email (lấy phần trước @)
+        if (newEmail.includes("@")) {
+          const newLoginName = newEmail.split("@")[0];
+          updates.loginName = newLoginName;
+        }
+      }
+
+      // Cập nhật Firestore
+      if (Object.keys(updates).length > 0) {
+        const userDocRef = doc(db, `/artifacts/${canvasAppId}/users/${currentUser.uid}`);
+        await updateDoc(userDocRef, updates);
+      }
+
+      // Ghi log hoạt động
+      for (const log of activityLogs) {
+        await logActivity("Update Own Profile", log, "profile");
+      }
+
+      // Reload user profile từ Firestore để đảm bảo đồng bộ hoàn toàn
+      // (Firebase Auth đã tự động cập nhật currentUser.email, nhưng cần reload currentUserProfile từ Firestore)
+      if (emailChanged || displayNameChanged) {
+        await fetchAndSetUserProfile(currentUser.uid, currentUser);
+      }
+
+      // Update local state và UI
+      if (displayNameChanged) {
+        loggedInUserDisplay.textContent = currentUserProfile.displayName;
+        dropdownUserName.textContent = currentUserProfile.displayName;
+      }
+
+      const successMessages = [];
+      if (displayNameChanged) successMessages.push("tên hiển thị");
+      if (emailChanged) successMessages.push("email");
 
       messageEl.className = "p-3 rounded-lg text-sm alert-success";
-      messageEl.textContent = "Cập nhật tên hiển thị thành công!";
+      messageEl.textContent = `Cập nhật ${successMessages.join(" và ")} thành công!`;
       messageEl.classList.remove("hidden");
 
       setTimeout(() => {
@@ -8741,7 +8761,18 @@
     } catch (error) {
       console.error("Error updating profile:", error);
       messageEl.className = "p-3 rounded-lg text-sm alert-error";
-      messageEl.textContent = `Lỗi: ${error.message}`;
+      
+      // Xử lý các lỗi phổ biến
+      let errorMessage = error.message;
+      if (error.code === "auth/email-already-in-use") {
+        errorMessage = "Email này đã được sử dụng bởi tài khoản khác.";
+      } else if (error.code === "auth/invalid-email") {
+        errorMessage = "Email không hợp lệ.";
+      } else if (error.code === "auth/requires-recent-login") {
+        errorMessage = "Vui lòng đăng nhập lại để thay đổi email.";
+      }
+      
+      messageEl.textContent = `Lỗi: ${errorMessage}`;
       messageEl.classList.remove("hidden");
     } finally {
       updateBtn.disabled = false;
@@ -8843,7 +8874,8 @@
 
   async function handleCreateAccount() {
     // Lấy thêm vai trò (role) từ dropdown mới
-    const email = mainContentContainer.querySelector("#createAccountEmail").value.trim();
+    const loginName = mainContentContainer.querySelector("#createAccountLoginName")?.value.trim() || "";
+    const emailInput = mainContentContainer.querySelector("#createAccountEmail")?.value.trim() || "";
     const password = mainContentContainer.querySelector("#createAccountPassword").value;
     const displayName = mainContentContainer.querySelector("#createAccountUsername").value.trim();
     const role = mainContentContainer.querySelector("#createAccountRole").value;
@@ -8854,10 +8886,33 @@
     let employeeId = employeeIdInput.value.trim();
     const branch = branchSelect?.value || "";
 
+    // Xác định email từ tên đăng nhập hoặc email nhập vào
+    let email = "";
+    let finalLoginName = "";
+    
+    if (emailInput) {
+      // Nếu có email nhập vào, dùng email đó (có thể là email tùy chỉnh)
+      email = emailInput;
+      // Lấy phần trước @ làm tên đăng nhập
+      finalLoginName = emailInput.includes("@") ? emailInput.split("@")[0] : emailInput;
+    } else if (loginName) {
+      // Nếu không có email nhưng có tên đăng nhập, tạo email từ đó
+      finalLoginName = loginName;
+      email = `${loginName}@mail.icool.com.vn`;
+    }
+
     // --- LOGIC VALIDATION MỚI ---
     let validationError = "";
     if (!email || password.length < 6 || !displayName) {
       validationError = "Vui lòng điền đầy đủ Email, Mật khẩu (tối thiểu 6 ký tự), và Tên người dùng.";
+    }
+    
+    // Nếu có tên đăng nhập, cập nhật finalLoginName
+    if (loginName) {
+      finalLoginName = loginName;
+    } else if (email && !finalLoginName) {
+      // Nếu không có tên đăng nhập, lấy từ email
+      finalLoginName = email.includes("@") ? email.split("@")[0] : email;
     }
 
     // Chỉ yêu cầu MSNV nếu vai trò KHÔNG PHẢI "Chi nhánh"
@@ -8914,6 +8969,7 @@
       const newUserProfile = {
         email: email,
         displayName: displayName,
+        loginName: finalLoginName, // Lưu tên đăng nhập để tra cứu sau này
         employeeId: employeeId,
         role: role,
         allowedViews: DEFAULT_VIEWS[role] || DEFAULT_VIEWS["Nhân viên"],
@@ -8947,10 +9003,15 @@
       await loadUsersIntoCache();
       
       // 8. Hiển thị thông báo thành công và xóa form
-      messageEl.textContent = `Tạo tài khoản ${email} (vai trò: ${role}) thành công! Tài khoản đã sẵn sàng. Người dùng có thể đăng nhập và sẽ được yêu cầu đổi mật khẩu lần đầu.`;
+      const successMessage = finalLoginName 
+        ? `Tạo tài khoản "${finalLoginName}" (${email}, vai trò: ${role}) thành công! Người dùng có thể đăng nhập bằng tên đăng nhập "${finalLoginName}" và sẽ được yêu cầu đổi mật khẩu lần đầu.`
+        : `Tạo tài khoản ${email} (vai trò: ${role}) thành công! Tài khoản đã sẵn sàng. Người dùng có thể đăng nhập và sẽ được yêu cầu đổi mật khẩu lần đầu.`;
+      messageEl.textContent = successMessage;
       messageEl.className = "p-3 rounded-lg text-sm text-center alert-success";
       messageEl.classList.remove("hidden");
       
+      const loginNameInput = mainContentContainer.querySelector("#createAccountLoginName");
+      if (loginNameInput) loginNameInput.value = "";
       mainContentContainer.querySelector("#createAccountEmail").value = "";
       mainContentContainer.querySelector("#createAccountPassword").value = "";
       mainContentContainer.querySelector("#createAccountUsername").value = "";
@@ -12135,12 +12196,45 @@
         throw new Error('Bạn chưa đăng nhập. Vui lòng đăng nhập trước khi chạy script.');
       }
 
-      // Lấy thông tin admin hiện tại làm người giải quyết
-      const resolverId = currentUser.uid;
-      const resolverName = currentUserProfile.displayName || currentUserProfile.email || 'Admin';
+      // Tìm UID của 2 nhân viên theo chi nhánh
+      console.log('🔍 Đang tìm thông tin nhân viên...');
+      const usersRef = collection(db, `/artifacts/${canvasAppId}/users`);
+      const usersSnapshot = await getDocs(usersRef);
+      
+      let macDinhChiResolverId = null;
+      let macDinhChiResolverName = 'Nguyễn Đoàn Khắc Huy';
+      let xvntResolverId = null;
+      let xvntResolverName = 'Lê Văn Tú';
+      
+      usersSnapshot.forEach((doc) => {
+        const userData = doc.data();
+        if (userData.displayName === 'Nguyễn Đoàn Khắc Huy') {
+          macDinhChiResolverId = doc.id;
+        }
+        if (userData.displayName === 'Lê Văn Tú') {
+          xvntResolverId = doc.id;
+        }
+      });
+      
+      if (!macDinhChiResolverId) {
+        console.warn(`⚠️ Không tìm thấy nhân viên "Nguyễn Đoàn Khắc Huy". Sẽ dùng tên thay vì UID.`);
+      }
+      if (!xvntResolverId) {
+        console.warn(`⚠️ Không tìm thấy nhân viên "Lê Văn Tú". Sẽ dùng tên thay vì UID.`);
+      }
+
+      // Lấy thông tin admin hiện tại làm người giải quyết mặc định
+      const defaultResolverId = currentUser.uid;
+      const defaultResolverName = currentUserProfile.displayName || currentUserProfile.email || 'Admin';
 
       console.log('🔍 Đang tìm các báo cáo tháng 12/2025...');
-      console.log(`👤 Người giải quyết: ${resolverName} (${resolverId})`);
+      console.log(`👤 Người giải quyết mặc định: ${defaultResolverName}`);
+      if (macDinhChiResolverId) {
+        console.log(`👤 MẠC ĐĨNH CHI: ${macDinhChiResolverName} (${macDinhChiResolverId})`);
+      }
+      if (xvntResolverId) {
+        console.log(`👤 XÔ VIẾT NGHỆ TĨNH: ${xvntResolverName} (${xvntResolverId})`);
+      }
 
       // Tạo khoảng thời gian: 1/12/2025 00:00:00 đến 31/12/2025 23:59:59
       const startDate = new Date('2025-12-01T00:00:00');
@@ -12181,11 +12275,27 @@
         'Vị trí': r.issueLocation || 'N/A'
       })));
 
+      // Đếm số báo cáo theo chi nhánh
+      const macDinhChiCount = reports.filter(r => (r.issueBranch || '').includes('MẠC ĐĨNH CHI') || r.issueBranch === 'ICOOL MẠC ĐĨNH CHI').length;
+      const xvntCount = reports.filter(r => (r.issueBranch || '').includes('XÔ VIẾT NGHỆ TĨNH') || r.issueBranch === 'ICOOL XÔ VIẾT NGHỆ TĨNH' || (r.issueBranch || '').includes('XVNT')).length;
+      const otherCount = reports.length - macDinhChiCount - xvntCount;
+      
       // Xác nhận trước khi cập nhật
+      let resolverInfo = '';
+      if (macDinhChiCount > 0) {
+        resolverInfo += `\n- MẠC ĐĨNH CHI (${macDinhChiCount} báo cáo): ${macDinhChiResolverName}`;
+      }
+      if (xvntCount > 0) {
+        resolverInfo += `\n- XÔ VIẾT NGHỆ TĨNH (${xvntCount} báo cáo): ${xvntResolverName}`;
+      }
+      if (otherCount > 0) {
+        resolverInfo += `\n- Chi nhánh khác (${otherCount} báo cáo): ${defaultResolverName}`;
+      }
+      
       const confirmMessage = `Bạn có chắc muốn cập nhật ${reports.length} báo cáo?\n\n` +
-        `- Trạng thái: "Đã giải quyết"\n` +
-        `- Người giải quyết: ${resolverName}\n` +
-        `- Ngày giải quyết: Ngày báo cáo + random < 2 giờ\n` +
+        `- Trạng thái: "Đã giải quyết"` +
+        resolverInfo +
+        `\n- Ngày giải quyết: Ngày báo cáo + random < 2 giờ\n` +
         `- Ảnh: Lấy ảnh đã upload (repairedImageUrl hoặc issueImageUrl)`;
 
       if (!confirm(confirmMessage)) {
@@ -12222,7 +12332,22 @@
             updateData.repairedImageUrl = imageUrl;
           }
 
-          // Set resolverId và resolverName = tài khoản admin hiện tại
+          // Xác định người giải quyết dựa trên chi nhánh
+          let resolverId, resolverName;
+          const branch = report.issueBranch || '';
+          
+          if (branch.includes('MẠC ĐĨNH CHI') || branch === 'ICOOL MẠC ĐĨNH CHI') {
+            resolverId = macDinhChiResolverId || null;
+            resolverName = macDinhChiResolverName;
+          } else if (branch.includes('XÔ VIẾT NGHỆ TĨNH') || branch === 'ICOOL XÔ VIẾT NGHỆ TĨNH' || branch.includes('XVNT')) {
+            resolverId = xvntResolverId || null;
+            resolverName = xvntResolverName;
+          } else {
+            // Các chi nhánh khác dùng admin hiện tại
+            resolverId = defaultResolverId;
+            resolverName = defaultResolverName;
+          }
+          
           updateData.resolverId = resolverId;
           updateData.resolverName = resolverName;
 

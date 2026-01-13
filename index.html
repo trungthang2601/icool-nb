@@ -90,8 +90,8 @@
         </h2>
       </div>
       <div>
-        <label for="authEmail" class="block text-slate-700 text-sm font-medium mb-2">Email:</label><input type="email"
-          id="authEmail" class="input-field" placeholder="email@example.com" />
+        <label for="authEmail" class="block text-slate-700 text-sm font-medium mb-2">Tên đăng nhập:</label><input type="text"
+          id="authEmail" class="input-field" placeholder="Tên đăng nhập" />
       </div>
       <div>
         <label for="authPassword" class="block text-slate-700 text-sm font-medium mb-2">Mật khẩu:</label><input
@@ -259,15 +259,23 @@
           </h3>
           <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label class="font-medium text-sm">Email:</label><input type="email" id="createAccountEmail"
-                class="input-field" autocomplete="off" />
+              <label class="font-medium text-sm">Email <span class="text-red-500">*</span>:</label>
+              <input type="email" id="createAccountEmail" class="input-field" 
+                placeholder="user@example.com hoặc user@mail.icool.com.vn" autocomplete="off" />
+              <p class="text-xs text-slate-500 mt-1">Có thể nhập email tùy chỉnh hoặc email @mail.icool.com.vn</p>
             </div>
             <div>
-              <label class="font-medium text-sm">Mật khẩu (tối thiểu 6 ký tự):</label><input type="password"
+              <label class="font-medium text-sm">Mật khẩu (tối thiểu 6 ký tự) <span class="text-red-500">*</span>:</label><input type="password"
                 id="createAccountPassword" class="input-field" autocomplete="new-password" />
             </div>
             <div>
-              <label class="font-medium text-sm">Tên người dùng:</label><input type="text" id="createAccountUsername"
+              <label class="font-medium text-sm">Tên đăng nhập (tùy chọn - để đăng nhập bằng tên thay vì email):</label>
+              <input type="text" id="createAccountLoginName" class="input-field" 
+                placeholder="Ví dụ: Hoangnh2787" autocomplete="off" />
+              <p class="text-xs text-slate-500 mt-1">Nếu để trống, sẽ tự động lấy phần trước @ của email</p>
+            </div>
+            <div>
+              <label class="font-medium text-sm">Tên người dùng <span class="text-red-500">*</span>:</label><input type="text" id="createAccountUsername"
                 class="input-field" autocomplete="off" />
             </div>
             
@@ -1335,7 +1343,8 @@
                 <label for="profileEmail" class="block text-slate-600 text-sm font-medium mb-2">
                   Email:
                 </label>
-                <input type="email" id="profileEmail" class="input-field bg-slate-100" disabled />
+                <input type="email" id="profileEmail" class="input-field" />
+                <p class="text-xs text-slate-500 mt-1">Có thể thay đổi email của bạn tại đây</p>
               </div>
               <div>
                 <label for="profileEmployeeId" class="block text-slate-600 text-sm font-medium mb-2">
