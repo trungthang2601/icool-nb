@@ -1049,7 +1049,10 @@
       return;
     }
     
-    // Xử lý đăng nhập: Nếu email đã là @mail.icool.com.vn thì giữ nguyên, ngược lại tạo từ tên đăng nhập
+    // Xử lý đăng nhập: 
+    // - Nếu email đã là @mail.icool.com.vn thì giữ nguyên
+    // - Nếu email khác (như @gmail.com) thì giữ nguyên email đó
+    // - Nếu không có @, tìm email từ tên đăng nhập bằng Cloud Function
     let email = input;
     
     if (input.includes("@")) {
@@ -1057,17 +1060,47 @@
       if (input.endsWith("@mail.icool.com.vn")) {
         // Email đã đúng định dạng, giữ nguyên
         email = input;
-        console.log("Email đã đúng định dạng, giữ nguyên:", email);
+        console.log("Email đã đúng định dạng @mail.icool.com.vn, giữ nguyên:", email);
       } else {
-        // Email khác, lấy phần trước @ và tạo lại
-        const username = input.split("@")[0].trim();
-        email = `${username}@mail.icool.com.vn`;
-        console.log("Chuyển đổi email:", input, "->", email);
+        // Email khác (như @gmail.com), giữ nguyên email đó
+        email = input;
+        console.log("Email khác, giữ nguyên:", email);
       }
     } else {
-      // Không có @, tạo email từ tên đăng nhập
-      email = `${input.trim()}@mail.icool.com.vn`;
-      console.log("Tạo email từ tên đăng nhập:", email);
+      // Không có @, tìm email từ tên đăng nhập
+      // Thử query Firestore trực tiếp trước (nếu có quyền)
+      try {
+        console.log("Đang tìm email từ tên đăng nhập:", input);
+        
+        // Query Firestore trực tiếp theo loginName hoặc displayName
+        const usersRef = collection(db, `/artifacts/${canvasAppId}/users`);
+        
+        // Thử tìm theo loginName trước
+        let q = query(usersRef, where("loginName", "==", input.trim()), limit(1));
+        let querySnapshot = await getDocs(q);
+        
+        // Nếu không tìm thấy, thử tìm theo displayName
+        if (querySnapshot.empty) {
+          q = query(usersRef, where("displayName", "==", input.trim()), limit(1));
+          querySnapshot = await getDocs(q);
+        }
+        
+        if (!querySnapshot.empty) {
+          const userDoc = querySnapshot.docs[0];
+          const userData = userDoc.data();
+          email = userData.email;
+          console.log("Tìm thấy email từ Firestore:", email);
+        } else {
+          // Fallback: tạo email từ tên đăng nhập (cho tài khoản @mail.icool.com.vn)
+          email = `${input.trim()}@mail.icool.com.vn`;
+          console.log("Không tìm thấy, sử dụng email mặc định:", email);
+        }
+      } catch (error) {
+        console.error("Lỗi khi tìm email từ tên đăng nhập:", error);
+        // Fallback: tạo email từ tên đăng nhập
+        email = `${input.trim()}@mail.icool.com.vn`;
+        console.log("Fallback: tạo email từ tên đăng nhập:", email);
+      }
     }
     
     // Đăng nhập bằng email
@@ -11524,28 +11557,66 @@
   async function handleSendResetEmail() {
     const emailInput = resetPasswordModal.querySelector("#resetEmail");
     const messageEl = resetPasswordModal.querySelector("#resetPasswordMessage");
+    const sendBtn = resetPasswordModal.querySelector("#sendResetEmailBtn");
     const email = emailInput.value.trim();
 
     if (!email) {
-      messageEl.textContent = "Vui lòng nhập email của bạn.";
+      messageEl.textContent = "Vui lòng nhập email hoặc tên đăng nhập của bạn.";
       messageEl.className = "p-3 rounded-lg text-sm alert-error";
       messageEl.classList.remove("hidden");
       return;
     }
 
+    // Xử lý email: nếu không có @, tạo email từ tên đăng nhập
+    let finalEmail = email;
+    if (!email.includes("@")) {
+      finalEmail = `${email}@mail.icool.com.vn`;
+    }
+
+    // Disable button và hiển thị loading
+    if (sendBtn) {
+      sendBtn.disabled = true;
+      sendBtn.innerHTML = `<i class="fas fa-spinner fa-spin mr-2"></i>Đang xử lý...`;
+    }
+
     try {
-      await sendPasswordResetEmail(auth, email);
-      messageEl.textContent =
-        "Email đặt lại mật khẩu đã được gửi. Vui lòng kiểm tra hộp thư của bạn.";
-      messageEl.className = "p-3 rounded-lg text-sm alert-success";
-      messageEl.classList.remove("hidden");
-      emailInput.value = "";
+      // Gọi Cloud Function để reset mật khẩu về mặc định
+      const resetPasswordToDefault = httpsCallable(functions, "resetPasswordToDefault");
+      const result = await resetPasswordToDefault({
+        email: finalEmail,
+        appId: canvasAppId
+      });
+
+      if (result.data && result.data.success) {
+        messageEl.textContent = result.data.message || "Mật khẩu đã được reset về mặc định (icool123). Vui lòng đăng nhập và đổi mật khẩu.";
+        messageEl.className = "p-3 rounded-lg text-sm alert-success";
+        messageEl.classList.remove("hidden");
+        emailInput.value = "";
+      } else {
+        throw new Error("Không nhận được phản hồi từ server");
+      }
     } catch (error) {
       console.error("Password Reset Error:", error);
-      messageEl.textContent =
-        "Lỗi: Không thể gửi email. Vui lòng kiểm tra lại địa chỉ email.";
+      
+      let errorMessage = "Lỗi: Không thể reset mật khẩu. Vui lòng thử lại.";
+      
+      if (error.code === "functions/not-found" || error.message?.includes("not-found")) {
+        errorMessage = "Không tìm thấy tài khoản với email/tên đăng nhập này.";
+      } else if (error.code === "functions/invalid-argument") {
+        errorMessage = "Email/tên đăng nhập không hợp lệ.";
+      } else if (error.message) {
+        errorMessage = `Lỗi: ${error.message}`;
+      }
+      
+      messageEl.textContent = errorMessage;
       messageEl.className = "p-3 rounded-lg text-sm alert-error";
       messageEl.classList.remove("hidden");
+    } finally {
+      // Re-enable button
+      if (sendBtn) {
+        sendBtn.disabled = false;
+        sendBtn.innerHTML = "Gửi";
+      }
     }
   }
 
