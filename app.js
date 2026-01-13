@@ -6148,10 +6148,16 @@
 
       // Client-side filtering for employeeId (can't do OR query server-side easily)
       if (employeeId) {
-        filteredReports = filteredReports.filter(
-          (report) =>
-            report.reporterId === employeeId || report.assigneeId === employeeId
-        );
+        filteredReports = filteredReports.filter((report) => {
+          // Check reporter
+          if (report.reporterId === employeeId) return true;
+          
+          // Check assignees - support both old format (single) and new format (array)
+          const assigneeIds = report.assigneeIds && Array.isArray(report.assigneeIds)
+            ? report.assigneeIds
+            : (report.assigneeId ? [report.assigneeId] : []);
+          return assigneeIds.includes(employeeId);
+        });
       }
 
       // Use filtered reports for dashboard rendering
@@ -6205,10 +6211,14 @@
 
       const branchMatch = !branch || report.issueBranch === branch;
       const typeMatch = !issueType || report.issueType === issueType;
+      // Check employee match - support both old format (single) and new format (array)
+      const assigneeIds = report.assigneeIds && Array.isArray(report.assigneeIds)
+        ? report.assigneeIds
+        : (report.assigneeId ? [report.assigneeId] : []);
       const employeeMatch =
         !employeeId ||
         report.reporterId === employeeId ||
-        report.assigneeId === employeeId;
+        assigneeIds.includes(employeeId);
       const startDateMatch = !start || reportDate >= start;
       const endDateMatch = !end || reportDate <= end;
 
@@ -6803,9 +6813,21 @@
 
     // Bước 1: Khởi tạo tất cả nhân viên có liên quan (được giao hoặc đã giải quyết)
     reports.forEach((report) => {
-      if (report.assigneeId && !employeeStats[report.assigneeId]) {
-        employeeStats[report.assigneeId] = createEmptyStat(report.assigneeName);
-      }
+      // Support both old format (single) and new format (array)
+      const assigneeIds = report.assigneeIds && Array.isArray(report.assigneeIds)
+        ? report.assigneeIds
+        : (report.assigneeId ? [report.assigneeId] : []);
+      const assigneeNames = report.assigneeNames && Array.isArray(report.assigneeNames)
+        ? report.assigneeNames
+        : (report.assigneeName ? [report.assigneeName] : []);
+      
+      assigneeIds.forEach((assigneeId, index) => {
+        if (assigneeId && !employeeStats[assigneeId]) {
+          const assigneeName = assigneeNames[index] || assigneeId;
+          employeeStats[assigneeId] = createEmptyStat(assigneeName);
+        }
+      });
+      
       if (report.resolverId && !employeeStats[report.resolverId]) {
         employeeStats[report.resolverId] = createEmptyStat(report.resolverName);
       }
@@ -6814,9 +6836,15 @@
     // Bước 2: Tính toán các chỉ số
     reports.forEach((report) => {
       // Tăng số lượt được giao cho người được giao
-      if (report.assigneeId && employeeStats[report.assigneeId]) {
-        employeeStats[report.assigneeId].assigned++;
-      }
+      // Support both old format (single) and new format (array)
+      const assigneeIds = report.assigneeIds && Array.isArray(report.assigneeIds)
+        ? report.assigneeIds
+        : (report.assigneeId ? [report.assigneeId] : []);
+      assigneeIds.forEach((assigneeId) => {
+        if (assigneeId && employeeStats[assigneeId]) {
+          employeeStats[assigneeId].assigned++;
+        }
+      });
 
       // Nếu công việc đã giải quyết, tính điểm cho người giải quyết
       if (
@@ -7744,8 +7772,12 @@
     // Cho phép quản lý nếu:
     // 1. Là Admin hoặc Manager (luôn có quyền)
     // 2. HOẶC là Nhân viên VÀ (chưa giao cho ai HOẶC đã giao cho chính họ)
-    const isNotAssigned = !report.assigneeId || report.assigneeId === null || report.assigneeId === "";
-    const isAssignedToMe = report.assigneeId === currentUser.uid;
+    // Support both old format (single) and new format (array)
+    const reportAssigneeIds = report.assigneeIds && Array.isArray(report.assigneeIds) 
+      ? report.assigneeIds 
+      : (report.assigneeId ? [report.assigneeId] : []);
+    const isNotAssigned = reportAssigneeIds.length === 0;
+    const isAssignedToMe = reportAssigneeIds.includes(currentUser.uid);
     const canManage =
       currentUserProfile.role === "Admin" ||
       currentUserProfile.role === "Manager" ||
@@ -7755,7 +7787,12 @@
 
     // Lấy các element
     const statusSelect = modal.querySelector("#detailIssueStatus");
-    const assigneeSelect = modal.querySelector("#detailIssueAssignee");
+    const assigneeSelect = modal.querySelector("#detailIssueAssignee"); // Hidden input for storing selected IDs
+    const assigneeMultiSelect = modal.querySelector("#assigneeMultiSelect");
+    const assigneeSelectedTags = modal.querySelector("#assigneeSelectedTags");
+    const assigneeSearchInput = modal.querySelector("#assigneeSearchInput");
+    const assigneeDropdown = modal.querySelector("#assigneeDropdown");
+    const assigneeOptions = modal.querySelector("#assigneeOptions");
     const updateBtn = modal.querySelector("#updateIssueBtn");
     const repairedImageUploadContainer = modal.querySelector(
       "#repairedImageUploadContainer"
@@ -7800,9 +7837,9 @@
       )
       .join("");
 
-    // 3. Điền dữ liệu cho Assignee
+    // 3. Điền dữ liệu cho Assignee (Multi-select)
     // Ẩn field "Giao cho" nếu user có role "Chi nhánh"
-    const assigneeFieldContainer = assigneeSelect.closest("div");
+    const assigneeFieldContainer = assigneeMultiSelect ? assigneeMultiSelect.closest("div") : null;
     if (currentUserProfile.role === "Chi nhánh") {
       if (assigneeFieldContainer) {
         assigneeFieldContainer.classList.add("hidden");
@@ -7811,6 +7848,26 @@
       if (assigneeFieldContainer) {
         assigneeFieldContainer.classList.remove("hidden");
       }
+      
+      // Get current assignees - support both old format (single) and new format (array)
+      let currentAssigneeIds = [];
+      if (report.assigneeIds && Array.isArray(report.assigneeIds)) {
+        // New format: array
+        currentAssigneeIds = report.assigneeIds;
+      } else if (report.assigneeId) {
+        // Old format: single value - convert to array for backward compatibility
+        currentAssigneeIds = [report.assigneeId];
+      }
+      
+      let currentAssigneeNames = [];
+      if (report.assigneeNames && Array.isArray(report.assigneeNames)) {
+        currentAssigneeNames = report.assigneeNames;
+      } else if (report.assigneeName) {
+        currentAssigneeNames = [report.assigneeName];
+      }
+      
+      // Store selected assignees
+      let selectedAssignees = [];
       
       if (canManage) {
         // Use cached users instead of calling getDocs
@@ -7842,26 +7899,194 @@
           return true;
         });
         
-        assigneeSelect.innerHTML =
-          `<option value="">Chưa giao</option>` +
-          users
-            .map(
-              (u) =>
-                `<option value="${u.uid}" ${
-                  report.assigneeId === u.uid ? "selected" : ""
-                }>${u.displayName}</option>`
-            )
-            .join("");
+        // Initialize selected assignees from currentAssigneeIds
+        currentAssigneeIds.forEach((assigneeId) => {
+          const user = users.find((u) => u.uid === assigneeId);
+          if (user) {
+            selectedAssignees.push({
+              uid: user.uid,
+              displayName: user.displayName
+            });
+          }
+        });
+        
+        // Render selected tags
+        renderAssigneeTags(selectedAssignees, canManage && !shouldLock);
+        
+        // Render dropdown options
+        renderAssigneeOptions(users, selectedAssignees);
+        
+        // Setup event listeners for multi-select
+        setupAssigneeMultiSelectListeners(users, selectedAssignees, canManage && !shouldLock);
+        
+        // Store selected assignees in hidden input as JSON
+        updateAssigneeHiddenInput(selectedAssignees);
       } else {
-        // Nếu là nhân viên, chỉ hiển thị người được giao (nếu có)
-        // Nếu assignee là "Chi nhánh", hiển thị "Chưa giao"
-        const assigneeName = report.assigneeName || "Chưa giao";
-        const isBranchName = ALL_BRANCHES.includes(assigneeName);
-        if (isBranchName || report.assigneeId === null) {
-          assigneeSelect.innerHTML = `<option value="">Chưa giao</option>`;
+        // Nếu là nhân viên, chỉ hiển thị người được giao (read-only)
+        if (currentAssigneeIds.length > 0) {
+          // Try to get names from report or find in cache
+          const displayNames = currentAssigneeNames.length > 0 
+            ? currentAssigneeNames 
+            : currentAssigneeIds.map(id => {
+                const user = allUsersCache.find(u => u.uid === id);
+                return user ? user.displayName : id;
+              });
+          
+          selectedAssignees = currentAssigneeIds.map((id, index) => ({
+            uid: id,
+            displayName: displayNames[index] || id
+          }));
+          
+          renderAssigneeTags(selectedAssignees, false); // Read-only
         } else {
-          assigneeSelect.innerHTML = `<option value="">${assigneeName}</option>`;
+          assigneeSelectedTags.innerHTML = '<span class="text-slate-400 text-sm">Chưa giao</span>';
         }
+        
+        // Disable interaction
+        if (assigneeMultiSelect) {
+          assigneeMultiSelect.style.pointerEvents = 'none';
+          assigneeMultiSelect.style.opacity = '0.6';
+        }
+        if (assigneeSearchInput) {
+          assigneeSearchInput.disabled = true;
+        }
+      }
+    }
+    
+    // Helper function to render assignee tags
+    function renderAssigneeTags(assignees, removable) {
+      if (!assigneeSelectedTags) return;
+      
+      if (assignees.length === 0) {
+        assigneeSelectedTags.innerHTML = '';
+        if (assigneeSearchInput) {
+          assigneeSearchInput.placeholder = 'Chọn người...';
+        }
+        return;
+      }
+      
+      assigneeSelectedTags.innerHTML = assignees.map((assignee) => `
+        <span class="inline-flex items-center gap-1 px-2 py-1 bg-indigo-100 text-indigo-800 rounded-md text-sm">
+          ${assignee.displayName}
+          ${removable ? `<button type="button" class="remove-assignee-btn" data-uid="${assignee.uid}" aria-label="Xóa">
+            <i class="fas fa-times text-xs"></i>
+          </button>` : ''}
+        </span>
+      `).join('');
+      
+      if (assigneeSearchInput) {
+        assigneeSearchInput.placeholder = assignees.length > 0 ? 'Thêm người...' : 'Chọn người...';
+      }
+    }
+    
+    // Helper function to render dropdown options
+    function renderAssigneeOptions(users, selectedAssignees) {
+      if (!assigneeOptions) return;
+      
+      const selectedIds = new Set(selectedAssignees.map(a => a.uid));
+      const searchTerm = assigneeSearchInput ? assigneeSearchInput.value.toLowerCase() : '';
+      
+      const filteredUsers = users.filter(u => 
+        !selectedIds.has(u.uid) && 
+        (searchTerm === '' || u.displayName.toLowerCase().includes(searchTerm))
+      );
+      
+      if (filteredUsers.length === 0) {
+        assigneeOptions.innerHTML = '<div class="p-2 text-sm text-slate-500 text-center">Không có người dùng nào</div>';
+        return;
+      }
+      
+      assigneeOptions.innerHTML = filteredUsers.map((user) => `
+        <div class="assignee-option p-2 hover:bg-indigo-50 cursor-pointer rounded-md" data-uid="${user.uid}" data-name="${user.displayName}">
+          <div class="flex items-center gap-2">
+            <i class="fas fa-user-circle text-slate-400"></i>
+            <span class="text-sm">${user.displayName}</span>
+            ${user.role ? `<span class="text-xs text-slate-500">(${user.role})</span>` : ''}
+          </div>
+        </div>
+      `).join('');
+    }
+    
+    // Helper function to setup event listeners
+    function setupAssigneeMultiSelectListeners(users, selectedAssignees, enabled) {
+      if (!enabled) return;
+      
+      // Helper to refresh UI
+      const refreshUI = () => {
+        renderAssigneeTags(selectedAssignees, true);
+        renderAssigneeOptions(users, selectedAssignees);
+        updateAssigneeHiddenInput(selectedAssignees);
+      };
+      
+      // Toggle dropdown on click
+      if (assigneeMultiSelect) {
+        assigneeMultiSelect.addEventListener('click', (e) => {
+          if (e.target.closest('.remove-assignee-btn')) return;
+          assigneeDropdown.classList.toggle('hidden');
+        });
+      }
+      
+      // Search input
+      if (assigneeSearchInput) {
+        assigneeSearchInput.addEventListener('input', () => {
+          renderAssigneeOptions(users, selectedAssignees);
+        });
+        
+        assigneeSearchInput.addEventListener('focus', () => {
+          assigneeDropdown.classList.remove('hidden');
+        });
+      }
+      
+      // Click outside to close
+      document.addEventListener('click', (e) => {
+        if (assigneeMultiSelect && !assigneeMultiSelect.contains(e.target) && 
+            assigneeDropdown && !assigneeDropdown.contains(e.target)) {
+          assigneeDropdown.classList.add('hidden');
+        }
+      });
+      
+      // Select assignee from dropdown
+      if (assigneeOptions) {
+        assigneeOptions.addEventListener('click', (e) => {
+          const option = e.target.closest('.assignee-option');
+          if (!option) return;
+          
+          const uid = option.getAttribute('data-uid');
+          const name = option.getAttribute('data-name');
+          
+          // Add to selected
+          if (!selectedAssignees.find(a => a.uid === uid)) {
+            selectedAssignees.push({ uid, displayName: name });
+            refreshUI();
+            
+            // Clear search
+            if (assigneeSearchInput) {
+              assigneeSearchInput.value = '';
+            }
+          }
+        });
+      }
+      
+      // Remove assignee tag
+      if (assigneeSelectedTags) {
+        assigneeSelectedTags.addEventListener('click', (e) => {
+          const removeBtn = e.target.closest('.remove-assignee-btn');
+          if (!removeBtn) return;
+          
+          const uid = removeBtn.getAttribute('data-uid');
+          const index = selectedAssignees.findIndex(a => a.uid === uid);
+          if (index > -1) {
+            selectedAssignees.splice(index, 1);
+            refreshUI();
+          }
+        });
+      }
+    }
+    
+    // Helper function to update hidden input
+    function updateAssigneeHiddenInput(assignees) {
+      if (assigneeSelect) {
+        assigneeSelect.value = JSON.stringify(assignees.map(a => a.uid));
       }
     }
 
@@ -7870,11 +8095,30 @@
     
     // Phân biệt quyền: Admin/Manager có thể quản lý tất cả, assignee chỉ có thể cập nhật trạng thái
     const canManageAll = currentUserProfile.role === "Admin" || currentUserProfile.role === "Manager";
-    const isAssignee = report.assigneeId === currentUser.uid && !canManageAll;
+    // Support both old format (single) and new format (array)
+    const reportAssigneeIdsForCheck = report.assigneeIds && Array.isArray(report.assigneeIds) 
+      ? report.assigneeIds 
+      : (report.assigneeId ? [report.assigneeId] : []);
+    const isAssignee = reportAssigneeIdsForCheck.includes(currentUser.uid) && !canManageAll;
 
     statusSelect.disabled = shouldLock;
     // Assignee không thể thay đổi người được giao, chỉ Admin/Manager mới có thể
-    assigneeSelect.disabled = shouldLock || isAssignee;
+    // Disable multi-select if locked or if user is only an assignee (not Admin/Manager)
+    if (assigneeMultiSelect) {
+      if (shouldLock || isAssignee) {
+        assigneeMultiSelect.style.pointerEvents = 'none';
+        assigneeMultiSelect.style.opacity = '0.6';
+        if (assigneeSearchInput) {
+          assigneeSearchInput.disabled = true;
+        }
+      } else {
+        assigneeMultiSelect.style.pointerEvents = 'auto';
+        assigneeMultiSelect.style.opacity = '1';
+        if (assigneeSearchInput) {
+          assigneeSearchInput.disabled = false;
+        }
+      }
+    }
     repairedImageInput.disabled = shouldLock;
     newCommentInput.disabled = isResolved; // Cho phép comment nếu chưa giải quyết, kể cả là nhân viên
     addCommentBtn.disabled = isResolved; // Tương tự
@@ -7975,14 +8219,36 @@
     const modal = document.getElementById("issueDetailModal");
     const issueId = modal.querySelector("#detailIssueId").value;
     const newStatus = modal.querySelector("#detailIssueStatus").value;
-    const assigneeSelect = modal.querySelector("#detailIssueAssignee");
-    // Skip assignee if user has "Chi nhánh" role
-    const newAssigneeId = (currentUserProfile.role === "Chi nhánh" || !assigneeSelect || assigneeSelect.closest("div").classList.contains("hidden"))
-      ? null
-      : assigneeSelect.value;
-    const newAssigneeName = (newAssigneeId && assigneeSelect)
-      ? assigneeSelect.options[assigneeSelect.selectedIndex].text
-      : "";
+    const assigneeSelect = modal.querySelector("#detailIssueAssignee"); // Hidden input with JSON array
+    const assigneeFieldContainer = modal.querySelector("#assigneeMultiSelect")?.closest("div");
+    
+    // Skip assignee if user has "Chi nhánh" role or field is hidden
+    let newAssigneeIds = [];
+    let newAssigneeNames = [];
+    
+    if (currentUserProfile.role !== "Chi nhánh" && assigneeSelect && 
+        assigneeFieldContainer && !assigneeFieldContainer.classList.contains("hidden")) {
+      try {
+        const assigneesJson = assigneeSelect.value;
+        if (assigneesJson) {
+          const assigneeIds = JSON.parse(assigneesJson);
+          if (Array.isArray(assigneeIds) && assigneeIds.length > 0) {
+            newAssigneeIds = assigneeIds;
+            // Get names from cache
+            if (!usersCacheLoaded) {
+              await loadUsersIntoCache();
+            }
+            newAssigneeNames = assigneeIds.map(id => {
+              const user = allUsersCache.find(u => u.uid === id);
+              return user ? user.displayName : id;
+            });
+          }
+        }
+      } catch (e) {
+        console.error("Error parsing assignees:", e);
+      }
+    }
+    
     const repairedImageFile = modal.querySelector("#repairedImageInput").files[0];
 
     const messageEl = modal.querySelector("#detailIssueMessage");
@@ -8048,16 +8314,28 @@
                                  (currentUserProfile.role === "Admin" || currentUserProfile.role === "Manager");
       
       if (canChangeAssignee) {
-        updateData.assigneeId = newAssigneeId || null;
-        updateData.assigneeName = newAssigneeName || null;
+        // Support both old format (single) and new format (array) for backward compatibility
+        // Store as arrays
+        updateData.assigneeIds = newAssigneeIds.length > 0 ? newAssigneeIds : null;
+        updateData.assigneeNames = newAssigneeNames.length > 0 ? newAssigneeNames : null;
         
-        if (newAssigneeId && originalData.assigneeId !== newAssigneeId) {
+        // Also keep old fields for backward compatibility (use first assignee if exists)
+        updateData.assigneeId = newAssigneeIds.length > 0 ? newAssigneeIds[0] : null;
+        updateData.assigneeName = newAssigneeNames.length > 0 ? newAssigneeNames[0] : null;
+        
+        // Check if assignees changed
+        const originalAssigneeIds = originalData.assigneeIds || 
+          (originalData.assigneeId ? [originalData.assigneeId] : []);
+        const assigneesChanged = JSON.stringify(originalAssigneeIds.sort()) !== 
+          JSON.stringify(newAssigneeIds.sort());
+        
+        if (assigneesChanged && newAssigneeIds.length > 0) {
           updateData.assignerId = currentUser.uid;
           updateData.assignerName = currentUserProfile.displayName;
           updateData.assignedDate = new Date().toISOString();
         }
       }
-      // Nếu chỉ là assignee (không phải Admin/Manager), giữ nguyên assigneeId và assigneeName
+      // Nếu chỉ là assignee (không phải Admin/Manager), giữ nguyên assigneeIds và assigneeNames
 
       // ▼▼▼ THAY ĐỔI QUAN TRỌNG ▼▼▼
       // Ghi nhận người giải quyết và ngày giải quyết
