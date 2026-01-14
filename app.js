@@ -90,6 +90,41 @@
     "Văn phòng",
   ];
 
+  // Mapping mã chi nhánh (có thể chỉnh sửa theo nhu cầu)
+  const BRANCH_CODES = {
+    "ICOOL XÔ VIẾT NGHỆ TĨNH": "XVT",
+    "ICOOL BÌNH PHÚ": "BP",
+    "ICOOL UNG VĂN KHIÊM": "UVK",
+    "ICOOL TÔ KÝ": "TK",
+    "ICOOL DƯƠNG BÁ TRẠC": "DBT",
+    "ICOOL TRẦN NÃO": "TN",
+    "ICOOL THÀNH THÁI": "TT",
+    "ICOOL MẠC ĐĨNH CHI": "MDC",
+    "ICOOL NGUYỄN SƠN": "NS",
+    "ICOOL NGUYỄN TRÃI": "NT",
+    "ICOOL NHỊ THIÊN ĐƯỜNG": "NTĐ",
+    "ICOOL CÁCH MẠNG THÁNG TÁM": "CMT8",
+    "ICOOL TRẦN BÌNH TRỌNG": "TBT",
+    "ICOOL ĐỒNG ĐEN": "ĐĐ",
+    "ICOOL PHAN CHU TRINH": "PCT",
+    "ICOOL NGUYỄN TRI PHƯƠNG": "NTP",
+    "ICOOL PHAN XÍCH LONG": "PXL",
+    "ICOOL HOÀNG DIỆU 2": "HD2",
+    "ICOOL CẦU CHỮ Y": "CCY",
+    "ICOOL LÊ VĂN VIỆT": "LVV",
+    "ICOOL SƯ VẠN HẠNH": "SVH",
+    "ICOOL ĐẠI LỘ 2": "DL2",
+    "ICOOL LÊ THỊ HÀ": "LTH",
+    "ICOOL VŨNG TÀU": "VT",
+    "SPACE A&A": "SPAA",
+    "Văn phòng": "VP",
+  };
+
+  // Hàm helper để lấy mã chi nhánh
+  function getBranchCode(branchName) {
+    return BRANCH_CODES[branchName] || branchName.substring(0, 3).toUpperCase();
+  }
+
   // New data structure: Branch -> Floor -> Room array
   // IMPORTANT: Branch name must EXACTLY MATCH the name in the ALL_BRANCHES array.
   const BRANCH_DATA = {
@@ -2896,25 +2931,42 @@
     const topRooms = allRooms.slice(0, 10);
 
     if (topRooms.length > 0) {
+      // Khi có nhiều chi nhánh, hiển thị mã chi nhánh
+      const hasMultipleBranches = new Set(topRooms.map(r => r.branch)).size > 1;
+      
       tableContainer.innerHTML = `
               <table class="min-w-full responsive-table">
                   <thead class="bg-slate-50 sticky top-0">
                       <tr>
-                          <th class="px-4 py-2 text-left text-xs font-semibold text-slate-500 uppercase">Chi nhánh</th>
-                          <th class="px-4 py-2 text-left text-xs font-semibold text-slate-500 uppercase">Phòng</th>
+                          ${hasMultipleBranches ? '<th class="px-4 py-2 text-left text-xs font-semibold text-slate-500 uppercase">Mã Chi Nhánh</th>' : ''}
+                          <th class="px-4 py-2 text-left text-xs font-semibold text-slate-500 uppercase">${hasMultipleBranches ? 'Tên Phòng' : 'Chi nhánh'}</th>
+                          ${hasMultipleBranches ? '' : '<th class="px-4 py-2 text-left text-xs font-semibold text-slate-500 uppercase">Phòng</th>'}
                           <th class="px-4 py-2 text-left text-xs font-semibold text-slate-500 uppercase">Số lần</th>
                       </tr>
                   </thead>
                   <tbody class="bg-white divide-y divide-slate-200">
                       ${topRooms
                         .map(
-                          (item) => `
-                          <tr>
-                              <td class="px-4 py-2">${item.branch}</td>
-                              <td class="px-4 py-2">${item.room}</td>
-                              <td class="px-4 py-2 font-semibold">${item.count}</td>
-                          </tr>
-                      `
+                          (item) => {
+                            const branchCode = getBranchCode(item.branch);
+                            if (hasMultipleBranches) {
+                              return `
+                              <tr>
+                                  <td class="px-4 py-2 font-medium">${branchCode}</td>
+                                  <td class="px-4 py-2">${item.room}</td>
+                                  <td class="px-4 py-2 font-semibold">${item.count}</td>
+                              </tr>
+                          `;
+                            } else {
+                              return `
+                              <tr>
+                                  <td class="px-4 py-2">${item.branch}</td>
+                                  <td class="px-4 py-2">${item.room}</td>
+                                  <td class="px-4 py-2 font-semibold">${item.count}</td>
+                              </tr>
+                          `;
+                            }
+                          }
                         )
                         .join("")}
                   </tbody>
@@ -6739,16 +6791,24 @@
       // --- Cập nhật Bảng Top 10 Phòng ---
       const tableDiv = document.getElementById("problematicRoomsTable");
       let roomCounts = {};
+      let roomCountsWithBranch = {}; // Lưu thông tin chi nhánh cho mỗi phòng (khi chọn "Tất cả")
 
       // Chỉ tính toán lại roomCounts cho bảng nếu chọn "Tất cả" hoặc chi nhánh có dữ liệu
       if (selectedBranch === "all") {
+        // Khi chọn "Tất cả", tạo key kết hợp mã chi nhánh và tên phòng để phân biệt
         branchSpecificReports.forEach((report) => {
-          if (report.issueScope === "specific_rooms" && report.specificRooms) {
+          if (report.issueScope === "specific_rooms" && report.specificRooms && report.issueBranch) {
             const rooms = report.specificRooms
               .split(",")
               .map((room) => room.trim().toLowerCase());
+            const branchCode = getBranchCode(report.issueBranch);
             rooms.forEach((room) => {
-              if (room) roomCounts[room] = (roomCounts[room] || 0) + 1;
+              if (room) {
+                // Tạo key duy nhất: mã chi nhánh + tên phòng
+                const roomKey = `${branchCode}_${room}`;
+                roomCounts[roomKey] = (roomCounts[roomKey] || 0) + 1;
+                roomCountsWithBranch[roomKey] = branchCode;
+              }
             });
           }
         });
@@ -6756,26 +6816,49 @@
         roomCounts = roomCountsByBranch[selectedBranch];
       }
 
-      const sortedRooms = Object.entries(roomCounts)
-        .sort(([, a], [, b]) => b - a)
-        .slice(0, 10);
+      // Chuyển đổi roomCounts thành mảng và sắp xếp
+      let sortedRooms;
+      if (selectedBranch === "all") {
+        // Khi chọn "Tất cả", parse key để lấy tên phòng
+        sortedRooms = Object.entries(roomCounts)
+          .map(([key, count]) => {
+            const branchCode = roomCountsWithBranch[key];
+            const roomName = key.split('_').slice(1).join('_'); // Lấy phần sau dấu _
+            return { key, room: roomName, branchCode, count };
+          })
+          .sort((a, b) => b.count - a.count)
+          .slice(0, 10);
+      } else {
+        sortedRooms = Object.entries(roomCounts)
+          .map(([room, count]) => ({ room, count }))
+          .sort((a, b) => b.count - a.count)
+          .slice(0, 10);
+      }
 
       if (sortedRooms.length === 0) {
         tableDiv.innerHTML = `<p class="text-center text-slate-500 p-4">Không có dữ liệu về phòng cụ thể cho lựa chọn này.</p>`;
       } else {
+        // Xác định có hiển thị cột mã chi nhánh không (chỉ khi chọn "Tất cả chi nhánh")
+        const showBranchCode = selectedBranch === "all";
+        
         let tableHTML = `
                   <table class="min-w-full">
                       <thead class="bg-slate-50 sticky top-0">
                           <tr>
+                              ${showBranchCode ? '<th class="px-4 py-2 text-left text-xs font-semibold text-slate-500 uppercase">Mã Chi Nhánh</th>' : ''}
                               <th class="px-4 py-2 text-left text-xs font-semibold text-slate-500 uppercase">Tên Phòng</th>
                               <th class="px-4 py-2 text-right text-xs font-semibold text-slate-500 uppercase">Số Lần Báo Lỗi</th>
                           </tr>
                       </thead>
                       <tbody class="divide-y divide-slate-200">
               `;
-        sortedRooms.forEach(([room, count]) => {
+        sortedRooms.forEach((item) => {
+          const room = item.room || item[0];
+          const count = item.count || item[1];
+          const branchCode = showBranchCode ? (item.branchCode || roomCountsWithBranch[item.key] || 'N/A') : '';
           tableHTML += `
                       <tr class="hover:bg-slate-50">
+                          ${showBranchCode ? `<td class="px-4 py-2 font-medium">${branchCode}</td>` : ''}
                           <td class="px-4 py-2 font-medium capitalize">${room}</td>
                           <td class="px-4 py-2 text-right font-bold">${count}</td>
                       </tr>
