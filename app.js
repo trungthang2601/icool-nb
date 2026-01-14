@@ -462,6 +462,7 @@
       "myTasksView",                // 7. Nhiệm vụ của tôi
       "manageAccountsView",         // 8. Quản lý tài khoản
       "activityLogView",            // 9. Nhật ký hoạt động
+      "myProfileView",              // 10. Hồ sơ của tôi
     ],
     Manager: [
       "dashboardView",              // 1. Tổng quan
@@ -471,6 +472,7 @@
       "issueHistoryView",           // 5. Lịch sử báo cáo
       "myTasksView",                // 6. Nhiệm vụ của tôi
       "activityLogView",            // 7. Nhật ký hoạt động
+      "myProfileView",              // 8. Hồ sơ của tôi
     ],
     "Nhân viên": [
       "dashboardView",              // 1. Dashboard
@@ -478,12 +480,12 @@
       "issueReportView",            // 3. Báo lỗi
       "issueHistoryView",           // 4. Lịch sử báo cáo
       "myTasksView",                // 5. Nhiệm vụ của tôi
-      // Lưu ý: "Hồ sơ của tôi" (myProfileView) là modal, không cần thêm vào allowedViews
-      // Nhân viên có thể truy cập qua menu dropdown ở header
+      "myProfileView",              // 6. Hồ sơ của tôi
     ],
     "Chi nhánh": [
       "issueReportView",            // 1. Báo lỗi
       "issueHistoryView",          // 2. Lịch sử báo cáo
+      "myProfileView",             // 3. Hồ sơ của tôi
     ],
   };
   const ISSUE_STATUSES = ["Chờ xử lý", "Đang xử lý", "Đã giải quyết", "Đã hủy"];
@@ -998,12 +1000,9 @@
       }
     }
     
-    // Filter out myProfileView from allowedViews (it's now a modal, not a sidebar view)
-    if (currentUserProfile.allowedViews && Array.isArray(currentUserProfile.allowedViews)) {
-      currentUserProfile.allowedViews = currentUserProfile.allowedViews.filter(
-        (viewId) => viewId !== "myProfileView"
-      );
-    }
+    // Lưu ý: myProfileView được giữ trong allowedViews để đảm bảo quyền truy cập
+    // Nó sẽ được filter khi render sidebar (vì là modal, không phải sidebar view)
+    // Nhưng quyền vẫn được lưu trong allowedViews
   }
 
   /**
@@ -1932,6 +1931,14 @@
     );
     if (exportAllAccountsBtn) {
       exportAllAccountsBtn.addEventListener("click", handleExportAllAccounts);
+    }
+
+    // Export accounts for edit button
+    const exportAccountsForEditBtn = mainContentContainer.querySelector(
+      "#exportAccountsForEditBtn"
+    );
+    if (exportAccountsForEditBtn) {
+      exportAccountsForEditBtn.addEventListener("click", handleExportAccountsForEdit);
     }
 
     const exportAllBtn = mainContentContainer.querySelector(
@@ -9386,11 +9393,13 @@
       for (const row of json) {
         
         // --- ▼▼▼ LOGIC VALIDATION MỚI ĐÃ SỬA ▼▼▼ ---
-        let { email, password, displayName, employeeId, role } = row;
+        let { email, password, displayName, employeeId, role, loginName, branch } = row;
         
         // Normalize email and displayName (trim whitespace)
         email = email ? email.toString().trim() : "";
         displayName = displayName ? displayName.toString().trim() : "";
+        loginName = loginName ? loginName.toString().trim() : "";
+        branch = branch ? branch.toString().trim() : "";
 
         // 1. Kiểm tra các trường cơ bản
         if (!email || !displayName) {
@@ -9406,7 +9415,13 @@
         // 2. Xử lý Vai trò
         const userRole = ROLES.includes(role) ? role : "Nhân viên";
 
-        // 3. Xử lý EmployeeId (MSNV)
+        // 3. Xử lý LoginName (nếu không có, tự động lấy từ email)
+        let finalLoginName = loginName;
+        if (!finalLoginName && email) {
+          finalLoginName = email.includes("@") ? email.split("@")[0] : email;
+        }
+
+        // 4. Xử lý EmployeeId (MSNV)
         if (userRole === "Chi nhánh") {
             // Nếu là Chi nhánh, không bắt buộc, tự gán "N/A" nếu trống
             employeeId = employeeId ? employeeId.toString() : "N/A";
@@ -9423,6 +9438,26 @@
             }
             employeeId = employeeId.toString(); // Đảm bảo là string
         }
+
+        // 5. Xử lý Branch (chi nhánh)
+        if (userRole === "Nhân viên" && !branch) {
+          errorCount++;
+          errors.push(
+            `Dòng ${
+              createCount + updateCount + errorCount
+            }: (Email: ${email}) Thiếu 'branch' (bắt buộc cho vai trò Nhân viên).`
+          );
+          continue;
+        }
+        if (userRole === "Chi nhánh" && !branch) {
+          errorCount++;
+          errors.push(
+            `Dòng ${
+              createCount + updateCount + errorCount
+            }: (Email: ${email}) Thiếu 'branch' (bắt buộc cho vai trò Chi nhánh).`
+          );
+          continue;
+        }
         // --- ▲▲▲ KẾT THÚC LOGIC VALIDATION MỚI ▲▲▲ ---
 
         const existingUser = allUsersCache.find((u) => u.email === email);
@@ -9430,7 +9465,7 @@
         if (existingUser) {
           // Update existing user
           // LƯU Ý: Không reset mật khẩu và không thay đổi role/quyền của tài khoản đã tồn tại
-          // Chỉ cập nhật thông tin cơ bản: displayName, employeeId
+          // Chỉ cập nhật thông tin cơ bản: displayName, employeeId, loginName, branch
           try {
             const userDocRef = doc(
               db,
@@ -9443,10 +9478,21 @@
               // role: userRole, // Đã bỏ - không thay đổi role của tài khoản đã tồn tại
               // allowedViews: DEFAULT_VIEWS[userRole] || DEFAULT_VIEWS["Nhân viên"], // Đã bỏ
             };
+            
+            // Cập nhật loginName nếu có
+            if (finalLoginName) {
+              profileUpdate.loginName = finalLoginName;
+            }
+            
+            // Cập nhật branch nếu có và phù hợp với role
+            if (branch && (userRole === "Nhân viên" || userRole === "Chi nhánh")) {
+              profileUpdate.branch = branch;
+            }
+            
             await updateDoc(userDocRef, profileUpdate);
             await logActivity("Admin Bulk Update User", { 
               updatedEmail: email,
-              note: "Chỉ cập nhật displayName và employeeId, giữ nguyên role và mật khẩu"
+              note: "Cập nhật displayName, employeeId, loginName và branch (nếu có), giữ nguyên role và mật khẩu"
             }, "user");
             updateCount++;
           } catch (error) {
@@ -9483,12 +9529,18 @@
             const newUserProfile = {
               email: email,
               displayName: displayName,
+              loginName: finalLoginName, // <-- Lưu tên đăng nhập
               employeeId: employeeId, // <-- Dùng employeeId đã qua xử lý
               role: userRole, // <-- Dùng vai trò đã xử lý
               allowedViews: DEFAULT_VIEWS[userRole] || DEFAULT_VIEWS["Nhân viên"], // Dùng quyền động
               managedBranches: [],
               requiresPasswordChange: true,
             };
+            
+            // Thêm branch cho Nhân viên và Chi nhánh
+            if ((userRole === "Nhân viên" || userRole === "Chi nhánh") && branch) {
+              newUserProfile.branch = branch;
+            }
 
             await setDoc(
               doc(db, `/artifacts/${canvasAppId}/users/${newUid}`),
@@ -9560,43 +9612,318 @@
   }
 
   function handleDownloadTemplate() {
+    // Lấy danh sách chi nhánh để tạo ví dụ
+    const branchExamples = ALL_BRANCHES.length > 0 
+      ? ALL_BRANCHES.slice(0, 3) 
+      : ["ICOOL XÔ VIẾT NGHỆ TĨNH", "ICOOL BÌNH PHÚ", "ICOOL UNG VĂN KHIÊM"];
+
     const templateData = [
+      // Nhân viên - ví dụ 1
       {
-        email: "nhanvien.a@example.com",
-        password: "password123",
+        email: "nhanvien.a@mail.icool.com.vn",
+        password: "icool123",
+        loginName: "nhanviena",
         displayName: "Nguyễn Văn A",
-        employeeId: "NV001", // Bắt buộc cho Nhân viên
+        employeeId: "NV001",
         role: "Nhân viên",
+        branch: branchExamples[0] || "",
       },
+      // Nhân viên - ví dụ 2
       {
-        email: "quanly.b@example.com",
-        password: "password456",
+        email: "nhanvien.b@mail.icool.com.vn",
+        password: "icool123",
+        loginName: "nhanvienb",
         displayName: "Trần Thị B",
-        employeeId: "QL001", // Bắt buộc cho Manager
-        role: "Manager",
+        employeeId: "NV002",
+        role: "Nhân viên",
+        branch: branchExamples[1] || "",
       },
+      // Nhân viên - ví dụ 3 (không có loginName, sẽ tự động lấy từ email)
       {
-        email: "admin.c@example.com",
-        password: "password789",
+        email: "nhanvien.c@mail.icool.com.vn",
+        password: "icool123",
+        loginName: "",
         displayName: "Lê Văn C",
-        employeeId: "AD001", // Bắt buộc cho Admin
-        role: "Admin",
+        employeeId: "NV003",
+        role: "Nhân viên",
+        branch: branchExamples[2] || "",
       },
+      // Manager - ví dụ 1
       {
-        email: "chinhanh.d@example.com", // <-- VÍ DỤ MỚI
-        password: "password123", // <-- VÍ DỤ MỚI
-        displayName: "Karaoke Chi Nhánh D", // <-- VÍ DỤ MỚI
-        employeeId: "", // <-- VÍ DỤ MỚI (Có thể để trống)
-        role: "Chi nhánh", // <-- VÍ DỤ MỚI
+        email: "quanly.a@mail.icool.com.vn",
+        password: "icool123",
+        loginName: "quanlya",
+        displayName: "Phạm Văn D",
+        employeeId: "QL001",
+        role: "Manager",
+        branch: "",
+      },
+      // Manager - ví dụ 2
+      {
+        email: "quanly.b@mail.icool.com.vn",
+        password: "icool123",
+        loginName: "quanlyb",
+        displayName: "Hoàng Thị E",
+        employeeId: "QL002",
+        role: "Manager",
+        branch: "",
+      },
+      // Admin - ví dụ 1
+      {
+        email: "admin@mail.icool.com.vn",
+        password: "icool123",
+        loginName: "admin",
+        displayName: "Nguyễn Văn Admin",
+        employeeId: "AD001",
+        role: "Admin",
+        branch: "",
+      },
+      // Chi nhánh - ví dụ 1
+      {
+        email: "chinhanh.xoviet@mail.icool.com.vn",
+        password: "icool123",
+        loginName: "chinhanhxoviet",
+        displayName: "ICOOL XÔ VIẾT NGHỆ TĨNH",
+        employeeId: "",
+        role: "Chi nhánh",
+        branch: branchExamples[0] || "Tất cả",
+      },
+      // Chi nhánh - ví dụ 2
+      {
+        email: "chinhanh.binhphu@mail.icool.com.vn",
+        password: "icool123",
+        loginName: "chinhanhbinhphu",
+        displayName: "ICOOL BÌNH PHÚ",
+        employeeId: "",
+        role: "Chi nhánh",
+        branch: branchExamples[1] || "Tất cả",
+      },
+      // Nhân viên - ví dụ 4 (email tùy chỉnh)
+      {
+        email: "nhanvien.d@gmail.com",
+        password: "icool123",
+        loginName: "nhanviend",
+        displayName: "Võ Thị F",
+        employeeId: "NV004",
+        role: "Nhân viên",
+        branch: branchExamples[0] || "",
+      },
+      // Nhân viên - ví dụ 5
+      {
+        email: "nhanvien.e@mail.icool.com.vn",
+        password: "icool123",
+        loginName: "",
+        displayName: "Đặng Văn G",
+        employeeId: "NV005",
+        role: "Nhân viên",
+        branch: branchExamples[1] || "",
+      },
+      // Manager - ví dụ 3
+      {
+        email: "quanly.c@mail.icool.com.vn",
+        password: "icool123",
+        loginName: "quanlyc",
+        displayName: "Bùi Thị H",
+        employeeId: "QL003",
+        role: "Manager",
+        branch: "",
+      },
+      // Nhân viên - ví dụ 6
+      {
+        email: "nhanvien.f@mail.icool.com.vn",
+        password: "icool123",
+        loginName: "nhanvienf",
+        displayName: "Lý Văn I",
+        employeeId: "NV006",
+        role: "Nhân viên",
+        branch: branchExamples[2] || "",
+      },
+      // Chi nhánh - ví dụ 3
+      {
+        email: "chinhanh.ungvankhiem@mail.icool.com.vn",
+        password: "icool123",
+        loginName: "chinhanhungvankhiem",
+        displayName: "ICOOL UNG VĂN KHIÊM",
+        employeeId: "",
+        role: "Chi nhánh",
+        branch: branchExamples[2] || "Tất cả",
+      },
+      // Nhân viên - ví dụ 7
+      {
+        email: "nhanvien.g@mail.icool.com.vn",
+        password: "icool123",
+        loginName: "",
+        displayName: "Trương Thị K",
+        employeeId: "NV007",
+        role: "Nhân viên",
+        branch: branchExamples[0] || "",
+      },
+      // Nhân viên - ví dụ 8
+      {
+        email: "nhanvien.h@mail.icool.com.vn",
+        password: "icool123",
+        loginName: "nhanvienh",
+        displayName: "Ngô Văn L",
+        employeeId: "NV008",
+        role: "Nhân viên",
+        branch: branchExamples[1] || "",
       },
     ];
 
+    // Tạo worksheet chính với dữ liệu mẫu
     const worksheet = XLSX.utils.json_to_sheet(templateData);
+    
+    // Thêm data validation cho cột role và branch
+    // Lưu ý: Data validation trong XLSX.js có giới hạn, nhưng sheet "DanhSach" đã cung cấp danh sách để copy
+    // Tạo named ranges cho danh sách role và branch (nếu cần)
+    try {
+      const dataRange = XLSX.utils.decode_range(worksheet['!ref']);
+      const roleColumn = 4; // Cột E (role) - tìm cột role trong header
+      const branchColumn = 6; // Cột G (branch) - tìm cột branch trong header
+      
+      // Tìm đúng cột role và branch từ header
+      let actualRoleCol = -1;
+      let actualBranchCol = -1;
+      const headerRow = 0;
+      for (let col = 0; col <= dataRange.e.c; col++) {
+        const headerCell = XLSX.utils.encode_cell({ r: headerRow, c: col });
+        if (worksheet[headerCell]) {
+          const headerValue = worksheet[headerCell].v || worksheet[headerCell].w || "";
+          if (headerValue.toString().toLowerCase() === "role") {
+            actualRoleCol = col;
+          }
+          if (headerValue.toString().toLowerCase() === "branch") {
+            actualBranchCol = col;
+          }
+        }
+      }
+      
+      // Tạo danh sách role và branch để validation (format cho Excel)
+      const roleListStr = ROLES.map(r => `"${r}"`).join(",");
+      const branchListStr = ALL_BRANCHES.length > 0 
+        ? ALL_BRANCHES.map(b => `"${b}"`).join(",") 
+        : "";
+      
+      // Thêm data validation cho cột role (từ dòng 2 trở đi)
+      if (actualRoleCol >= 0) {
+        for (let row = 1; row <= dataRange.e.r; row++) {
+          const cellAddress = XLSX.utils.encode_cell({ r: row, c: actualRoleCol });
+          if (worksheet[cellAddress]) {
+            // Thêm data validation (có thể không hoạt động với XLSX.js, nhưng thử)
+            worksheet[cellAddress].dataValidation = {
+              type: "list",
+              formulae: [roleListStr],
+              showDropDown: true
+            };
+          }
+        }
+      }
+      
+      // Thêm data validation cho cột branch
+      if (actualBranchCol >= 0 && branchListStr) {
+        for (let row = 1; row <= dataRange.e.r; row++) {
+          const cellAddress = XLSX.utils.encode_cell({ r: row, c: actualBranchCol });
+          if (worksheet[cellAddress]) {
+            worksheet[cellAddress].dataValidation = {
+              type: "list",
+              formulae: [branchListStr],
+              showDropDown: true
+            };
+          }
+        }
+      }
+    } catch (error) {
+      console.warn("Không thể thêm data validation, nhưng sheet 'DanhSach' vẫn có sẵn để copy:", error);
+    }
+    
+    // Tạo worksheet danh sách để copy
+    const danhSachData = [
+      ["DANH SÁCH CÁC GIÁ TRỊ ĐỂ COPY VÀ PASTE"],
+      [""],
+      ["📋 HƯỚNG DẪN:", "Copy giá trị từ cột này và paste vào cột tương ứng trong sheet 'DanhSachTaiKhoan'"],
+      [""],
+      ["VAI TRÒ (ROLE) - Dán vào cột 'role':"],
+      ...ROLES.map(r => [r]),
+      [""],
+      ["CHI NHÁNH (BRANCH) - Dán vào cột 'branch':"],
+      ...(ALL_BRANCHES.length > 0 ? ALL_BRANCHES.map(b => [b]) : [["(Chưa có chi nhánh nào)"]]),
+      [""],
+      ["💡 MẸO:", "Bạn có thể chọn nhiều ô cùng lúc để copy nhiều giá trị"],
+      ["", "Hoặc double-click vào ô trong sheet 'DanhSachTaiKhoan' để xem dropdown (nếu có)"]
+    ];
+    const danhSachWorksheet = XLSX.utils.aoa_to_sheet(danhSachData);
+    danhSachWorksheet['!cols'] = [
+      { wch: 60 }, // Cột A
+      { wch: 80 }  // Cột B
+    ];
+    
+    // Tạo worksheet hướng dẫn
+    const instructionsData = [
+      ["HƯỚNG DẪN SỬ DỤNG FILE MẪU"],
+      [""],
+      ["CÁC CỘT BẮT BUỘC:"],
+      ["email", "Email của tài khoản (bắt buộc). Có thể dùng email @mail.icool.com.vn hoặc email tùy chỉnh"],
+      ["password", "Mật khẩu (bắt buộc cho tài khoản mới, tối thiểu 6 ký tự). Nếu email đã tồn tại, mật khẩu sẽ KHÔNG bị thay đổi"],
+      ["displayName", "Tên hiển thị (bắt buộc)"],
+      ["employeeId", "Mã nhân viên/MSNV (bắt buộc cho Admin, Manager, Nhân viên. Để trống hoặc 'N/A' cho Chi nhánh)"],
+      ["role", "Vai trò (bắt buộc): 'Admin', 'Manager', 'Nhân viên', hoặc 'Chi nhánh'"],
+      [""],
+      ["CÁC CỘT TÙY CHỌN:"],
+      ["loginName", "Tên đăng nhập (tùy chọn). Nếu để trống, hệ thống tự động lấy phần trước @ của email"],
+      ["branch", "Chi nhánh (bắt buộc cho 'Nhân viên' và 'Chi nhánh'). Để trống cho Admin và Manager"],
+      [""],
+      ["LƯU Ý QUAN TRỌNG:"],
+      ["1. Nếu email đã tồn tại:", "Chỉ cập nhật displayName và employeeId. Mật khẩu và role sẽ KHÔNG bị thay đổi"],
+      ["2. Nếu email chưa tồn tại:", "Tạo tài khoản mới với đầy đủ thông tin. Mật khẩu là bắt buộc"],
+      ["3. Vai trò 'Chi nhánh':", "employeeId có thể để trống (sẽ tự động gán 'N/A'). Branch là bắt buộc"],
+      ["4. Vai trò 'Nhân viên':", "Cả employeeId và branch đều bắt buộc"],
+      ["5. Vai trò 'Admin' và 'Manager':", "Chỉ cần employeeId, không cần branch"],
+      [""],
+      ["DANH SÁCH CHI NHÁNH HỢP LỆ:"],
+    ];
+    
+    // Thêm danh sách chi nhánh vào instructionsData
+    if (branchExamples && branchExamples.length > 0) {
+      branchExamples.forEach(b => {
+        instructionsData.push([b]);
+      });
+    }
+    
+    // Thêm thông báo nếu có nhiều chi nhánh hơn
+    if (ALL_BRANCHES && ALL_BRANCHES.length > 3) {
+      instructionsData.push(["... và các chi nhánh khác"]);
+    }
+    
+    // Thêm phần còn lại
+    instructionsData.push(
+      [""],
+      ["CÁCH SỬ DỤNG:"],
+      ["1. Mở sheet 'DanhSach' để xem danh sách vai trò và chi nhánh"],
+      ["2. Copy giá trị từ sheet 'DanhSach' và paste vào cột 'role' hoặc 'branch' trong sheet 'DanhSachTaiKhoan'"],
+      ["3. Xóa các dòng ví dụ (hoặc giữ lại để tham khảo)"],
+      ["4. Điền thông tin tài khoản cần tạo/cập nhật"],
+      ["5. Lưu file Excel (.xlsx hoặc .xls)"],
+      ["6. Quay lại hệ thống và nhấn 'Nhập Dữ Liệu' để tải file lên"],
+      [""],
+      ["HỖ TRỢ:", "Nếu gặp vấn đề, vui lòng liên hệ quản trị viên hệ thống"]
+    );
+
+    const instructionsWorksheet = XLSX.utils.aoa_to_sheet(instructionsData);
+    
+    // Đặt độ rộng cột cho worksheet hướng dẫn
+    instructionsWorksheet['!cols'] = [
+      { wch: 50 }, // Cột A
+      { wch: 80 }, // Cột B
+    ];
+
+    // Tạo workbook và thêm các sheets
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, "DanhSachTaiKhoan");
+    XLSX.utils.book_append_sheet(workbook, danhSachWorksheet, "DanhSach");
+    XLSX.utils.book_append_sheet(workbook, instructionsWorksheet, "HuongDan");
 
     // Trigger the download
-    XLSX.writeFile(workbook, "mau-tai-khoan-updated.xlsx"); // Đổi tên file cho đỡ nhầm
+    XLSX.writeFile(workbook, `mau-tai-khoan-${new Date().toISOString().split('T')[0]}.xlsx`);
   }
 
   function openDeleteAccountModal(uid, name) {
@@ -11538,6 +11865,196 @@
     } catch (error) {
       console.error("Error exporting all accounts:", error);
       alert("Đã xảy ra lỗi khi xuất file danh sách tài khoản: " + error.message);
+    } finally {
+      button.innerHTML = originalContent;
+      button.disabled = false;
+    }
+  }
+
+  async function handleExportAccountsForEdit() {
+    const button = document.getElementById("exportAccountsForEditBtn");
+    if (!button) return;
+    
+    const originalContent = button.innerHTML;
+    button.innerHTML = `<i class="fas fa-spinner fa-spin mr-2"></i>Đang xử lý...`;
+    button.disabled = true;
+
+    try {
+      // Load all accounts from database (not just paginated ones)
+      const allUsersQuery = query(
+        collection(db, `/artifacts/${canvasAppId}/users`),
+        orderBy("displayName")
+      );
+      const allUsersSnapshot = await getDocs(allUsersQuery);
+      const allUsers = allUsersSnapshot.docs.map((doc) => ({
+        uid: doc.id,
+        ...doc.data(),
+      }));
+
+      if (allUsers.length === 0) {
+        alert("Không có tài khoản nào để xuất.");
+        return;
+      }
+
+      // Format accounts data for Excel (format giống file mẫu để có thể import lại)
+      const excelData = allUsers
+        .filter(user => {
+          // Chỉ xuất tài khoản chưa bị vô hiệu hóa (hoặc có thể xuất tất cả)
+          // Có thể bỏ filter này nếu muốn xuất tất cả
+          return user.status !== "disabled" && !user.disabled;
+        })
+        .map((user) => {
+          return {
+            email: user.email || "",
+            password: "", // Để trống - không xuất mật khẩu vì lý do bảo mật
+            loginName: user.loginName || "",
+            displayName: user.displayName || "",
+            employeeId: user.employeeId || "",
+            role: user.role || "Nhân viên",
+            branch: user.branch || "",
+          };
+        });
+
+      // Tạo worksheet chính với dữ liệu
+      const worksheet = XLSX.utils.json_to_sheet(excelData);
+      
+      // Thêm data validation cho cột role và branch (tương tự file mẫu)
+      try {
+        const dataRange = XLSX.utils.decode_range(worksheet['!ref']);
+        let actualRoleCol = -1;
+        let actualBranchCol = -1;
+        const headerRow = 0;
+        
+        // Tìm cột role và branch
+        for (let col = 0; col <= dataRange.e.c; col++) {
+          const headerCell = XLSX.utils.encode_cell({ r: headerRow, c: col });
+          if (worksheet[headerCell]) {
+            const headerValue = worksheet[headerCell].v || worksheet[headerCell].w || "";
+            if (headerValue.toString().toLowerCase() === "role") {
+              actualRoleCol = col;
+            }
+            if (headerValue.toString().toLowerCase() === "branch") {
+              actualBranchCol = col;
+            }
+          }
+        }
+        
+        const roleListStr = ROLES.map(r => `"${r}"`).join(",");
+        const branchListStr = ALL_BRANCHES.length > 0 
+          ? ALL_BRANCHES.map(b => `"${b}"`).join(",") 
+          : "";
+        
+        // Thêm data validation cho role
+        if (actualRoleCol >= 0) {
+          for (let row = 1; row <= dataRange.e.r; row++) {
+            const cellAddress = XLSX.utils.encode_cell({ r: row, c: actualRoleCol });
+            if (worksheet[cellAddress]) {
+              worksheet[cellAddress].dataValidation = {
+                type: "list",
+                formulae: [roleListStr],
+                showDropDown: true
+              };
+            }
+          }
+        }
+        
+        // Thêm data validation cho branch
+        if (actualBranchCol >= 0 && branchListStr) {
+          for (let row = 1; row <= dataRange.e.r; row++) {
+            const cellAddress = XLSX.utils.encode_cell({ r: row, c: actualBranchCol });
+            if (worksheet[cellAddress]) {
+              worksheet[cellAddress].dataValidation = {
+                type: "list",
+                formulae: [branchListStr],
+                showDropDown: true
+              };
+            }
+          }
+        }
+      } catch (validationError) {
+        console.warn("Không thể thêm data validation:", validationError);
+      }
+
+      // Tạo worksheet danh sách để copy
+      const danhSachData = [
+        ["DANH SÁCH CÁC GIÁ TRỊ ĐỂ COPY VÀ PASTE"],
+        [""],
+        ["📋 HƯỚNG DẪN:", "Copy giá trị từ cột này và paste vào cột tương ứng trong sheet 'DanhSachTaiKhoan'"],
+        [""],
+        ["VAI TRÒ (ROLE) - Dán vào cột 'role':"],
+        ...ROLES.map(r => [r]),
+        [""],
+        ["CHI NHÁNH (BRANCH) - Dán vào cột 'branch':"],
+        ...(ALL_BRANCHES.length > 0 ? ALL_BRANCHES.map(b => [b]) : [["(Chưa có chi nhánh nào)"]]),
+        [""],
+        ["💡 MẸO:", "Bạn có thể chọn nhiều ô cùng lúc để copy nhiều giá trị"],
+        ["", "Hoặc double-click vào ô trong sheet 'DanhSachTaiKhoan' để xem dropdown (nếu có)"]
+      ];
+      const danhSachWorksheet = XLSX.utils.aoa_to_sheet(danhSachData);
+      danhSachWorksheet['!cols'] = [
+        { wch: 60 },
+        { wch: 80 }
+      ];
+
+      // Tạo worksheet hướng dẫn
+      const instructionsData = [
+        ["HƯỚNG DẪN CHỈNH SỬA VÀ IMPORT LẠI"],
+        [""],
+        ["📝 LƯU Ý QUAN TRỌNG:"],
+        ["1. File này chứa thông tin tài khoản hiện có trong hệ thống"],
+        ["2. Cột 'password' đã được để trống vì lý do bảo mật"],
+        ["3. Nếu bạn muốn cập nhật tài khoản:", "Chỉnh sửa thông tin và import lại file này"],
+        ["4. Nếu email đã tồn tại:", "Chỉ cập nhật displayName, employeeId, loginName và branch. Mật khẩu và role sẽ KHÔNG bị thay đổi"],
+        ["5. Nếu muốn tạo tài khoản mới:", "Thêm dòng mới với email mới và điền đầy đủ thông tin (kể cả password)"],
+        [""],
+        ["CÁC CỘT TRONG FILE:"],
+        ["email", "Email của tài khoản (bắt buộc, không được thay đổi nếu muốn cập nhật)"],
+        ["password", "Mật khẩu (để trống khi cập nhật, bắt buộc khi tạo mới - tối thiểu 6 ký tự)"],
+        ["loginName", "Tên đăng nhập (tùy chọn)"],
+        ["displayName", "Tên hiển thị (bắt buộc)"],
+        ["employeeId", "Mã nhân viên/MSNV (bắt buộc cho Admin, Manager, Nhân viên)"],
+        ["role", "Vai trò (bắt buộc): 'Admin', 'Manager', 'Nhân viên', hoặc 'Chi nhánh'"],
+        ["branch", "Chi nhánh (bắt buộc cho 'Nhân viên' và 'Chi nhánh')"],
+        [""],
+        ["CÁCH SỬ DỤNG:"],
+        ["1. Chỉnh sửa thông tin trong sheet 'DanhSachTaiKhoan'"],
+        ["2. Có thể xóa các dòng không cần thiết"],
+        ["3. Có thể thêm dòng mới để tạo tài khoản mới"],
+        ["4. Lưu file Excel (.xlsx hoặc .xls)"],
+        ["5. Quay lại hệ thống và nhấn 'Nhập Dữ Liệu' để tải file lên"],
+        [""],
+        ["⚠️ CẢNH BÁO:", "Không thay đổi email của tài khoản hiện có nếu muốn cập nhật. Email mới sẽ tạo tài khoản mới."]
+      ];
+      const instructionsWorksheet = XLSX.utils.aoa_to_sheet(instructionsData);
+      instructionsWorksheet['!cols'] = [
+        { wch: 50 },
+        { wch: 80 }
+      ];
+
+      // Tạo workbook và thêm các sheets
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, "DanhSachTaiKhoan");
+      XLSX.utils.book_append_sheet(workbook, danhSachWorksheet, "DanhSach");
+      XLSX.utils.book_append_sheet(workbook, instructionsWorksheet, "HuongDan");
+
+      // Generate filename with current date
+      const now = new Date();
+      const dateStr = now.toISOString().split("T")[0];
+      const fileName = `danh_sach_tai_khoan_de_chinh_sua_${dateStr}.xlsx`;
+
+      // Log export action
+      await logActivity("Export Accounts for Edit", { 
+        recordCount: excelData.length 
+      }, "user");
+      
+      // Export file
+      XLSX.writeFile(workbook, fileName);
+      
+      // Hiển thị thông báo
+      alert(`Đã xuất ${excelData.length} tài khoản thành công!\n\nBạn có thể chỉnh sửa file này và import lại để cập nhật thông tin.`);
+    } catch (error) {
+      console.error("Error exporting accounts for edit:", error);
+      alert("Đã xảy ra lỗi khi xuất file: " + error.message);
     } finally {
       button.innerHTML = originalContent;
       button.disabled = false;

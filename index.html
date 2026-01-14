@@ -325,11 +325,13 @@
             Tạo Hàng Loạt Từ Excel
           </h3>
           <p class="text-sm text-slate-600 mb-3">
-            Tải lên file Excel (.xlsx, .xls) với các cột: `email`, `password`,
-            `displayName`, `employeeId`, `role`. 
+            Tải lên file Excel (.xlsx, .xls) với các cột: <strong>`email`</strong>, <strong>`password`</strong>,
+            <strong>`displayName`</strong>, <strong>`employeeId`</strong>, <strong>`role`</strong>. 
+            <br><strong>Các cột tùy chọn:</strong> <strong>`loginName`</strong> (tên đăng nhập), <strong>`branch`</strong> (chi nhánh - bắt buộc cho 'Nhân viên' và 'Chi nhánh').
             <br><strong>Lưu ý quan trọng:</strong>
-            <br>• Nếu `email` đã tồn tại: Chỉ cập nhật `displayName` và `employeeId`. <strong>Mật khẩu và quyền (role) sẽ KHÔNG bị thay đổi</strong> để bảo vệ tài khoản hiện có.
+            <br>• Nếu `email` đã tồn tại: Chỉ cập nhật `displayName`, `employeeId`, `loginName` và `branch` (nếu có). <strong>Mật khẩu và quyền (role) sẽ KHÔNG bị thay đổi</strong> để bảo vệ tài khoản hiện có.
             <br>• Nếu chưa có: Tài khoản mới sẽ được tạo (mật khẩu là bắt buộc cho tài khoản mới). Vai trò hợp lệ là 'Admin', 'Manager', 'Nhân viên', 'Chi nhánh'.
+            <br>• File mẫu đã bao gồm hướng dẫn chi tiết trong sheet "HuongDan".
           </p>
           <input type="file" id="excelFileInput" class="input-field mb-3" accept=".xlsx, .xls" />
           <div class="flex space-x-2">
@@ -356,6 +358,9 @@
             <div class="flex items-center space-x-4">
               <button id="exportAllAccountsBtn" class="btn-primary">
                 <i class="fas fa-file-excel mr-2"></i>Xuất Excel Danh Sách Tài Khoản
+              </button>
+              <button id="exportAccountsForEditBtn" class="btn-secondary">
+                <i class="fas fa-download mr-2"></i>Tải Danh Sách Để Chỉnh Sửa
               </button>
               <button id="exportAllAttendanceBtn" class="btn-secondary hidden">
                 <i class="fas fa-file-excel mr-2"></i>Xuất File Chấm Công (Toàn bộ)
