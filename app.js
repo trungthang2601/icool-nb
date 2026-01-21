@@ -8310,6 +8310,11 @@
         updateAssigneeHiddenInput(selectedAssignees);
       } else {
         // Nếu là nhân viên, chỉ hiển thị người được giao (read-only)
+        // Ensure cache is loaded to get user names
+        if (!usersCacheLoaded) {
+          await loadUsersIntoCache();
+        }
+        
         if (currentAssigneeIds.length > 0) {
           // Try to get names from report or find in cache
           const displayNames = currentAssigneeNames.length > 0 
@@ -8329,13 +8334,29 @@
           assigneeSelectedTags.innerHTML = '<span class="text-slate-400 text-sm">Chưa giao</span>';
         }
         
-        // Disable interaction
+        // Load users for dropdown (read-only view)
+        const users = allUsersCache.filter((u) => {
+          if (u.role === "Chi nhánh" || u.status === "disabled" || u.disabled) {
+            return false;
+          }
+          return true;
+        });
+        
+        // Render dropdown options (read-only, just for viewing)
+        renderAssigneeOptions(users, selectedAssignees);
+        
+        // Setup event listeners even for read-only mode (to show dropdown on mobile)
+        // But disable actual selection
+        setupAssigneeMultiSelectListeners(users, selectedAssignees, false); // enabled = false means read-only
+        
+        // Disable interaction but allow dropdown to open for viewing
         if (assigneeMultiSelect) {
-          assigneeMultiSelect.style.pointerEvents = 'none';
-          assigneeMultiSelect.style.opacity = '0.6';
+          // Don't disable pointer-events completely, allow clicking to see dropdown
+          assigneeMultiSelect.style.opacity = '0.8';
         }
         if (assigneeSearchInput) {
           assigneeSearchInput.disabled = true;
+          assigneeSearchInput.readOnly = true;
         }
       }
     }
@@ -8396,7 +8417,7 @@
     
     // Helper function to setup event listeners
     function setupAssigneeMultiSelectListeners(users, selectedAssignees, enabled) {
-      if (!enabled) return;
+      // Always setup listeners, even if disabled (for read-only viewing on mobile)
       
       // Get fresh element references from modal
       const getElements = () => {
@@ -8441,9 +8462,8 @@
         if (e.target === elements.searchInput || elements.searchInput?.contains(e.target)) {
           // Ensure options are rendered before showing dropdown
           renderAssigneeOptions(users, selectedAssignees);
-          elements.dropdown.classList.remove('hidden');
           
-          // On mobile, position dropdown relative to multiSelect
+          // On mobile, position dropdown relative to multiSelect BEFORE removing hidden
           if (window.innerWidth <= 767) {
             const rect = elements.multiSelect.getBoundingClientRect();
             elements.dropdown.style.position = 'fixed';
@@ -8451,7 +8471,13 @@
             elements.dropdown.style.top = `${rect.bottom + 4}px`;
             elements.dropdown.style.width = `${rect.width}px`;
             elements.dropdown.style.maxWidth = `${rect.width}px`;
+            elements.dropdown.style.display = 'block';
+            elements.dropdown.style.visibility = 'visible';
+            elements.dropdown.style.opacity = '1';
+            elements.dropdown.style.zIndex = '10003';
           }
+          
+          elements.dropdown.classList.remove('hidden');
           
           // Focus input on mobile
           if (elements.searchInput) {
@@ -8465,13 +8491,10 @@
         if (isHidden) {
           // Ensure options are rendered before showing dropdown
           renderAssigneeOptions(users, selectedAssignees);
-          elements.dropdown.classList.remove('hidden');
           
-          // On mobile, position dropdown relative to multiSelect
+          // On mobile, position dropdown relative to multiSelect BEFORE removing hidden
           if (window.innerWidth <= 767) {
             const rect = elements.multiSelect.getBoundingClientRect();
-            const modalContent = elements.multiSelect.closest('.modal-content');
-            const modalRect = modalContent ? modalContent.getBoundingClientRect() : { left: 0, top: 0 };
             
             // Position dropdown below multiSelect
             elements.dropdown.style.position = 'fixed';
@@ -8479,7 +8502,14 @@
             elements.dropdown.style.top = `${rect.bottom + 4}px`;
             elements.dropdown.style.width = `${rect.width}px`;
             elements.dropdown.style.maxWidth = `${rect.width}px`;
+            elements.dropdown.style.display = 'block';
+            elements.dropdown.style.visibility = 'visible';
+            elements.dropdown.style.opacity = '1';
+            elements.dropdown.style.zIndex = '10003';
           }
+          
+          // Remove hidden class to show dropdown
+          elements.dropdown.classList.remove('hidden');
           
           // Focus input on mobile to show keyboard
           if (elements.searchInput) {
@@ -8487,6 +8517,14 @@
           }
         } else {
           elements.dropdown.classList.add('hidden');
+          // Reset styles on close
+          if (window.innerWidth <= 767) {
+            elements.dropdown.style.position = '';
+            elements.dropdown.style.left = '';
+            elements.dropdown.style.top = '';
+            elements.dropdown.style.width = '';
+            elements.dropdown.style.maxWidth = '';
+          }
         }
       };
       
@@ -8495,6 +8533,19 @@
       
       // Add touch support for mobile devices
       elements.multiSelect.addEventListener('touchend', (e) => {
+        // On mobile, ensure dropdown is positioned before toggling
+        if (window.innerWidth <= 767 && elements.dropdown.classList.contains('hidden')) {
+          const rect = elements.multiSelect.getBoundingClientRect();
+          elements.dropdown.style.position = 'fixed';
+          elements.dropdown.style.left = `${rect.left}px`;
+          elements.dropdown.style.top = `${rect.bottom + 4}px`;
+          elements.dropdown.style.width = `${rect.width}px`;
+          elements.dropdown.style.maxWidth = `${rect.width}px`;
+          elements.dropdown.style.display = 'block';
+          elements.dropdown.style.visibility = 'visible';
+          elements.dropdown.style.opacity = '1';
+          elements.dropdown.style.zIndex = '10003';
+        }
         toggleDropdown(e);
       }, { passive: false });
       
@@ -8508,9 +8559,8 @@
           e.stopPropagation();
           // Ensure options are rendered before showing dropdown
           renderAssigneeOptions(users, selectedAssignees);
-          elements.dropdown.classList.remove('hidden');
           
-          // On mobile, position dropdown relative to multiSelect
+          // On mobile, position dropdown relative to multiSelect BEFORE removing hidden
           if (window.innerWidth <= 767) {
             const rect = elements.multiSelect.getBoundingClientRect();
             elements.dropdown.style.position = 'fixed';
@@ -8518,16 +8568,21 @@
             elements.dropdown.style.top = `${rect.bottom + 4}px`;
             elements.dropdown.style.width = `${rect.width}px`;
             elements.dropdown.style.maxWidth = `${rect.width}px`;
+            elements.dropdown.style.display = 'block';
+            elements.dropdown.style.visibility = 'visible';
+            elements.dropdown.style.opacity = '1';
+            elements.dropdown.style.zIndex = '10003';
           }
+          
+          elements.dropdown.classList.remove('hidden');
         }, true);
         
         elements.searchInput.addEventListener('click', (e) => {
           e.stopPropagation();
           // Ensure options are rendered before showing dropdown
           renderAssigneeOptions(users, selectedAssignees);
-          elements.dropdown.classList.remove('hidden');
           
-          // On mobile, position dropdown relative to multiSelect
+          // On mobile, position dropdown relative to multiSelect BEFORE removing hidden
           if (window.innerWidth <= 767) {
             const rect = elements.multiSelect.getBoundingClientRect();
             elements.dropdown.style.position = 'fixed';
@@ -8535,7 +8590,13 @@
             elements.dropdown.style.top = `${rect.bottom + 4}px`;
             elements.dropdown.style.width = `${rect.width}px`;
             elements.dropdown.style.maxWidth = `${rect.width}px`;
+            elements.dropdown.style.display = 'block';
+            elements.dropdown.style.visibility = 'visible';
+            elements.dropdown.style.opacity = '1';
+            elements.dropdown.style.zIndex = '10003';
           }
+          
+          elements.dropdown.classList.remove('hidden');
         }, true);
         
         // Add touch support for mobile
@@ -8544,9 +8605,8 @@
           e.preventDefault();
           // Ensure options are rendered before showing dropdown
           renderAssigneeOptions(users, selectedAssignees);
-          elements.dropdown.classList.remove('hidden');
           
-          // On mobile, position dropdown relative to multiSelect
+          // On mobile, position dropdown relative to multiSelect BEFORE removing hidden
           if (window.innerWidth <= 767) {
             const rect = elements.multiSelect.getBoundingClientRect();
             elements.dropdown.style.position = 'fixed';
@@ -8554,7 +8614,13 @@
             elements.dropdown.style.top = `${rect.bottom + 4}px`;
             elements.dropdown.style.width = `${rect.width}px`;
             elements.dropdown.style.maxWidth = `${rect.width}px`;
+            elements.dropdown.style.display = 'block';
+            elements.dropdown.style.visibility = 'visible';
+            elements.dropdown.style.opacity = '1';
+            elements.dropdown.style.zIndex = '10003';
           }
+          
+          elements.dropdown.classList.remove('hidden');
           
           // Focus to show keyboard
           setTimeout(() => elements.searchInput.focus(), 100);
@@ -8597,6 +8663,13 @@
       
       // Helper function to select assignee
       const selectAssignee = (e) => {
+        // If disabled (read-only), don't allow selection, just prevent default
+        if (!enabled) {
+          e.stopPropagation();
+          e.preventDefault?.();
+          return;
+        }
+        
         const option = e.target.closest('.assignee-option');
         if (!option) {
           // If clicking on empty space in dropdown, don't close
