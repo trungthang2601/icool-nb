@@ -7816,6 +7816,24 @@
       issueStatus: report.status || "N/A",
       status: "success"
     }, "issue");
+    
+    // --- TÍNH TOÁN QUYỀN QUẢN LÝ SỚM ĐỂ TRÁNH TDZ ERROR ---
+    // Support both old format (single) and new format (array)
+    const reportAssigneeIds = report.assigneeIds && Array.isArray(report.assigneeIds) 
+      ? report.assigneeIds 
+      : (report.assigneeId ? [report.assigneeId] : []);
+    const isNotAssigned = reportAssigneeIds.length === 0;
+    const isAssignedToMe = reportAssigneeIds.includes(currentUser.uid);
+    const canManage =
+      currentUserProfile.role === "Admin" ||
+      currentUserProfile.role === "Manager" ||
+      (currentUserProfile.role === "Nhân viên" && (isNotAssigned || isAssignedToMe)) ||
+      (currentUserProfile.role !== "Nhân viên" && isAssignedToMe); // Các role khác (nếu có) chỉ quản lý được khi được giao
+    const isResolved = report.status === "Đã giải quyết";
+    
+    // ⚠️ Tạo helper function để tính toán shouldLock tránh TDZ error trong closure/async
+    // Khai báo sớm để tránh lỗi TDZ trong các closure (như img.onerror)
+    const getShouldLock = () => !canManage || isResolved;
 
     // ▼▼▼ THAY ĐỔI LOGIC HIỂN THỊ VỊ TRÍ ▼▼▼
     const locationEl = modal.querySelector("#detailIssueLocation");
@@ -8140,26 +8158,7 @@
     }
 
     // --- LOGIC QUẢN LÝ & KHÓA VẤN ĐỀ ---
-
-    // Cho phép quản lý nếu:
-    // 1. Là Admin hoặc Manager (luôn có quyền)
-    // 2. HOẶC là Nhân viên VÀ (chưa giao cho ai HOẶC đã giao cho chính họ)
-    // Support both old format (single) and new format (array)
-    const reportAssigneeIds = report.assigneeIds && Array.isArray(report.assigneeIds) 
-      ? report.assigneeIds 
-      : (report.assigneeId ? [report.assigneeId] : []);
-    const isNotAssigned = reportAssigneeIds.length === 0;
-    const isAssignedToMe = reportAssigneeIds.includes(currentUser.uid);
-    const canManage =
-      currentUserProfile.role === "Admin" ||
-      currentUserProfile.role === "Manager" ||
-      (currentUserProfile.role === "Nhân viên" && (isNotAssigned || isAssignedToMe)) ||
-      (currentUserProfile.role !== "Nhân viên" && isAssignedToMe); // Các role khác (nếu có) chỉ quản lý được khi được giao
-    const isResolved = report.status === "Đã giải quyết";
-    
-    // KHÓA CÁC TRƯỜNG NẾU (KHÔNG THỂ QUẢN LÝ) HOẶC (ĐÃ GIẢI QUYẾT)
-    // ⚠️ Tạo helper function để tính toán shouldLock tránh TDZ error trong closure/async
-    const getShouldLock = () => !canManage || isResolved;
+    // (Đã được tính toán sớm ở trên để tránh TDZ error)
 
     // Reset listeners setup flag for fresh setup
     const assigneeMultiSelectTemp = modal.querySelector("#assigneeMultiSelect");
@@ -8602,11 +8601,8 @@
 
     // 4. Phân biệt quyền: Admin/Manager có thể quản lý tất cả, assignee chỉ có thể cập nhật trạng thái
     const canManageAll = currentUserProfile.role === "Admin" || currentUserProfile.role === "Manager";
-    // Support both old format (single) and new format (array)
-    const reportAssigneeIdsForCheck = report.assigneeIds && Array.isArray(report.assigneeIds) 
-      ? report.assigneeIds 
-      : (report.assigneeId ? [report.assigneeId] : []);
-    const isAssignee = reportAssigneeIdsForCheck.includes(currentUser.uid) && !canManageAll;
+    // Reuse reportAssigneeIds already calculated above
+    const isAssignee = reportAssigneeIds.includes(currentUser.uid) && !canManageAll;
 
     statusSelect.disabled = getShouldLock();
     // Assignee không thể thay đổi người được giao, chỉ Admin/Manager mới có thể
