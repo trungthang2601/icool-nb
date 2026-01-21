@@ -1,0 +1,1058 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Issue History Mode Toggle Buttons */
+.issue-history-mode-btn {
+  @apply transition-all duration-200;
+}
+
+.issue-history-mode-btn.active {
+  @apply shadow-md;
+}
+
+:root {
+    --primary-color: #4f46e5;
+    /* indigo-600 */
+    --primary-hover: #4338ca;
+    /* indigo-700 */
+    --danger-color: #dc2626;
+    /* red-600 */
+    --body-bg: #f8fafc;
+    /* slate-50 */
+    --text-primary: #1e2d3b;
+    /* slate-800 */
+    --text-secondary: #64748b;
+    /* slate-500 */
+    --border-color: #e2e8f0;
+    /* slate-200 */
+}
+
+html, body {
+    overflow-x: hidden;
+    max-width: 100%;
+    position: relative;
+}
+
+body {
+    font-family: 'Inter', sans-serif;
+    background-color: var(--body-bg);
+    color: var(--text-primary);
+}
+
+.card {
+    background-color: #ffffff;
+    border-radius: 0.75rem;
+    box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.07), 0 1px 2px -1px rgba(0, 0, 0, 0.07);
+    border: 1px solid var(--border-color);
+}
+
+/* Responsive card padding */
+@media (max-width: 640px) {
+    .card {
+        padding: 1rem !important;
+    }
+}
+
+.btn-primary {
+    background-color: var(--primary-color);
+    color: white;
+    padding: 0.625rem 1.25rem;
+    border-radius: 0.5rem;
+    font-weight: 500;
+    transition: all 0.2s ease-in-out;
+}
+
+.btn-primary:hover {
+    background-color: var(--primary-hover);
+    transform: translateY(-1px);
+}
+
+.btn-secondary {
+    background-color: #eef2ff;
+    /* indigo-50 */
+    color: var(--primary-color);
+    border: 1px solid #a5b4fc;
+    /* indigo-300 */
+    padding: 0.625rem 1.25rem;
+    border-radius: 0.5rem;
+    font-weight: 500;
+    transition: all 0.2s ease-in-out;
+}
+
+.btn-secondary:hover {
+    background-color: #e0e7ff;
+    /* indigo-100 */
+}
+
+.btn-danger {
+    background-color: var(--danger-color);
+    color: white;
+    padding: 0.625rem 1.25rem;
+    border-radius: 0.5rem;
+    font-weight: 500;
+    transition: all 0.2s ease-in-out;
+}
+
+.btn-danger:hover {
+    background-color: #b91c1c;
+    /* red-700 */
+}
+
+.alert-success {
+    background-color: #dcfce7;
+    color: #166534;
+    border-left: 4px solid #22c55e;
+}
+
+.alert-error {
+    background-color: #fee2e2;
+    color: #991b1b;
+    border-left: 4px solid #ef4444;
+}
+
+.alert-info {
+    background-color: #e0f2fe;
+    color: #0c4a6e;
+    border-left: 4px solid #38bdf8;
+}
+
+.input-field,
+.textarea-field,
+.select-field {
+    border: 1px solid var(--border-color);
+    border-radius: 0.5rem;
+    padding: 0.625rem 0.75rem;
+    width: 100%;
+    transition: all 0.2s ease-in-out;
+    background-color: #f9fafb;
+}
+
+.input-field:focus,
+.textarea-field:focus,
+.select-field:focus {
+    outline: 2px solid transparent;
+    outline-offset: 2px;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 2px rgba(79, 70, 229, 0.3);
+}
+
+.modal {
+    display: none;
+    position: fixed;
+    z-index: 100;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    overflow: auto;
+    background-color: rgba(0, 0, 0, 0.5);
+    justify-content: center;
+    align-items: center;
+}
+
+/* Force password change modal cannot be closed */
+#forceChangePasswordModal {
+    pointer-events: auto;
+}
+
+#forceChangePasswordModal .modal-content {
+    pointer-events: auto;
+}
+
+.modal-content {
+    background-color: #fefefe;
+    margin: auto;
+    padding: 1.5rem;
+    border-radius: 1rem;
+    width: 90%;
+    max-width: 600px;
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+}
+
+@media (min-width: 640px) {
+    .modal-content {
+        padding: 2rem;
+    }
+}
+
+.dropdown-menu {
+    position: absolute;
+    right: 0;
+    background-color: white;
+    border-radius: 0.5rem;
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+    border: 1px solid var(--border-color);
+    min-width: 12rem;
+    z-index: 50;
+    padding: 0.5rem 0;
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(10px);
+    transition: opacity 0.2s ease-out, transform 0.2s ease-out;
+}
+
+.dropdown-menu.show {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(0);
+}
+
+.sidebar-nav-link.active {
+    background-color: var(--primary-color);
+    color: white;
+}
+
+/* Make chart canvas elements clickable */
+.clickable-chart:hover {
+    cursor: pointer;
+}
+
+/* Mobile optimizations */
+@media (max-width: 767px) {
+    /* Prevent horizontal scroll */
+    html, body {
+        overflow-x: hidden !important;
+        width: 100%;
+        max-width: 100vw;
+    }
+    
+    * {
+        max-width: 100%;
+    }
+    
+    /* Better text handling */
+    body {
+        -webkit-text-size-adjust: 100%;
+        text-size-adjust: 100%;
+    }
+    
+    /* Prevent text overflow - apply to all text elements */
+    * {
+        word-wrap: break-word;
+        overflow-wrap: break-word;
+        hyphens: auto;
+        -webkit-hyphens: auto;
+        -moz-hyphens: auto;
+    }
+    
+    /* Specific text elements */
+    h1, h2, h3, h4, h5, h6,
+    p, span, div, label, td, th,
+    button, a, input, textarea, select {
+        word-wrap: break-word;
+        overflow-wrap: break-word;
+        word-break: break-word;
+        max-width: 100%;
+    }
+    
+    /* Long words should break */
+    h1, h2, h3, h4, h5, h6,
+    p, span, div, label, td, th {
+        overflow-wrap: anywhere;
+        word-break: break-word;
+    }
+    
+    /* Better spacing for main content */
+    #mainContent {
+        width: 100%;
+        max-width: 100vw;
+        overflow-x: hidden;
+    }
+    
+    #mainContent main {
+        min-height: calc(100vh - 200px);
+        width: 100%;
+        max-width: 100%;
+        overflow-x: hidden;
+    }
+    
+    /* Prevent container overflow */
+    .container {
+        max-width: 100%;
+        padding-left: 0.75rem;
+        padding-right: 0.75rem;
+    }
+    
+    /* Date input responsive improvements */
+    .date-input-wrapper {
+        min-width: 0; /* Prevent flex item from overflowing */
+    }
+    
+    .date-format-display {
+        font-size: 0.65rem;
+        left: 0.5rem !important;
+        white-space: nowrap;
+    }
+    
+    input[type="date"] {
+        font-size: 0.875rem;
+        padding-right: 2.5rem;
+    }
+    
+    input[type="date"]::-webkit-calendar-picker-indicator {
+        width: 1.5rem;
+        height: 1.5rem;
+        padding: 0.25rem;
+    }
+    
+    /* Filter sections responsive */
+    .grid.grid-cols-1.sm\\:grid-cols-2 {
+        gap: 0.75rem;
+    }
+    
+    /* Date range inputs in flex containers */
+    .flex.gap-2 input[type="date"] {
+        min-width: 0;
+        flex: 1 1 0;
+    }
+    
+    /* Better empty state styling */
+    td.text-center {
+        padding: 1.5rem 1rem !important;
+        text-align: center !important;
+        display: table-cell !important;
+    }
+    
+    /* Ensure empty state in responsive tables is centered */
+    .responsive-table td[colspan] {
+        text-align: center !important;
+        display: table-cell !important;
+        width: 100%;
+    }
+    
+    .responsive-table td[colspan] > div {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+        width: 100%;
+    }
+    
+    /* Improve header spacing on mobile */
+    header .mx-auto {
+        padding-left: 0.75rem;
+        padding-right: 0.75rem;
+        max-width: 100%;
+    }
+    
+    /* Better card title spacing */
+    .card h2 {
+        margin-bottom: 1rem;
+        font-size: 1.5rem;
+        line-height: 1.4;
+        word-wrap: break-word;
+        overflow-wrap: break-word;
+    }
+    
+    /* All text in cards should wrap properly */
+    .card * {
+        word-wrap: break-word;
+        overflow-wrap: break-word;
+        max-width: 100%;
+    }
+    
+    /* Better line height for readability */
+    body {
+        line-height: 1.6;
+    }
+    
+    p, span, div, label {
+        line-height: 1.5;
+    }
+    
+    /* Ensure buttons text wraps */
+    button, .btn-primary, .btn-secondary, .btn-danger {
+        white-space: normal;
+        word-wrap: break-word;
+        overflow-wrap: break-word;
+        text-align: center;
+    }
+    
+    /* Prevent overflow-x-auto from causing horizontal scroll */
+    .overflow-x-auto {
+        -webkit-overflow-scrolling: touch;
+        overflow-x: auto;
+        width: 100%;
+        max-width: 100%;
+    }
+    
+    /* Ensure tables don't cause overflow */
+    table {
+        width: 100%;
+        max-width: 100%;
+        table-layout: auto;
+    }
+    
+    /* Fix negative margins that can cause overflow */
+    .-mx-4,
+    .-mx-6,
+    .-mx-8 {
+        margin-left: 0 !important;
+        margin-right: 0 !important;
+    }
+    
+    /* Ensure all flex containers don't overflow */
+    .flex {
+        max-width: 100%;
+    }
+    
+    /* Fix appContainer overflow */
+    #appContainer {
+        width: 100%;
+        max-width: 100vw;
+        overflow-x: hidden;
+    }
+    
+    /* Fix mainContent overflow */
+    #mainContent {
+        width: 100%;
+        max-width: 100%;
+        margin-left: 0 !important;
+    }
+    
+    /* Ensure sidebar doesn't cause overflow when hidden */
+    #sidebar {
+        max-width: 100vw;
+    }
+    
+    /* Prevent any element from causing horizontal scroll */
+    img, video, iframe, embed, object {
+        max-width: 100%;
+        height: auto;
+    }
+    
+    /* Ensure all text containers wrap properly */
+    .text-center, .text-left, .text-right {
+        word-wrap: break-word;
+        overflow-wrap: break-word;
+    }
+    
+    /* Modal content should wrap */
+    .modal-content * {
+        word-wrap: break-word;
+        overflow-wrap: break-word;
+        max-width: 100%;
+    }
+    
+    /* Dropdown menus should wrap */
+    .dropdown-menu * {
+        word-wrap: break-word;
+        overflow-wrap: break-word;
+        max-width: 100%;
+    }
+    
+    /* Header text should wrap */
+    header * {
+        word-wrap: break-word;
+        overflow-wrap: break-word;
+        max-width: 100%;
+    }
+    
+    /* Sidebar text should wrap */
+    #sidebar * {
+        word-wrap: break-word;
+        overflow-wrap: break-word;
+        max-width: 100%;
+    }
+    
+    /* Ensure buttons don't overflow */
+    button, .btn-primary, .btn-secondary, .btn-danger {
+        max-width: 100%;
+        word-wrap: break-word;
+        overflow-wrap: break-word;
+        white-space: normal;
+        text-align: center;
+    }
+    
+    /* Input fields should wrap text */
+    input, textarea, select {
+        word-wrap: break-word;
+        overflow-wrap: break-word;
+        max-width: 100%;
+    }
+    
+    /* Labels and text should wrap */
+    label, .label {
+        word-wrap: break-word;
+        overflow-wrap: break-word;
+        max-width: 100%;
+    }
+    
+    /* Fix any absolute/fixed positioned elements */
+    .fixed, .absolute {
+        max-width: 100vw;
+    }
+    
+    .responsive-table thead {
+        display: none;
+    }
+
+    .responsive-table,
+    .responsive-table tbody,
+    .responsive-table tr,
+    .responsive-table td {
+        display: block;
+        width: 100%;
+    }
+
+    /* Show all columns on mobile even if hidden on desktop */
+    .responsive-table td.hidden {
+        display: flex !important;
+    }
+
+    .responsive-table tr {
+        margin-bottom: 1rem;
+        border: 1px solid var(--border-color);
+        border-radius: 0.75rem;
+        padding: 1rem;
+        background-color: white;
+        box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
+    }
+
+    .responsive-table td {
+        padding: 0.75rem 0;
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        text-align: right;
+        border-bottom: 1px solid #f1f5f9;
+        gap: 0.75rem;
+        word-wrap: break-word;
+        overflow-wrap: break-word;
+        word-break: break-word;
+        max-width: 100%;
+    }
+
+    .responsive-table td:last-child {
+        border-bottom: 0;
+        padding-top: 1rem;
+        margin-top: 0.5rem;
+        border-top: 2px solid var(--border-color);
+    }
+
+    .responsive-table td::before {
+        content: attr(data-label);
+        font-weight: 600;
+        text-align: left;
+        color: var(--text-primary);
+        flex-shrink: 0;
+        min-width: 100px;
+        font-size: 0.875rem;
+    }
+
+    /* Content should wrap and be flexible */
+    .responsive-table td > *:not(::before) {
+        flex: 1;
+        text-align: right;
+        word-break: break-word;
+        word-wrap: break-word;
+        overflow-wrap: break-word;
+        font-size: 0.875rem;
+        max-width: 100%;
+        min-width: 0;
+    }
+
+    /* Buttons in responsive table should be full width on mobile */
+    .responsive-table td.text-right {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 0.5rem;
+    }
+
+    .responsive-table td.text-right::before {
+        margin-bottom: 0.5rem;
+        width: 100%;
+    }
+
+    .responsive-table td.text-right button,
+    .responsive-table td button {
+        width: 100%;
+        justify-content: center;
+        margin: 0.25rem 0;
+        padding: 0.5rem 0.75rem;
+        font-size: 0.875rem;
+    }
+
+    /* Button groups should stack vertically */
+    .responsive-table td.text-right .btn-group,
+    .responsive-table td.text-right > * {
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+        width: 100%;
+    }
+
+    /* Truncate long text on mobile */
+    .responsive-table td[data-label="Chi Nhánh"],
+    .responsive-table td[data-label="Email"] {
+        word-break: break-all;
+    }
+
+    /* Better spacing for action buttons */
+    .responsive-table td[data-label="Hành động"] {
+        padding-top: 1rem;
+        margin-top: 0.5rem;
+    }
+
+    /* Improve button layout on mobile */
+    .responsive-table td[data-label="Hành động"] .flex {
+        flex-direction: column;
+        width: 100%;
+    }
+
+    .responsive-table td[data-label="Hành động"] button {
+        margin: 0.25rem 0 !important;
+        width: 100% !important;
+    }
+
+    /* Wrap long email and branch names instead of truncating */
+    .responsive-table td[data-label="Email"] > *,
+    .responsive-table td[data-label="Chi Nhánh"] > * {
+        word-break: break-word;
+        word-wrap: break-word;
+        overflow-wrap: break-word;
+        max-width: 100%;
+        white-space: normal;
+    }
+
+    /* Better card-like appearance for rows */
+    .responsive-table tr:hover {
+        box-shadow: 0 2px 4px 0 rgba(0, 0, 0, 0.1);
+        transform: translateY(-1px);
+        transition: all 0.2s ease-in-out;
+    }
+}
+
+/* Tablet optimization */
+@media (min-width: 768px) and (max-width: 1023px) {
+    .responsive-table th,
+    .responsive-table td {
+        padding: 0.75rem 0.5rem;
+        font-size: 0.875rem;
+    }
+
+    .responsive-table td[data-label="Chi Nhánh"] {
+        max-width: 150px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+}
+
+.notification-badge-container {
+    position: relative;
+}
+
+.notification-badge {
+    position: absolute;
+    top: -5px;
+    right: -8px;
+    height: 20px;
+    width: 20px;
+    background-color: var(--danger-color);
+    color: white;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    font-weight: bold;
+    border: 2px solid white;
+    transform: scale(0);
+    transition: transform 0.2s ease-out;
+}
+
+.notification-badge.show {
+    transform: scale(1);
+}
+
+.notification-item {
+    border-bottom: 1px solid var(--border-color);
+}
+
+.notification-item:last-child {
+    border-bottom: none;
+}
+
+.notification-item.unread {
+    background-color: #eef2ff;
+}
+
+#camera-overlay {
+    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+}
+
+/* Heatmap Styles */
+.heatmap-container {
+    font-size: 10px;
+}
+
+.heatmap {
+    display: grid;
+    grid-template-columns: auto repeat(24, 1fr);
+    gap: 3px;
+}
+
+.heatmap-cell {
+    aspect-ratio: 1 / 1;
+    border-radius: 3px;
+    background-color: #ebedf0;
+    /* Default light gray for 0 incidents */
+    position: relative;
+    cursor: pointer;
+}
+
+.heatmap-cell:hover .tooltip {
+    visibility: visible;
+    opacity: 1;
+}
+
+.heatmap-label {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    font-weight: 500;
+    padding-right: 8px;
+    white-space: nowrap;
+}
+
+.heatmap-header {
+    text-align: center;
+    color: var(--text-secondary);
+}
+
+.tooltip {
+    visibility: hidden;
+    opacity: 0;
+    position: absolute;
+    bottom: 110%;
+    left: 50%;
+    transform: translateX(-50%);
+    background-color: var(--text-primary);
+    color: white;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 12px;
+    white-space: nowrap;
+    z-index: 10;
+    transition: opacity 0.1s ease-in-out;
+}
+
+.custom-select-container {
+    position: relative;
+}
+
+.custom-select-trigger {
+    border: 1px solid var(--border-color);
+    border-radius: 0.5rem;
+    padding: 0.625rem 0.75rem;
+    width: 100%;
+    background-color: #f9fafb;
+    cursor: pointer;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    user-select: none;
+}
+
+.custom-select-trigger:focus {
+    outline: 2px solid transparent;
+    outline-offset: 2px;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 2px rgba(79, 70, 229, 0.3);
+}
+
+.custom-select-options {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    background-color: white;
+    border: 1px solid var(--border-color);
+    border-radius: 0.5rem;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    z-index: 10;
+    margin-top: 0.25rem;
+    max-height: 200px;
+    overflow-y: auto;
+    display: none;
+    /* Ẩn mặc định */
+}
+
+.custom-select-options.show {
+    display: block;
+    /* Hiện khi có class 'show' */
+}
+
+.custom-select-option {
+    padding: 0.5rem 0.75rem;
+    cursor: pointer;
+}
+
+.custom-select-option:hover {
+    background-color: #f3f4f6;
+}
+
+.custom-select-option label {
+    display: flex;
+    align-items: center;
+    width: 100%;
+    cursor: pointer;
+}
+
+.custom-select-option input {
+    margin-right: 0.5rem;
+    height: 1rem;
+    width: 1rem;
+}
+
+.custom-select-trigger {
+    /* Thay đổi thuộc tính của trigger để chứa được các thẻ */
+    flex-wrap: wrap;
+    align-items: center;
+    padding-top: 0.375rem;
+    padding-bottom: 0.375rem;
+    min-height: calc(1.5em + 1.25rem + 2px);
+    /* Tương đương chiều cao của input */
+}
+
+.custom-select-tag {
+    display: flex;
+    align-items: center;
+    background-color: #e0e7ff;
+    /* indigo-100 */
+    color: #3730a3;
+    /* indigo-800 */
+    padding: 0.25rem 0.5rem;
+    border-radius: 0.25rem;
+    margin-right: 0.25rem;
+    margin-bottom: 0.25rem;
+    font-size: 0.875rem;
+    font-weight: 500;
+}
+
+.tag-close-btn {
+    margin-left: 0.375rem;
+    cursor: pointer;
+    font-size: 1rem;
+    line-height: 1;
+    font-weight: bold;
+}
+
+.tag-close-btn:hover {
+    color: #dc2626;
+    /* red-600 */
+}
+
+/* Ẩn mũi tên xuống khi không có placeholder */
+.custom-select-trigger .placeholder-text {
+    color: #64748b;
+    /* slate-500 */
+}
+
+
+/* Touch events fix - Keep for functionality */
+@media (max-width: 767px) {
+    /* Ensure all interactive elements are clickable */
+    button:not(:disabled),
+    a:not(:disabled),
+    .btn-primary:not(:disabled),
+    .btn-secondary:not(:disabled),
+    .btn-danger:not(:disabled),
+    input[type="button"],
+    input[type="submit"],
+    select,
+    .custom-select-trigger {
+        pointer-events: auto !important;
+        touch-action: manipulation;
+    }
+
+    /* Fix for disabled buttons */
+    button:disabled,
+    .btn-primary:disabled,
+    .btn-secondary:disabled,
+    .btn-danger:disabled {
+        opacity: 0.5;
+        pointer-events: none;
+    }
+}
+
+/* Fix z-index and pointer events for mobile - Keep minimal for functionality */
+@media (max-width: 767px) {
+    /* Ensure sidebar overlay doesn't block clicks when hidden */
+    #sidebarOverlay.hidden {
+        display: none !important;
+        pointer-events: none !important;
+    }
+
+    /* Fix z-index issues */
+    .modal {
+        z-index: 1000 !important;
+        pointer-events: auto !important;
+    }
+
+    .modal-content {
+        z-index: 1001 !important;
+        pointer-events: auto !important;
+    }
+
+    /* Ensure dropdowns are clickable */
+    .dropdown-menu {
+        z-index: 1002 !important;
+        pointer-events: auto !important;
+    }
+
+    /* Ensure location search results are clickable */
+    #locationSearchResults {
+        z-index: 100 !important;
+        pointer-events: auto !important;
+    }
+    
+    /* Issue Report View - Sticky title on mobile */
+    #issueReportTitle {
+        position: -webkit-sticky; /* Safari support */
+        position: sticky;
+        top: 64px; /* Account for sticky header height (adjust if header height differs) */
+        z-index: 25; /* Below header (z-30) but above content */
+        background-color: white;
+        padding-top: 1rem;
+        padding-bottom: 1rem;
+        margin-left: -1.5rem;
+        margin-right: -1.5rem;
+        padding-left: 1.5rem;
+        padding-right: 1.5rem;
+        border: 3px solid #ef4444; /* red-500 - full border around sticky title */
+        border-radius: 0.5rem 0.5rem 0 0; /* Rounded top corners */
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        margin-top: -1.5rem; /* Offset the card padding */
+        margin-bottom: 1.5rem;
+    }
+    
+    /* Ensure card doesn't overflow */
+    #issueReportView .card {
+        position: relative;
+        overflow: visible;
+        padding-top: 1.5rem; /* Extra padding at top for sticky title */
+    }
+    
+    /* Issue Detail Modal mobile optimizations */
+    #issueDetailModal .modal-content {
+        padding: 1rem;
+        max-height: 95vh;
+        overflow-y: auto;
+        position: relative;
+    }
+    
+    #issueDetailModal h3 {
+        font-size: 1.25rem;
+        line-height: 1.3;
+        word-wrap: break-word;
+    }
+    
+    #issueDetailModal #closeIssueDetailModalBtn {
+        position: absolute;
+        top: 0;
+        right: 0;
+        width: 2rem;
+        height: 2rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 10;
+        margin-top: 0;
+    }
+    
+    /* Better spacing between header and location on mobile */
+    #issueDetailModal .mb-6 > div:first-child {
+        margin-bottom: 1rem;
+    }
+    
+    #issueDetailModal .mt-4 {
+        margin-top: 1rem;
+    }
+    
+    #detailIssueLocation {
+        font-size: 0.875rem;
+        word-break: break-word;
+        overflow-wrap: break-word;
+        line-height: 1.5;
+    }
+    
+    /* Grid layout adjustments for mobile */
+    #issueDetailModal .grid {
+        gap: 1rem;
+    }
+    
+    #issueDetailModal .lg\\:col-span-2 {
+        width: 100%;
+    }
+    
+    /* Better spacing for images on mobile */
+    #detailIssueImageContainer,
+    #detailRepairedImageContainer {
+        margin-top: 0.5rem;
+    }
+    
+    #detailIssueImageContainer img,
+    #detailRepairedImageContainer img {
+        width: 100%;
+        height: auto;
+        border-radius: 0.5rem;
+        max-height: 300px;
+        object-fit: contain;
+    }
+    
+    /* Comments section mobile optimization */
+    #detailIssueComments {
+        max-height: 200px;
+        font-size: 0.875rem;
+    }
+    
+    /* Comment input mobile optimization */
+    #newCommentInput {
+        font-size: 0.875rem;
+    }
+    
+    #addCommentBtn {
+        font-size: 0.875rem;
+        padding: 0.625rem 1rem;
+    }
+    
+    /* Action buttons on mobile */
+    #issueDetailModal .btn-primary {
+        width: 100%;
+        padding: 0.75rem;
+        font-size: 0.875rem;
+    }
+    
+    /* Info sidebar mobile adjustments */
+    #issueDetailModal .bg-slate-50 {
+        padding: 1rem;
+        margin-top: 1rem;
+        border-radius: 0.5rem;
+    }
+    
+    #issueDetailModal .space-y-4 > * {
+        margin-bottom: 1rem;
+    }
+    
+    /* Better text wrapping in info sidebar */
+    #issueDetailModal .bg-slate-50 * {
+        word-wrap: break-word;
+        overflow-wrap: break-word;
+    }
+    
+    /* Section headings on mobile */
+    #issueDetailModal h4 {
+        font-size: 0.875rem;
+        margin-bottom: 0.5rem;
+    }
+    
+    /* Description text on mobile */
+    #detailIssueDescription {
+        font-size: 0.875rem;
+        line-height: 1.6;
+    }
+}
