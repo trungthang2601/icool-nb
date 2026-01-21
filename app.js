@@ -8426,8 +8426,8 @@
       }
       elements.multiSelect.dataset.listenersSetup = 'true';
       
-      // Open dropdown on click - use capture phase to run FIRST
-      elements.multiSelect.addEventListener('click', (e) => {
+      // Helper function to toggle dropdown
+      const toggleDropdown = (e) => {
         // Don't do anything if clicking on remove button
         if (e.target.closest('.remove-assignee-btn')) {
           return;
@@ -8435,6 +8435,7 @@
         
         // Stop propagation to prevent click outside handler from running
         e.stopPropagation();
+        e.preventDefault?.(); // Prevent default for touch events
         e.stopImmediatePropagation();
         
         // If clicking on search input, just open dropdown
@@ -8442,6 +8443,10 @@
           // Ensure options are rendered before showing dropdown
           renderAssigneeOptions(users, selectedAssignees);
           elements.dropdown.classList.remove('hidden');
+          // Focus input on mobile
+          if (elements.searchInput) {
+            setTimeout(() => elements.searchInput.focus(), 100);
+          }
           return;
         }
         
@@ -8451,10 +8456,22 @@
           // Ensure options are rendered before showing dropdown
           renderAssigneeOptions(users, selectedAssignees);
           elements.dropdown.classList.remove('hidden');
+          // Focus input on mobile to show keyboard
+          if (elements.searchInput) {
+            setTimeout(() => elements.searchInput.focus(), 100);
+          }
         } else {
           elements.dropdown.classList.add('hidden');
         }
-      }, true); // Use capture phase to run before other handlers
+      };
+      
+      // Open dropdown on click - use capture phase to run FIRST
+      elements.multiSelect.addEventListener('click', toggleDropdown, true);
+      
+      // Add touch support for mobile devices
+      elements.multiSelect.addEventListener('touchend', (e) => {
+        toggleDropdown(e);
+      }, { passive: false });
       
       // Search input handlers
       if (elements.searchInput) {
@@ -8475,6 +8492,17 @@
           renderAssigneeOptions(users, selectedAssignees);
           elements.dropdown.classList.remove('hidden');
         }, true);
+        
+        // Add touch support for mobile
+        elements.searchInput.addEventListener('touchend', (e) => {
+          e.stopPropagation();
+          e.preventDefault();
+          // Ensure options are rendered before showing dropdown
+          renderAssigneeOptions(users, selectedAssignees);
+          elements.dropdown.classList.remove('hidden');
+          // Focus to show keyboard
+          setTimeout(() => elements.searchInput.focus(), 100);
+        }, { passive: false });
       }
       
       // Click outside to close - run in bubble phase (after capture phase handlers)
@@ -8503,8 +8531,8 @@
         }, 0);
       }
       
-      // Select assignee from dropdown - use event delegation with capture phase
-      elements.options.addEventListener('click', (e) => {
+      // Helper function to select assignee
+      const selectAssignee = (e) => {
         const option = e.target.closest('.assignee-option');
         if (!option) {
           // If clicking on empty space in dropdown, don't close
@@ -8516,7 +8544,7 @@
         
         // Stop all event propagation immediately
         e.stopPropagation();
-        e.preventDefault();
+        e.preventDefault?.();
         e.stopImmediatePropagation();
         
         const uid = option.getAttribute('data-uid');
@@ -8538,7 +8566,15 @@
           // Keep dropdown open for multiple selections
           // Optionally close after selection: freshElements.dropdown?.classList.add('hidden');
         }
-      }, true); // Use capture phase to ensure it fires before other handlers
+      };
+      
+      // Select assignee from dropdown - use event delegation with capture phase
+      elements.options.addEventListener('click', selectAssignee, true);
+      
+      // Add touch support for mobile
+      elements.options.addEventListener('touchend', (e) => {
+        selectAssignee(e);
+      }, { passive: false });
       
       // Remove assignee tag
       if (elements.selectedTags) {
