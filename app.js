@@ -8442,6 +8442,17 @@
           // Ensure options are rendered before showing dropdown
           renderAssigneeOptions(users, selectedAssignees);
           elements.dropdown.classList.remove('hidden');
+          
+          // On mobile, position dropdown relative to multiSelect
+          if (window.innerWidth <= 767) {
+            const rect = elements.multiSelect.getBoundingClientRect();
+            elements.dropdown.style.position = 'fixed';
+            elements.dropdown.style.left = `${rect.left}px`;
+            elements.dropdown.style.top = `${rect.bottom + 4}px`;
+            elements.dropdown.style.width = `${rect.width}px`;
+            elements.dropdown.style.maxWidth = `${rect.width}px`;
+          }
+          
           // Focus input on mobile
           if (elements.searchInput) {
             setTimeout(() => elements.searchInput.focus(), 100);
@@ -8455,6 +8466,21 @@
           // Ensure options are rendered before showing dropdown
           renderAssigneeOptions(users, selectedAssignees);
           elements.dropdown.classList.remove('hidden');
+          
+          // On mobile, position dropdown relative to multiSelect
+          if (window.innerWidth <= 767) {
+            const rect = elements.multiSelect.getBoundingClientRect();
+            const modalContent = elements.multiSelect.closest('.modal-content');
+            const modalRect = modalContent ? modalContent.getBoundingClientRect() : { left: 0, top: 0 };
+            
+            // Position dropdown below multiSelect
+            elements.dropdown.style.position = 'fixed';
+            elements.dropdown.style.left = `${rect.left}px`;
+            elements.dropdown.style.top = `${rect.bottom + 4}px`;
+            elements.dropdown.style.width = `${rect.width}px`;
+            elements.dropdown.style.maxWidth = `${rect.width}px`;
+          }
+          
           // Focus input on mobile to show keyboard
           if (elements.searchInput) {
             setTimeout(() => elements.searchInput.focus(), 100);
@@ -8483,6 +8509,16 @@
           // Ensure options are rendered before showing dropdown
           renderAssigneeOptions(users, selectedAssignees);
           elements.dropdown.classList.remove('hidden');
+          
+          // On mobile, position dropdown relative to multiSelect
+          if (window.innerWidth <= 767) {
+            const rect = elements.multiSelect.getBoundingClientRect();
+            elements.dropdown.style.position = 'fixed';
+            elements.dropdown.style.left = `${rect.left}px`;
+            elements.dropdown.style.top = `${rect.bottom + 4}px`;
+            elements.dropdown.style.width = `${rect.width}px`;
+            elements.dropdown.style.maxWidth = `${rect.width}px`;
+          }
         }, true);
         
         elements.searchInput.addEventListener('click', (e) => {
@@ -8490,6 +8526,16 @@
           // Ensure options are rendered before showing dropdown
           renderAssigneeOptions(users, selectedAssignees);
           elements.dropdown.classList.remove('hidden');
+          
+          // On mobile, position dropdown relative to multiSelect
+          if (window.innerWidth <= 767) {
+            const rect = elements.multiSelect.getBoundingClientRect();
+            elements.dropdown.style.position = 'fixed';
+            elements.dropdown.style.left = `${rect.left}px`;
+            elements.dropdown.style.top = `${rect.bottom + 4}px`;
+            elements.dropdown.style.width = `${rect.width}px`;
+            elements.dropdown.style.maxWidth = `${rect.width}px`;
+          }
         }, true);
         
         // Add touch support for mobile
@@ -8499,6 +8545,17 @@
           // Ensure options are rendered before showing dropdown
           renderAssigneeOptions(users, selectedAssignees);
           elements.dropdown.classList.remove('hidden');
+          
+          // On mobile, position dropdown relative to multiSelect
+          if (window.innerWidth <= 767) {
+            const rect = elements.multiSelect.getBoundingClientRect();
+            elements.dropdown.style.position = 'fixed';
+            elements.dropdown.style.left = `${rect.left}px`;
+            elements.dropdown.style.top = `${rect.bottom + 4}px`;
+            elements.dropdown.style.width = `${rect.width}px`;
+            elements.dropdown.style.maxWidth = `${rect.width}px`;
+          }
+          
           // Focus to show keyboard
           setTimeout(() => elements.searchInput.focus(), 100);
         }, { passive: false });
@@ -8518,6 +8575,14 @@
         
         if (!clickedInsideMultiSelect && !clickedInsideDropdown) {
           freshElements.dropdown.classList.add('hidden');
+          // Reset position styles on close (mobile)
+          if (window.innerWidth <= 767) {
+            freshElements.dropdown.style.position = '';
+            freshElements.dropdown.style.left = '';
+            freshElements.dropdown.style.top = '';
+            freshElements.dropdown.style.width = '';
+            freshElements.dropdown.style.maxWidth = '';
+          }
         }
       };
       
