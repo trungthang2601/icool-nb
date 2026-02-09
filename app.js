@@ -586,6 +586,7 @@
   let issueHistoryCurrentPage = 1;
   let myTasksCurrentPage = 1;
   const ITEMS_PER_PAGE = 10;
+  const EXPORT_PAGE_SIZE = 500; // Batch size when fetching all data for Excel export
   // Server-side pagination state
   let issueHistoryLastVisible = null;
   let issueHistoryHasMore = false;
@@ -4452,14 +4453,80 @@
       });
     }
 
-    // Export to Excel button (enabled based on mode and data availability)
+    // Export to Excel button -> mở popup chọn khoảng thời gian
     const exportIssueHistoryBtn = mainContentContainer.querySelector("#exportIssueHistoryBtn");
     if (exportIssueHistoryBtn) {
       exportIssueHistoryBtn.addEventListener("click", handleExportIssueHistory);
-      // For current mode: enable immediately (data will load)
-      // For archive mode: only enable when month is selected
       exportIssueHistoryBtn.disabled = (issueHistoryMode === "archive" && !issueHistorySelectedMonth);
     }
+
+    // Popup chọn khoảng thời gian khi xuất Excel
+    const exportDateModal = mainContentContainer.querySelector("#exportIssueHistoryDateModal");
+    const closeExportDateModalBtn = mainContentContainer.querySelector("#closeExportDateModalBtn");
+    const cancelExportDateModalBtn = mainContentContainer.querySelector("#cancelExportDateModalBtn");
+    const confirmExportIssueHistoryBtn = mainContentContainer.querySelector("#confirmExportIssueHistoryBtn");
+    const exportDateFromEl = mainContentContainer.querySelector("#exportDateFrom");
+    const exportDateToEl = mainContentContainer.querySelector("#exportDateTo");
+    const exportDateFromPlaceholder = mainContentContainer.querySelector("#exportDateFromPlaceholder");
+    const exportDateToPlaceholder = mainContentContainer.querySelector("#exportDateToPlaceholder");
+
+    const updateExportDatePlaceholders = () => {
+      if (exportDateFromPlaceholder) exportDateFromPlaceholder.style.visibility = (exportDateFromEl?.value || exportDateFromEl === document.activeElement) ? "hidden" : "visible";
+      if (exportDateToPlaceholder) exportDateToPlaceholder.style.visibility = (exportDateToEl?.value || exportDateToEl === document.activeElement) ? "hidden" : "visible";
+    };
+    if (exportDateFromEl) {
+      exportDateFromEl.addEventListener("input", updateExportDatePlaceholders);
+      exportDateFromEl.addEventListener("focus", () => { if (exportDateFromPlaceholder) exportDateFromPlaceholder.style.visibility = "hidden"; });
+      exportDateFromEl.addEventListener("blur", updateExportDatePlaceholders);
+    }
+    if (exportDateToEl) {
+      exportDateToEl.addEventListener("input", updateExportDatePlaceholders);
+      exportDateToEl.addEventListener("focus", () => { if (exportDateToPlaceholder) exportDateToPlaceholder.style.visibility = "hidden"; });
+      exportDateToEl.addEventListener("blur", updateExportDatePlaceholders);
+    }
+
+    const closeExportDateModal = () => {
+      if (exportDateModal) exportDateModal.style.display = "none";
+    };
+
+    if (closeExportDateModalBtn) closeExportDateModalBtn.addEventListener("click", closeExportDateModal);
+    if (cancelExportDateModalBtn) cancelExportDateModalBtn.addEventListener("click", closeExportDateModal);
+
+    if (confirmExportIssueHistoryBtn && exportDateFromEl && exportDateToEl) {
+      confirmExportIssueHistoryBtn.addEventListener("click", () => {
+        closeExportDateModal();
+        doExportIssueHistory(exportDateFromEl.value.trim(), exportDateToEl.value.trim());
+      });
+    }
+
+    const formatDateForExportInput = (d) => {
+      const y = d.getFullYear();
+      const m = String(d.getMonth() + 1).padStart(2, "0");
+      const day = String(d.getDate()).padStart(2, "0");
+      return `${y}-${m}-${day}`;
+    };
+    const todayForExport = new Date();
+    mainContentContainer.querySelector("#exportDate7Days")?.addEventListener("click", () => {
+      const d = new Date(todayForExport);
+      d.setDate(todayForExport.getDate() - 7);
+      if (exportDateFromEl) exportDateFromEl.value = formatDateForExportInput(d);
+      if (exportDateToEl) exportDateToEl.value = formatDateForExportInput(todayForExport);
+      updateExportDatePlaceholders();
+    });
+    mainContentContainer.querySelector("#exportDateThisMonth")?.addEventListener("click", () => {
+      const first = new Date(todayForExport.getFullYear(), todayForExport.getMonth(), 1);
+      const last = new Date(todayForExport.getFullYear(), todayForExport.getMonth() + 1, 0);
+      if (exportDateFromEl) exportDateFromEl.value = formatDateForExportInput(first);
+      if (exportDateToEl) exportDateToEl.value = formatDateForExportInput(last);
+      updateExportDatePlaceholders();
+    });
+    mainContentContainer.querySelector("#exportDateLastMonth")?.addEventListener("click", () => {
+      const first = new Date(todayForExport.getFullYear(), todayForExport.getMonth() - 1, 1);
+      const last = new Date(todayForExport.getFullYear(), todayForExport.getMonth(), 0);
+      if (exportDateFromEl) exportDateFromEl.value = formatDateForExportInput(first);
+      if (exportDateToEl) exportDateToEl.value = formatDateForExportInput(last);
+      updateExportDatePlaceholders();
+    });
 
     // Update filter count when filter inputs change
     const filterSelects = [
@@ -12751,21 +12818,191 @@ ${priorityIcon} <b>Mức độ ưu tiên:</b> ${reportData.priority}
   }
 
   /**
-   * Exports issue history data to Excel file.
-   * Uses the filtered data (issueHistoryFiltered) to export only what's currently displayed.
+   * Fetches ALL issue history data for the current filters and date range (for Excel export).
+   * Paginates through Firestore until no more docs, then applies client-side filters.
+   * @param {function(string): void} onProgress - Optional callback with status message
+   * @returns {Promise<Array>} Full list of reports to export
+   */
+  /**
+   * @param {function(string): void} onProgress
+   * @param {{ dateFrom?: string, dateTo?: string }} dateOverride - Optional. Khi xuất từ popup, truyền khoảng ngày ở đây.
+   */
+  async function fetchAllIssueHistoryForExport(onProgress, dateOverride = {}) {
+    const report = (msg) => { if (onProgress) onProgress(msg); console.log(msg); };
+
+    const branchFilter = mainContentContainer.querySelector("#filterBranch")?.value || "";
+    const issueTypeFilter = mainContentContainer.querySelector("#filterIssueType")?.value || "";
+    const statusFilter = mainContentContainer.querySelector("#filterStatus")?.value || "";
+    const reporterFilter = mainContentContainer.querySelector("#filterReporter")?.value || "";
+    const dateFromFilter = dateOverride.dateFrom ?? mainContentContainer.querySelector("#filterDateFrom")?.value ?? "";
+    const dateToFilter = dateOverride.dateTo ?? mainContentContainer.querySelector("#filterDateTo")?.value ?? "";
+
+    let allReports = [];
+    let lastVisible = null;
+    let usingFallback = false;
+
+    const applyClientFilters = (reports) => {
+      let filtered = reports;
+      if (issueHistoryMode === "archive" && usingFallback && issueHistorySelectedMonth) {
+        const [y, m] = issueHistorySelectedMonth.split("-");
+        const start = new Date(parseInt(y), parseInt(m) - 1, 1);
+        const end = new Date(parseInt(y), parseInt(m), 0, 23, 59, 59, 999);
+        filtered = filtered.filter((r) => {
+          const d = r.reportDate?.toDate ? r.reportDate.toDate() : new Date(r.reportDate);
+          return d >= start && d <= end;
+        });
+      }
+      if (reporterFilter || dateFromFilter || dateToFilter) {
+        filtered = filtered.filter((r) => {
+          if (reporterFilter && r.reporterName !== reporterFilter) return false;
+          if (dateFromFilter || dateToFilter) {
+            const d = r.reportDate?.toDate ? r.reportDate.toDate() : new Date(r.reportDate);
+            d.setHours(0, 0, 0, 0);
+            if (dateFromFilter) {
+              const from = new Date(dateFromFilter);
+              from.setHours(0, 0, 0, 0);
+              if (d < from) return false;
+            }
+            if (dateToFilter) {
+              const to = new Date(dateToFilter);
+              to.setHours(23, 59, 59, 999);
+              if (d > to) return false;
+            }
+          }
+          return true;
+        });
+      }
+      return filtered;
+    };
+
+    for (let iteration = 0; ; iteration++) {
+      let q;
+      if (issueHistoryMode === "current") {
+        q = getScopedIssuesQuery();
+      } else {
+        if (!issueHistorySelectedMonth) {
+          report("Chưa chọn tháng/năm (chế độ archive).");
+          return [];
+        }
+        const [year, month] = issueHistorySelectedMonth.split("-");
+        const startDate = new Date(parseInt(year), parseInt(month) - 1, 1);
+        const endDate = new Date(parseInt(year), parseInt(month), 0, 23, 59, 59, 999);
+        q = collection(db, `/artifacts/${canvasAppId}/public/data/issueReports_archive`);
+        if (currentUserProfile?.role === "Chi nhánh" && currentUserProfile?.branch) {
+          q = query(q, where("issueBranch", "==", currentUserProfile.branch));
+        }
+        q = query(q, where("reportDate", ">=", Timestamp.fromDate(startDate)), where("reportDate", "<=", Timestamp.fromDate(endDate)));
+      }
+
+      if (branchFilter) q = query(q, where("issueBranch", "==", branchFilter));
+      if (issueTypeFilter) q = query(q, where("issueType", "==", issueTypeFilter));
+      if (statusFilter) q = query(q, where("status", "==", statusFilter));
+      q = query(q, orderBy("reportDate", "desc"), limit(EXPORT_PAGE_SIZE));
+      if (lastVisible) q = query(q, startAfter(lastVisible));
+
+      let snapshot;
+      try {
+        report(`Đang tải dữ liệu (đợt ${iteration + 1})...`);
+        snapshot = await getDocs(q);
+      } catch (err) {
+        if (issueHistoryMode === "archive") {
+          usingFallback = true;
+          q = getScopedIssuesQuery();
+          if (branchFilter) q = query(q, where("issueBranch", "==", branchFilter));
+          if (issueTypeFilter) q = query(q, where("issueType", "==", issueTypeFilter));
+          if (statusFilter) q = query(q, where("status", "==", statusFilter));
+          q = query(q, orderBy("reportDate", "desc"), limit(EXPORT_PAGE_SIZE));
+          if (lastVisible) q = query(q, startAfter(lastVisible));
+          snapshot = await getDocs(q);
+        } else throw err;
+      }
+
+      const docs = snapshot.docs;
+      const batch = docs.map((d) => ({ id: d.id, ...d.data() }));
+      allReports = allReports.concat(batch);
+      report(`Đã tải ${allReports.length} bản ghi...`);
+
+      if (docs.length < EXPORT_PAGE_SIZE) break;
+      lastVisible = docs[docs.length - 1];
+    }
+
+    return applyClientFilters(allReports);
+  }
+
+  /**
+   * Shows the "Chọn khoảng thời gian xuất Excel" popup. Khi user bấm Xuất Excel trong popup sẽ gọi doExportIssueHistory.
    */
   function handleExportIssueHistory() {
+    if (typeof XLSX === 'undefined') {
+      alert("Lỗi: Thư viện Excel chưa được tải. Vui lòng tải lại trang và thử lại.");
+      return;
+    }
+    const modal = mainContentContainer?.querySelector("#exportIssueHistoryDateModal") || document.getElementById("exportIssueHistoryDateModal");
+    if (!modal) {
+      console.warn("Export date modal not found in DOM");
+      return;
+    }
+    const fromInput = modal.querySelector("#exportDateFrom") || document.getElementById("exportDateFrom");
+    const toInput = modal.querySelector("#exportDateTo") || document.getElementById("exportDateTo");
+    if (fromInput && toInput) {
+      const filterFrom = mainContentContainer?.querySelector("#filterDateFrom");
+      const filterTo = mainContentContainer?.querySelector("#filterDateTo");
+      fromInput.value = filterFrom?.value || "";
+      toInput.value = filterTo?.value || "";
+    }
+    modal.style.display = "flex";
+    modal.style.visibility = "visible";
+    const phFrom = modal.querySelector("#exportDateFromPlaceholder");
+    const phTo = modal.querySelector("#exportDateToPlaceholder");
+    if (phFrom) phFrom.style.visibility = fromInput?.value ? "hidden" : "visible";
+    if (phTo) phTo.style.visibility = toInput?.value ? "hidden" : "visible";
+  }
+
+  /**
+   * Thực hiện xuất Excel với khoảng ngày (từ popup hoặc từ bộ lọc). Gọi sau khi user chọn xong trong popup.
+   * @param {string} dateFromStr - Từ ngày (YYYY-MM-DD) hoặc ""
+   * @param {string} dateToStr - Đến ngày (YYYY-MM-DD) hoặc ""
+   */
+  async function doExportIssueHistory(dateFromStr, dateToStr) {
+    const exportBtn = mainContentContainer.querySelector("#exportIssueHistoryBtn");
+    const originalText = exportBtn ? exportBtn.innerHTML : "";
+
     try {
-      // Check if XLSX library is loaded
-      if (typeof XLSX === 'undefined') {
-        alert("Lỗi: Thư viện Excel chưa được tải. Vui lòng tải lại trang và thử lại.");
-        console.error("XLSX library is not loaded");
+      if (exportBtn) {
+        exportBtn.disabled = true;
+        exportBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Đang tải toàn bộ dữ liệu...';
+      }
+
+      const dataToExport = await fetchAllIssueHistoryForExport(
+        (msg) => { if (exportBtn) exportBtn.innerHTML = `<i class="fas fa-spinner fa-spin mr-2"></i>${msg}`; },
+        { dateFrom: dateFromStr || "", dateTo: dateToStr || "" }
+      );
+
+      if (!dataToExport || dataToExport.length === 0) {
+        alert("Không có dữ liệu sự cố trong khoảng thời gian đã chọn. Vui lòng kiểm tra lại bộ lọc hoặc tháng/năm.");
         return;
       }
 
-      if (!issueHistoryFiltered || issueHistoryFiltered.length === 0) {
-        alert("Không có dữ liệu sự cố để xuất. Vui lòng kiểm tra lại bộ lọc.");
-        return;
+      // Build title: "Lịch sử báo cáo từ ngày dd/MM/yyyy đến ngày dd/MM/yyyy" (theo khoảng đã chọn trong popup)
+      dateFromStr = dateFromStr || "";
+      dateToStr = dateToStr || "";
+      const fmt = (s) => {
+        if (!s) return "";
+        const [y, m, d] = s.split("-");
+        return `${d}/${m}/${y}`;
+      };
+      let reportTitle;
+      if (dateFromStr && dateToStr) {
+        reportTitle = `Lịch sử báo cáo từ ngày ${fmt(dateFromStr)} đến ngày ${fmt(dateToStr)}`;
+      } else if (issueHistorySelectedMonth) {
+        const [y, m] = issueHistorySelectedMonth.split("-");
+        const firstDay = `01/${m}/${y}`;
+        const lastDay = new Date(parseInt(y), parseInt(m), 0);
+        const dd = String(lastDay.getDate()).padStart(2, "0");
+        const mm = String(lastDay.getMonth() + 1).padStart(2, "0");
+        reportTitle = `Lịch sử báo cáo từ ngày ${firstDay} đến ngày ${dd}/${mm}/${y}`;
+      } else {
+        reportTitle = "Lịch sử báo cáo (toàn bộ theo bộ lọc)";
       }
 
       // Ensure roomToLocationMap is built
@@ -12808,8 +13045,8 @@ ${priorityIcon} <b>Mức độ ưu tiên:</b> ${reportData.priority}
         }
       };
 
-      // Convert issue reports to Excel format
-      const excelData = issueHistoryFiltered.map((report) => {
+      // Convert issue reports to Excel format (full data for selected date range)
+      const excelData = dataToExport.map((report) => {
         try {
           return {
             "Chi nhánh": report.issueBranch || "N/A",
@@ -12842,21 +13079,25 @@ ${priorityIcon} <b>Mức độ ưu tiên:</b> ${reportData.priority}
         }
       });
 
-      // Create worksheet and workbook
-      const ws = XLSX.utils.json_to_sheet(excelData);
+      // Create worksheet: row 1 = tiêu đề "Lịch sử báo cáo từ ngày ... đến ngày ...", row 2 = headers, row 3+ = data
+      const headers = excelData.length ? Object.keys(excelData[0]) : [];
+      const aoa = [[reportTitle], headers];
+      excelData.forEach((row) => aoa.push(headers.map((h) => row[h])));
+      const ws = XLSX.utils.aoa_to_sheet(aoa);
       const wb = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(wb, ws, "Lịch Sử Sự Cố");
 
-      // Generate filename with selected month/year or current date
+      // Generate filename: lich_su_bao_cao_tu_ngay_..._den_ngay_...
       let fileName;
-      if (issueHistorySelectedMonth) {
-        // Format: lich_su_su_co_2027_10.xlsx
+      if (dateFromStr && dateToStr) {
+        fileName = `lich_su_bao_cao_tu_ngay_${dateFromStr.replace(/-/g, "")}_den_ngay_${dateToStr.replace(/-/g, "")}.xlsx`;
+      } else if (issueHistorySelectedMonth) {
         const formattedMonth = issueHistorySelectedMonth.replace("-", "_");
-        fileName = `lich_su_su_co_${formattedMonth}.xlsx`;
+        fileName = `lich_su_bao_cao_${formattedMonth}.xlsx`;
       } else {
         const now = new Date();
         const dateStr = now.toISOString().split("T")[0].replace(/-/g, "");
-        fileName = `lich_su_su_co_${dateStr}.xlsx`;
+        fileName = `lich_su_bao_cao_${dateStr}.xlsx`;
       }
 
       // Log export action
@@ -12873,6 +13114,11 @@ ${priorityIcon} <b>Mức độ ưu tiên:</b> ${reportData.priority}
     } catch (error) {
       console.error("Lỗi khi xuất Excel:", error);
       alert(`Đã xảy ra lỗi khi xuất file Excel: ${error.message}\n\nVui lòng kiểm tra console để xem chi tiết.`);
+    } finally {
+      if (exportBtn) {
+        exportBtn.disabled = false;
+        exportBtn.innerHTML = originalText;
+      }
     }
   }
 
