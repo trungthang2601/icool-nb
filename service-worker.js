@@ -1,5 +1,5 @@
 // Service Worker for offline support
-const CACHE_NAME = 'icool-app-v1';
+const CACHE_NAME = 'icool-app-v3';
 const CDN_CACHE_NAME = 'icool-cdn-v1';
 
 // Resources to cache

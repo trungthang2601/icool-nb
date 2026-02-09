@@ -22,6 +22,7 @@
   },
   "homepage": "https://github.com/trungthang2601/icool-nb#readme",
   "dependencies": {
+    "firebase-admin": "^13.0.0",
     "body-parser": "^2.2.0",
     "browser-image-compression": "^2.0.2",
     "chart.js": "^4.4.0",

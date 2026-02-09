@@ -85,6 +85,8 @@
     "ICOOL SƯ VẠN HẠNH",
     "ICOOL ĐẠI LỘ 2",
     "ICOOL LÊ THỊ HÀ",
+    "ICOOL LÊ VĂN THỌ",
+    "ICOOL PHAN HUY ÍCH",
     "ICOOL VŨNG TÀU",
     "SPACE A&A",
     "Văn phòng",
@@ -115,6 +117,8 @@
     "ICOOL SƯ VẠN HẠNH": "SVH",
     "ICOOL ĐẠI LỘ 2": "DL2",
     "ICOOL LÊ THỊ HÀ": "LTH",
+    "ICOOL LÊ VĂN THỌ": "LVT",
+    "ICOOL PHAN HUY ÍCH": "PHI",
     "ICOOL VŨNG TÀU": "VT",
     "SPACE A&A": "SPAA",
     "Văn phòng": "VP",
@@ -451,6 +455,14 @@
       "Tầng 1": ["P.101", "P.102", "P.103", "P.104", "P.105", "P.106"],
       "Tầng 2": ["P.201", "P.202", "P.203", "P.204", "P.205", "P.206"],
       "Tầng 3": ["P.301", "P.302", "P.303", "P.304", "P.305", "P.306"],
+    },
+    "ICOOL LÊ VĂN THỌ": {
+      Trệt: [],
+      "Tầng 1": [],
+    },
+    "ICOOL PHAN HUY ÍCH": {
+      Trệt: [],
+      "Tầng 1": [],
     },
     "SPACE A&A": {
       // Dữ liệu phòng cho SPACE A&A
@@ -3737,7 +3749,7 @@
       console.warn("⚠️ User Chi nhánh không có branch được gán. Hiển thị thông báo.");
       tableBody.innerHTML = `
         <tr>
-          <td colspan="7" class="text-center p-8">
+          <td colspan="8" class="text-center p-8">
             <div class="max-w-lg mx-auto">
               <i class="fas fa-exclamation-triangle text-yellow-500 text-5xl mb-4"></i>
               <h3 class="text-xl font-semibold text-slate-800 mb-3">Chưa được gán chi nhánh</h3>
@@ -3772,7 +3784,7 @@
     // For archive mode, check if month is selected
     if (issueHistoryMode === "archive" && !issueHistorySelectedMonth) {
       tableBody.innerHTML = `<tr>
-        <td colspan="7" class="text-center p-8 text-slate-500">
+        <td colspan="8" class="text-center p-8 text-slate-500">
           <i class="fas fa-calendar-check text-4xl mb-4 text-slate-300"></i>
           <p class="text-base font-medium">Chưa chọn tháng/năm để xem báo cáo</p>
           <p class="text-sm mt-2">Vui lòng chọn tháng/năm ở trên và nhấn "Xem Báo Cáo"</p>
@@ -3787,7 +3799,7 @@
     }
 
     // Show loading state
-    tableBody.innerHTML = `<tr><td colspan="7" class="text-center p-4">Đang tải...</td></tr>`;
+    tableBody.innerHTML = `<tr><td colspan="8" class="text-center p-4">Đang tải...</td></tr>`;
 
     try {
       // Get filter values
@@ -3823,7 +3835,7 @@
             q = query(q, where("issueBranch", "==", userBranch));
           } else {
             // Nếu không có branch, trả về empty result
-            tableBody.innerHTML = `<tr><td colspan="7" class="text-center p-4 text-slate-500">Không có dữ liệu trong tháng này.</td></tr>`;
+            tableBody.innerHTML = `<tr><td colspan="8" class="text-center p-4 text-slate-500">Không có dữ liệu trong tháng này.</td></tr>`;
             issueHistoryFiltered = [];
             return;
           }
@@ -4105,7 +4117,7 @@
         console.warn("⚠️ User Chi nhánh không có branch được gán. Hiển thị thông báo.");
         tableBody.innerHTML = `
           <tr>
-            <td colspan="7" class="text-center p-8">
+            <td colspan="8" class="text-center p-8">
               <div class="max-w-lg mx-auto">
                 <i class="fas fa-exclamation-triangle text-yellow-500 text-5xl mb-4"></i>
                 <h3 class="text-xl font-semibold text-slate-800 mb-3">Chưa được gán chi nhánh</h3>
@@ -4145,7 +4157,7 @@
         
         tableBody.innerHTML = `
           <tr>
-            <td colspan="7" class="text-center p-6">
+            <td colspan="8" class="text-center p-6">
               <div class="max-w-md mx-auto">
                 <i class="fas fa-exclamation-triangle text-yellow-500 text-4xl mb-4"></i>
                 <h3 class="text-lg font-semibold text-slate-800 mb-2">Cần tạo Index cho Firestore</h3>
@@ -4170,13 +4182,26 @@
         `;
       } else {
         // Other errors
-        tableBody.innerHTML = `<tr><td colspan="7" class="text-center p-4 text-red-500">Lỗi tải dữ liệu: ${error.message}</td></tr>`;
+        tableBody.innerHTML = `<tr><td colspan="8" class="text-center p-4 text-red-500">Lỗi tải dữ liệu: ${error.message}</td></tr>`;
       }
     }
   }
 
   // Filter function for issue history (now triggers server-side load)
   function filterIssueHistory() {
+    const dateFromEl = mainContentContainer.querySelector("#filterDateFrom");
+    const dateToEl = mainContentContainer.querySelector("#filterDateTo");
+    if (dateFromEl?.value && dateToEl?.value) {
+      const from = new Date(dateFromEl.value);
+      const to = new Date(dateToEl.value);
+      if (to < from) {
+        const tmp = dateFromEl.value;
+        dateFromEl.value = dateToEl.value;
+        dateToEl.value = tmp;
+        setupDateInputFormat(dateFromEl);
+        setupDateInputFormat(dateToEl);
+      }
+    }
     loadIssueHistoryPage(true); // Reset to page 1 and reload
   }
 
@@ -4219,10 +4244,8 @@
       // Update button states
       if (modeCurrentBtn && modeArchiveBtn) {
         if (mode === "current") {
-          modeCurrentBtn.classList.add("active", "bg-indigo-600", "text-white");
-          modeCurrentBtn.classList.remove("bg-slate-200", "text-slate-700");
-          modeArchiveBtn.classList.remove("active", "bg-indigo-600", "text-white");
-          modeArchiveBtn.classList.add("bg-slate-200", "text-slate-700");
+          modeCurrentBtn.classList.add("active");
+          modeArchiveBtn.classList.remove("active");
           
           // Hide archive selector
           if (archiveSelector) archiveSelector.classList.add("hidden");
@@ -4257,10 +4280,8 @@
             console.error("❌ Error loading issue history page:", err);
           });
         } else {
-          modeArchiveBtn.classList.add("active", "bg-indigo-600", "text-white");
-          modeArchiveBtn.classList.remove("bg-slate-200", "text-slate-700");
-          modeCurrentBtn.classList.remove("active", "bg-indigo-600", "text-white");
-          modeCurrentBtn.classList.add("bg-slate-200", "text-slate-700");
+          modeArchiveBtn.classList.add("active");
+          modeCurrentBtn.classList.remove("active");
           
           // Show archive selector
           if (archiveSelector) archiveSelector.classList.remove("hidden");
@@ -4273,7 +4294,7 @@
           // Clear table and show message
           if (tableBody) {
             tableBody.innerHTML = `<tr>
-              <td colspan="7" class="text-center p-8 text-slate-500">
+              <td colspan="8" class="text-center p-8 text-slate-500">
                 <i class="fas fa-calendar-check text-4xl mb-4 text-slate-300"></i>
                 <p class="text-base font-medium">Chưa chọn tháng/năm để xem báo cáo</p>
                 <p class="text-sm mt-2">Vui lòng chọn tháng/năm ở trên và nhấn "Xem Báo Cáo"</p>
@@ -4346,7 +4367,7 @@
         if (resultsSection) resultsSection.classList.add("hidden");
         if (tableBody) {
           tableBody.innerHTML = `<tr>
-            <td colspan="7" class="text-center p-8 text-slate-500">
+            <td colspan="8" class="text-center p-8 text-slate-500">
               <i class="fas fa-calendar-check text-4xl mb-4 text-slate-300"></i>
               <p class="text-base font-medium">Chưa chọn tháng/năm để xem báo cáo</p>
               <p class="text-sm mt-2">Vui lòng chọn tháng/năm ở trên và nhấn "Xem Báo Cáo"</p>
@@ -4463,9 +4484,44 @@
       if (input) {
         input.addEventListener("change", updateActiveFiltersCount);
         input.addEventListener("input", updateActiveFiltersCount);
-        // Format date input để hiển thị dd/mm/yyyy
         setupDateInputFormat(input);
       }
+    });
+
+    // Nút nhanh phạm vi ngày
+    const formatDateForInput = (d) => {
+      const y = d.getFullYear();
+      const m = String(d.getMonth() + 1).padStart(2, "0");
+      const day = String(d.getDate()).padStart(2, "0");
+      return `${y}-${m}-${day}`;
+    };
+    const setFilterDatesAndApply = (from, to) => {
+      const dateFromEl = mainContentContainer.querySelector("#filterDateFrom");
+      const dateToEl = mainContentContainer.querySelector("#filterDateTo");
+      if (dateFromEl && dateToEl) {
+        dateFromEl.value = formatDateForInput(from);
+        dateToEl.value = formatDateForInput(to);
+        setupDateInputFormat(dateFromEl);
+        setupDateInputFormat(dateToEl);
+        updateActiveFiltersCount();
+        filterIssueHistory();
+      }
+    };
+    const today = new Date();
+    mainContentContainer.querySelector("#filterDate7Days")?.addEventListener("click", () => {
+      const d = new Date(today);
+      d.setDate(today.getDate() - 7);
+      setFilterDatesAndApply(d, today);
+    });
+    mainContentContainer.querySelector("#filterDateThisMonth")?.addEventListener("click", () => {
+      const first = new Date(today.getFullYear(), today.getMonth(), 1);
+      const last = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+      setFilterDatesAndApply(first, last);
+    });
+    mainContentContainer.querySelector("#filterDateLastMonth")?.addEventListener("click", () => {
+      const first = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+      const last = new Date(today.getFullYear(), today.getMonth(), 0);
+      setFilterDatesAndApply(first, last);
     });
 
     // Don't load data initially - wait for user to select month/year
@@ -4894,11 +4950,46 @@
       if (input) {
         input.addEventListener("change", updateActiveActivityLogFiltersCount);
         input.addEventListener("input", updateActiveActivityLogFiltersCount);
-        // Format date input để hiển thị dd/mm/yyyy
         if (input.type === 'date') {
           setupDateInputFormat(input);
         }
       }
+    });
+
+    // Nút nhanh phạm vi ngày (Activity Log)
+    const actLogFormatDate = (d) => {
+      const y = d.getFullYear();
+      const m = String(d.getMonth() + 1).padStart(2, "0");
+      const day = String(d.getDate()).padStart(2, "0");
+      return `${y}-${m}-${day}`;
+    };
+    const actLogToday = new Date();
+    const setActLogDatesAndApply = (from, to) => {
+      const dateFromEl = mainContentContainer.querySelector("#activityLogFilterDateFrom");
+      const dateToEl = mainContentContainer.querySelector("#activityLogFilterDateTo");
+      if (dateFromEl && dateToEl) {
+        dateFromEl.value = actLogFormatDate(from);
+        dateToEl.value = actLogFormatDate(to);
+        setupDateInputFormat(dateFromEl);
+        setupDateInputFormat(dateToEl);
+        updateActiveActivityLogFiltersCount();
+        filterActivityLog();
+      }
+    };
+    mainContentContainer.querySelector("#activityLogFilterDate7Days")?.addEventListener("click", () => {
+      const d = new Date(actLogToday);
+      d.setDate(actLogToday.getDate() - 7);
+      setActLogDatesAndApply(d, actLogToday);
+    });
+    mainContentContainer.querySelector("#activityLogFilterDateThisMonth")?.addEventListener("click", () => {
+      const first = new Date(actLogToday.getFullYear(), actLogToday.getMonth(), 1);
+      const last = new Date(actLogToday.getFullYear(), actLogToday.getMonth() + 1, 0);
+      setActLogDatesAndApply(first, last);
+    });
+    mainContentContainer.querySelector("#activityLogFilterDateLastMonth")?.addEventListener("click", () => {
+      const first = new Date(actLogToday.getFullYear(), actLogToday.getMonth() - 1, 1);
+      const last = new Date(actLogToday.getFullYear(), actLogToday.getMonth(), 0);
+      setActLogDatesAndApply(first, last);
     });
     
     // Set up export button
@@ -5255,13 +5346,30 @@
    * Applies filters to activity log
    */
   function filterActivityLog() {
+    const dateFromEl = mainContentContainer.querySelector("#activityLogFilterDateFrom");
+    const dateToEl = mainContentContainer.querySelector("#activityLogFilterDateTo");
+    let dateFromFilter = dateFromEl?.value || "";
+    let dateToFilter = dateToEl?.value || "";
+    if (dateFromFilter && dateToFilter) {
+      const from = new Date(dateFromFilter);
+      const to = new Date(dateToFilter);
+      if (to < from) {
+        dateFromFilter = dateToEl.value;
+        dateToFilter = dateFromEl.value;
+        if (dateFromEl && dateToEl) {
+          dateFromEl.value = dateFromFilter;
+          dateToEl.value = dateToFilter;
+          setupDateInputFormat(dateFromEl);
+          setupDateInputFormat(dateToEl);
+        }
+      }
+    }
+
     const actorFilter = mainContentContainer.querySelector("#activityLogFilterActor")?.value || "";
     const timeMinFilter = mainContentContainer.querySelector("#activityLogFilterTimeMin")?.value || "";
     const timeMaxFilter = mainContentContainer.querySelector("#activityLogFilterTimeMax")?.value || "";
     const serviceFilter = mainContentContainer.querySelector("#activityLogFilterService")?.value || "";
     const actionFilter = mainContentContainer.querySelector("#activityLogFilterAction")?.value || "";
-    const dateFromFilter = mainContentContainer.querySelector("#activityLogFilterDateFrom")?.value || "";
-    const dateToFilter = mainContentContainer.querySelector("#activityLogFilterDateTo")?.value || "";
     const browserFilter = mainContentContainer.querySelector("#activityLogFilterBrowser")?.value || "";
 
     activityLogFilters = {
@@ -5953,17 +6061,32 @@
                             ? new Date(report.reportDate).toLocaleString("vi-VN")
                             : "N/A"
                       }</td>
+                      <td data-label="Ngày giải quyết" class="px-4 py-3 whitespace-nowrap">${
+                        report.resolvedDate && report.resolvedDate.toDate
+                          ? report.resolvedDate.toDate().toLocaleString("vi-VN")
+                          : report.resolvedDate
+                            ? new Date(report.resolvedDate).toLocaleString("vi-VN")
+                            : "-"
+                      }</td>
                       <td data-label="Trạng thái" class="px-4 py-3">${
-                        report.status
+                        (() => {
+                          const s = report.status || '';
+                          const cls = s === 'Đã giải quyết' ? 'status-badge status-badge-resolved' 
+                            : s === 'Chờ xử lý' ? 'status-badge status-badge-pending'
+                            : s === 'Đang xử lý' ? 'status-badge status-badge-processing'
+                            : s === 'Đã hủy' ? 'status-badge status-badge-cancelled'
+                            : 'status-badge status-badge-pending';
+                          return `<span class="${cls}">${s || '-'}</span>`;
+                        })()
                       }</td>
                       <td data-label="Hành động" class="px-4 py-3 text-right">
-                          <button class="detail-issue-btn btn-secondary !text-sm !py-1 !px-2" data-id="${report.id}">Chi tiết</button>
+                          <button class="detail-issue-btn btn-secondary !text-sm !py-1.5 !px-3 rounded-lg" data-id="${report.id}"><i class="fas fa-eye mr-1.5 text-xs"></i>Chi tiết</button>
                       </td>
                   </tr>
                 `;
             })
             .join("")
-        : `<tr><td colspan="7" class="text-center p-4">Không có báo cáo nào.</td></tr>`;
+        : `<tr><td colspan="8" class="text-center p-4">Không có báo cáo nào.</td></tr>`;
 
     tableBody.querySelectorAll(".detail-issue-btn").forEach((btn) => {
       btn.addEventListener("click", () => openIssueDetailModal(btn.dataset.id));
