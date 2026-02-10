@@ -265,6 +265,19 @@ body {
 .status-badge-processing { background: #dbeafe; color: #1e40af; }
 .status-badge-cancelled { background: #fee2e2; color: #991b1b; }
 
+/* Ưu tiên (priority) badges - Lịch sử báo cáo */
+.priority-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.25rem 0.625rem;
+    border-radius: 9999px;
+    font-size: 0.75rem;
+    font-weight: 500;
+}
+.priority-badge-high { background: #fee2e2; color: #991b1b; }
+.priority-badge-medium { background: #fef3c7; color: #92400e; }
+.priority-badge-low { background: #e2e8f0; color: #475569; }
+
 /* Make chart canvas elements clickable */
 .clickable-chart:hover {
     cursor: pointer;

@@ -2412,15 +2412,19 @@
                       <div id="backlogWarning" class="hidden"></div>
                   </div>
                   <div class="card p-4">
-                      <h3 class="font-semibold text-slate-800 mb-3">Bộ lọc nâng cao</h3>
+                      <div class="flex items-center justify-between mb-3">
+                          <h3 class="font-semibold text-slate-800">Bộ lọc nâng cao</h3>
+                          <span id="dashboardActiveFiltersCount" class="text-xs font-medium text-indigo-600 bg-indigo-50 px-2 py-1 rounded-full hidden"></span>
+                      </div>
                       <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-6 gap-4">
                           <div><label for="filterBranch" class="text-sm font-medium text-slate-600">Chi nhánh</label><select id="filterBranch" class="select-field text-sm mt-1"><option value="">Tất cả</option></select></div>
                           <div><label for="filterIssueType" class="text-sm font-medium text-slate-600">Loại sự cố</label><select id="filterIssueType" class="select-field text-sm mt-1"><option value="">Tất cả</option></select></div>
                           <div><label for="filterEmployee" class="text-sm font-medium text-slate-600">Nhân viên</label><select id="filterEmployee" class="select-field text-sm mt-1"><option value="">Tất cả</option></select></div>
-                          <div><label for="filterStartDate" class="text-sm font-medium text-slate-600">Từ ngày <span class="text-xs text-slate-400 font-normal">(dd/mm/yyyy)</span></label><input type="date" id="filterStartDate" class="input-field text-sm mt-1"></div>
-                          <div><label for="filterEndDate" class="text-sm font-medium text-slate-600">Đến ngày <span class="text-xs text-slate-400 font-normal">(dd/mm/yyyy)</span></label><input type="date" id="filterEndDate" class="input-field text-sm mt-1"></div>
+                          <div><label for="filterStartDate" class="text-sm font-medium text-slate-600">Từ ngày <span class="text-xs text-slate-400 font-normal">(dd/mm/yyyy)</span></label><div class="relative mt-1"><input type="text" id="filterStartDate" class="input-field text-sm w-full pr-9" placeholder="dd/mm/yyyy" autocomplete="off" /><input type="date" id="filterStartDatePicker" class="absolute opacity-0 w-0 h-0 pointer-events-none" tabindex="-1" aria-hidden="true" /><button type="button" class="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 border-0 bg-transparent cursor-pointer" title="Chọn ngày" aria-label="Mở lịch" data-dashboard-date-picker="start"><i class="fas fa-calendar-alt text-sm"></i></button></div></div>
+                          <div><label for="filterEndDate" class="text-sm font-medium text-slate-600">Đến ngày <span class="text-xs text-slate-400 font-normal">(dd/mm/yyyy)</span></label><div class="relative mt-1"><input type="text" id="filterEndDate" class="input-field text-sm w-full pr-9" placeholder="dd/mm/yyyy" autocomplete="off" /><input type="date" id="filterEndDatePicker" class="absolute opacity-0 w-0 h-0 pointer-events-none" tabindex="-1" aria-hidden="true" /><button type="button" class="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 border-0 bg-transparent cursor-pointer" title="Chọn ngày" aria-label="Mở lịch" data-dashboard-date-picker="end"><i class="fas fa-calendar-alt text-sm"></i></button></div></div>
                           <div class="flex items-end space-x-2"><button id="applyFiltersBtn" class="btn-primary flex-grow">Lọc</button><button id="resetFiltersBtn" class="btn-secondary"><i class="fas fa-undo"></i></button></div>
                       </div>
+                      <p class="text-xs text-slate-500 mt-2">Nhập dd/mm hoặc dd/mm/yyyy — thông tin bộ lọc hiển thị ngay khi có ngày/tháng</p>
                       <div class="mt-3 flex flex-wrap items-center gap-2">
                           <span class="text-sm font-medium text-slate-600">Lọc nhanh:</span>
                           <button id="quickFilterToday" class="btn-secondary text-sm px-3 py-1.5">
@@ -2659,82 +2663,130 @@
         mainContentContainer.querySelector("#filterEmployee").value = "";
         const startDateInput = mainContentContainer.querySelector("#filterStartDate");
         const endDateInput = mainContentContainer.querySelector("#filterEndDate");
+        const startPicker = mainContentContainer.querySelector("#filterStartDatePicker");
+        const endPicker = mainContentContainer.querySelector("#filterEndDatePicker");
         if (startDateInput) startDateInput.value = "";
         if (endDateInput) endDateInput.value = "";
-        // Update format display sau khi clear
-        if (startDateInput) setupDateInputFormat(startDateInput);
-        if (endDateInput) setupDateInputFormat(endDateInput);
+        if (startPicker) startPicker.value = "";
+        if (endPicker) endPicker.value = "";
+        updateDashboardActiveFiltersCount();
         applyFiltersAndRender(dashboardReportsCache);
       });
-    
-    // Setup date format cho filterStartDate và filterEndDate
-    const filterStartDate = mainContentContainer.querySelector("#filterStartDate");
-    const filterEndDate = mainContentContainer.querySelector("#filterEndDate");
-    if (filterStartDate) setupDateInputFormat(filterStartDate);
-    if (filterEndDate) setupDateInputFormat(filterEndDate);
 
-    // Quick Date Filter Buttons
-    const formatDateForInput = (date) => {
-      const year = date.getFullYear();
-      const month = String(date.getMonth() + 1).padStart(2, "0");
+    // Badge "X bộ lọc đang hoạt động" — cập nhật ngay khi nhập ngày/tháng (dùng hasFilterDateValue)
+    function updateDashboardActiveFiltersCount() {
+      const badge = mainContentContainer.querySelector("#dashboardActiveFiltersCount");
+      if (!badge) return;
+      const branch = mainContentContainer.querySelector("#filterBranch")?.value || "";
+      const issueType = mainContentContainer.querySelector("#filterIssueType")?.value || "";
+      const employee = mainContentContainer.querySelector("#filterEmployee")?.value || "";
+      const startRaw = mainContentContainer.querySelector("#filterStartDate")?.value?.trim() || "";
+      const endRaw = mainContentContainer.querySelector("#filterEndDate")?.value?.trim() || "";
+      let count = 0;
+      if (branch) count++;
+      if (issueType) count++;
+      if (employee) count++;
+      if (hasFilterDateValue(startRaw)) count++;
+      if (hasFilterDateValue(endRaw)) count++;
+      if (count > 0) {
+        badge.textContent = `${count} bộ lọc đang hoạt động`;
+        badge.classList.remove("hidden");
+      } else {
+        badge.classList.add("hidden");
+      }
+    }
+    const dashboardFilterSelects = [
+      mainContentContainer.querySelector("#filterBranch"),
+      mainContentContainer.querySelector("#filterIssueType"),
+      mainContentContainer.querySelector("#filterEmployee")
+    ];
+    dashboardFilterSelects.forEach((el) => {
+      if (el) el.addEventListener("change", updateDashboardActiveFiltersCount);
+    });
+    const dashboardDateInputs = [
+      mainContentContainer.querySelector("#filterStartDate"),
+      mainContentContainer.querySelector("#filterEndDate")
+    ];
+    dashboardDateInputs.forEach((el) => {
+      if (el) {
+        el.addEventListener("input", updateDashboardActiveFiltersCount);
+        el.addEventListener("change", updateDashboardActiveFiltersCount);
+      }
+    });
+
+    // Date picker (calendar) cho Dashboard: nút lịch mở native date picker, chọn xong ghi dd/mm/yyyy vào ô text
+    const dashboardStartPicker = mainContentContainer.querySelector("#filterStartDatePicker");
+    const dashboardEndPicker = mainContentContainer.querySelector("#filterEndDatePicker");
+    const dashboardYyyyMmDdToDdMmYyyy = (yyyyMmDd) => {
+      if (!yyyyMmDd) return "";
+      const d = new Date(yyyyMmDd + "T00:00:00");
+      if (isNaN(d.getTime())) return "";
+      return `${String(d.getDate()).padStart(2, "0")}/${String(d.getMonth() + 1).padStart(2, "0")}/${d.getFullYear()}`;
+    };
+    const openDashboardDatePicker = (which) => {
+      const textEl = mainContentContainer.querySelector(which === "start" ? "#filterStartDate" : "#filterEndDate");
+      const pickerEl = which === "start" ? dashboardStartPicker : dashboardEndPicker;
+      if (!textEl || !pickerEl) return;
+      const parsed = parseFilterDateStr(textEl.value?.trim() || "");
+      pickerEl.value = parsed || "";
+      try {
+        if (typeof pickerEl.showPicker === "function") pickerEl.showPicker();
+        else pickerEl.focus();
+      } catch (_) {
+        pickerEl.focus();
+      }
+    };
+    const onDashboardDatePickerChange = (which) => {
+      const textEl = mainContentContainer.querySelector(which === "start" ? "#filterStartDate" : "#filterEndDate");
+      const pickerEl = which === "start" ? dashboardStartPicker : dashboardEndPicker;
+      if (!textEl || !pickerEl) return;
+      textEl.value = dashboardYyyyMmDdToDdMmYyyy(pickerEl.value);
+      updateDashboardActiveFiltersCount();
+      applyFiltersAndRender(dashboardReportsCache);
+    };
+    if (dashboardStartPicker) dashboardStartPicker.addEventListener("change", () => onDashboardDatePickerChange("start"));
+    if (dashboardEndPicker) dashboardEndPicker.addEventListener("change", () => onDashboardDatePickerChange("end"));
+    mainContentContainer.querySelectorAll("[data-dashboard-date-picker]").forEach((btn) => {
+      const target = btn.getAttribute("data-dashboard-date-picker");
+      if (target === "start" || target === "end") btn.addEventListener("click", () => openDashboardDatePicker(target));
+    });
+
+    // Quick Date Filter Buttons (dd/mm/yyyy + sync picker)
+    const dashboardFmtDdMmYyyy = (date) => {
       const day = String(date.getDate()).padStart(2, "0");
-      return `${year}-${month}-${day}`;
+      const month = String(date.getMonth() + 1).padStart(2, "0");
+      const year = date.getFullYear();
+      return `${day}/${month}/${year}`;
+    };
+    const dashboardToYyyyMmDd = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+    const setDashboardFilterDatesAndLoad = (from, to) => {
+      const startEl = mainContentContainer.querySelector("#filterStartDate");
+      const endEl = mainContentContainer.querySelector("#filterEndDate");
+      if (!startEl || !endEl) return;
+      startEl.value = dashboardFmtDdMmYyyy(from);
+      endEl.value = dashboardFmtDdMmYyyy(to);
+      if (dashboardStartPicker) dashboardStartPicker.value = dashboardToYyyyMmDd(from);
+      if (dashboardEndPicker) dashboardEndPicker.value = dashboardToYyyyMmDd(to);
+      updateDashboardActiveFiltersCount();
+      loadDashboardWithFilters();
     };
 
-    // Today filter
-    mainContentContainer
-      .querySelector("#quickFilterToday")
-      .addEventListener("click", () => {
-        const today = new Date();
-        const startDateInput = mainContentContainer.querySelector("#filterStartDate");
-        const endDateInput = mainContentContainer.querySelector("#filterEndDate");
-        if (startDateInput && endDateInput) {
-          startDateInput.value = formatDateForInput(today);
-          endDateInput.value = formatDateForInput(today);
-          // Update format display
-          setupDateInputFormat(startDateInput);
-          setupDateInputFormat(endDateInput);
-          loadDashboardWithFilters();
-        }
-      });
-
-    // 7 days ago filter
-    mainContentContainer
-      .querySelector("#quickFilter7Days")
-      .addEventListener("click", () => {
-        const today = new Date();
-        const sevenDaysAgo = new Date(today);
-        sevenDaysAgo.setDate(today.getDate() - 7);
-        const startDateInput = mainContentContainer.querySelector("#filterStartDate");
-        const endDateInput = mainContentContainer.querySelector("#filterEndDate");
-        if (startDateInput && endDateInput) {
-          startDateInput.value = formatDateForInput(sevenDaysAgo);
-          endDateInput.value = formatDateForInput(today);
-          // Update format display
-          setupDateInputFormat(startDateInput);
-          setupDateInputFormat(endDateInput);
-          loadDashboardWithFilters();
-        }
-      });
-
-    // 30 days ago filter
-    mainContentContainer
-      .querySelector("#quickFilter30Days")
-      .addEventListener("click", () => {
-        const today = new Date();
-        const thirtyDaysAgo = new Date(today);
-        thirtyDaysAgo.setDate(today.getDate() - 30);
-        const startDateInput = mainContentContainer.querySelector("#filterStartDate");
-        const endDateInput = mainContentContainer.querySelector("#filterEndDate");
-        if (startDateInput && endDateInput) {
-          startDateInput.value = formatDateForInput(thirtyDaysAgo);
-          endDateInput.value = formatDateForInput(today);
-          // Update format display
-          setupDateInputFormat(startDateInput);
-          setupDateInputFormat(endDateInput);
-          loadDashboardWithFilters();
-        }
-      });
+    mainContentContainer.querySelector("#quickFilterToday")?.addEventListener("click", () => {
+      const today = new Date();
+      setDashboardFilterDatesAndLoad(today, today);
+    });
+    mainContentContainer.querySelector("#quickFilter7Days")?.addEventListener("click", () => {
+      const today = new Date();
+      const d = new Date(today);
+      d.setDate(today.getDate() - 7);
+      setDashboardFilterDatesAndLoad(d, today);
+    });
+    mainContentContainer.querySelector("#quickFilter30Days")?.addEventListener("click", () => {
+      const today = new Date();
+      const d = new Date(today);
+      d.setDate(today.getDate() - 30);
+      setDashboardFilterDatesAndLoad(d, today);
+    });
 
     // Performance Sub-tab logic
     const perfToggleEmployee = mainContentContainer.querySelector(
@@ -3708,6 +3760,49 @@
     }
   }
 
+  /**
+   * Parse chuỗi ngày dd/mm/yyyy hoặc dd/mm (năm hiện tại) thành yyyy-mm-dd để dùng trong query.
+   * @param {string} str - Chuỗi nhập từ user (vd: "01/02/2025", "1/2", "01/02")
+   * @returns {string|null} "yyyy-mm-dd" hoặc null nếu không parse được
+   */
+  function parseFilterDateStr(str) {
+    if (!str || typeof str !== "string") return null;
+    const s = str.trim();
+    if (!s) return null;
+    const parts = s.split("/").map((p) => p.trim());
+    if (parts.length === 2) {
+      const [d, m] = parts;
+      const day = parseInt(d, 10);
+      const month = parseInt(m, 10) - 1;
+      if (isNaN(day) || isNaN(month) || day < 1 || day > 31 || month < 0 || month > 11) return null;
+      const year = new Date().getFullYear();
+      const date = new Date(year, month, day);
+      if (date.getFullYear() !== year || date.getMonth() !== month || date.getDate() !== day) return null;
+      return `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+    }
+    if (parts.length === 3) {
+      const [d, m, y] = parts;
+      const day = parseInt(d, 10);
+      const month = parseInt(m, 10) - 1;
+      const year = parseInt(y, 10);
+      if (isNaN(day) || isNaN(month) || isNaN(year) || day < 1 || day > 31 || month < 0 || month > 11 || year < 1900 || year > 2100) return null;
+      const date = new Date(year, month, day);
+      if (date.getFullYear() !== year || date.getMonth() !== month || date.getDate() !== day) return null;
+      return `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+    }
+    return null;
+  }
+
+  /**
+   * Kiểm tra chuỗi có giống ngày (dd/mm hoặc dd/mm/yyyy) để hiển thị số bộ lọc ngay khi user nhập ngày/tháng.
+   */
+  function hasFilterDateValue(str) {
+    if (!str || typeof str !== "string") return false;
+    const s = str.trim();
+    if (!s) return false;
+    return parseFilterDateStr(s) !== null || /^\d{1,2}\/\d{1,2}(\/\d{0,4})?$/.test(s);
+  }
+
   // Update active filters count badge
   function updateActiveFiltersCount() {
     const activeFiltersCount = mainContentContainer.querySelector("#activeFiltersCount");
@@ -3717,16 +3812,18 @@
     const issueTypeFilter = mainContentContainer.querySelector("#filterIssueType")?.value || "";
     const statusFilter = mainContentContainer.querySelector("#filterStatus")?.value || "";
     const reporterFilter = mainContentContainer.querySelector("#filterReporter")?.value || "";
-    const dateFromFilter = mainContentContainer.querySelector("#filterDateFrom")?.value || "";
-    const dateToFilter = mainContentContainer.querySelector("#filterDateTo")?.value || "";
+    const dateFromEl = mainContentContainer.querySelector("#filterDateFrom");
+    const dateToEl = mainContentContainer.querySelector("#filterDateTo");
+    const dateFromFilter = dateFromEl?.value?.trim() || "";
+    const dateToFilter = dateToEl?.value?.trim() || "";
 
     let count = 0;
     if (branchFilter) count++;
     if (issueTypeFilter) count++;
     if (statusFilter) count++;
     if (reporterFilter) count++;
-    if (dateFromFilter) count++;
-    if (dateToFilter) count++;
+    if (hasFilterDateValue(dateFromFilter)) count++;
+    if (hasFilterDateValue(dateToFilter)) count++;
 
     if (count > 0) {
       activeFiltersCount.textContent = `${count} bộ lọc đang hoạt động`;
@@ -3750,7 +3847,7 @@
       console.warn("⚠️ User Chi nhánh không có branch được gán. Hiển thị thông báo.");
       tableBody.innerHTML = `
         <tr>
-          <td colspan="8" class="text-center p-8">
+          <td colspan="9" class="text-center p-8">
             <div class="max-w-lg mx-auto">
               <i class="fas fa-exclamation-triangle text-yellow-500 text-5xl mb-4"></i>
               <h3 class="text-xl font-semibold text-slate-800 mb-3">Chưa được gán chi nhánh</h3>
@@ -3785,7 +3882,7 @@
     // For archive mode, check if month is selected
     if (issueHistoryMode === "archive" && !issueHistorySelectedMonth) {
       tableBody.innerHTML = `<tr>
-        <td colspan="8" class="text-center p-8 text-slate-500">
+        <td colspan="9" class="text-center p-8 text-slate-500">
           <i class="fas fa-calendar-check text-4xl mb-4 text-slate-300"></i>
           <p class="text-base font-medium">Chưa chọn tháng/năm để xem báo cáo</p>
           <p class="text-sm mt-2">Vui lòng chọn tháng/năm ở trên và nhấn "Xem Báo Cáo"</p>
@@ -3800,16 +3897,18 @@
     }
 
     // Show loading state
-    tableBody.innerHTML = `<tr><td colspan="8" class="text-center p-4">Đang tải...</td></tr>`;
+    tableBody.innerHTML = `<tr><td colspan="9" class="text-center p-4">Đang tải...</td></tr>`;
 
     try {
-      // Get filter values
+      // Get filter values (ô ngày là text dd/mm/yyyy hoặc dd/mm → parse ra yyyy-mm-dd)
       const branchFilter = mainContentContainer.querySelector("#filterBranch")?.value || "";
       const issueTypeFilter = mainContentContainer.querySelector("#filterIssueType")?.value || "";
       const statusFilter = mainContentContainer.querySelector("#filterStatus")?.value || "";
       const reporterFilter = mainContentContainer.querySelector("#filterReporter")?.value || "";
-      const dateFromFilter = mainContentContainer.querySelector("#filterDateFrom")?.value || "";
-      const dateToFilter = mainContentContainer.querySelector("#filterDateTo")?.value || "";
+      const dateFromRaw = mainContentContainer.querySelector("#filterDateFrom")?.value?.trim() || "";
+      const dateToRaw = mainContentContainer.querySelector("#filterDateTo")?.value?.trim() || "";
+      const dateFromFilter = parseFilterDateStr(dateFromRaw) || "";
+      const dateToFilter = parseFilterDateStr(dateToRaw) || "";
 
       // Build query based on mode
       let q;
@@ -3836,7 +3935,7 @@
             q = query(q, where("issueBranch", "==", userBranch));
           } else {
             // Nếu không có branch, trả về empty result
-            tableBody.innerHTML = `<tr><td colspan="8" class="text-center p-4 text-slate-500">Không có dữ liệu trong tháng này.</td></tr>`;
+            tableBody.innerHTML = `<tr><td colspan="9" class="text-center p-4 text-slate-500">Không có dữ liệu trong tháng này.</td></tr>`;
             issueHistoryFiltered = [];
             return;
           }
@@ -4118,7 +4217,7 @@
         console.warn("⚠️ User Chi nhánh không có branch được gán. Hiển thị thông báo.");
         tableBody.innerHTML = `
           <tr>
-            <td colspan="8" class="text-center p-8">
+            <td colspan="9" class="text-center p-8">
               <div class="max-w-lg mx-auto">
                 <i class="fas fa-exclamation-triangle text-yellow-500 text-5xl mb-4"></i>
                 <h3 class="text-xl font-semibold text-slate-800 mb-3">Chưa được gán chi nhánh</h3>
@@ -4158,7 +4257,7 @@
         
         tableBody.innerHTML = `
           <tr>
-            <td colspan="8" class="text-center p-6">
+            <td colspan="9" class="text-center p-6">
               <div class="max-w-md mx-auto">
                 <i class="fas fa-exclamation-triangle text-yellow-500 text-4xl mb-4"></i>
                 <h3 class="text-lg font-semibold text-slate-800 mb-2">Cần tạo Index cho Firestore</h3>
@@ -4183,7 +4282,7 @@
         `;
       } else {
         // Other errors
-        tableBody.innerHTML = `<tr><td colspan="8" class="text-center p-4 text-red-500">Lỗi tải dữ liệu: ${error.message}</td></tr>`;
+        tableBody.innerHTML = `<tr><td colspan="9" class="text-center p-4 text-red-500">Lỗi tải dữ liệu: ${error.message}</td></tr>`;
       }
     }
   }
@@ -4192,15 +4291,16 @@
   function filterIssueHistory() {
     const dateFromEl = mainContentContainer.querySelector("#filterDateFrom");
     const dateToEl = mainContentContainer.querySelector("#filterDateTo");
-    if (dateFromEl?.value && dateToEl?.value) {
-      const from = new Date(dateFromEl.value);
-      const to = new Date(dateToEl.value);
+    const fromStr = dateFromEl?.value?.trim() || "";
+    const toStr = dateToEl?.value?.trim() || "";
+    const fromParsed = parseFilterDateStr(fromStr);
+    const toParsed = parseFilterDateStr(toStr);
+    if (fromParsed && toParsed) {
+      const from = new Date(fromParsed);
+      const to = new Date(toParsed);
       if (to < from) {
-        const tmp = dateFromEl.value;
-        dateFromEl.value = dateToEl.value;
-        dateToEl.value = tmp;
-        setupDateInputFormat(dateFromEl);
-        setupDateInputFormat(dateToEl);
+        dateFromEl.value = toStr;
+        dateToEl.value = fromStr;
       }
     }
     loadIssueHistoryPage(true); // Reset to page 1 and reload
@@ -4295,7 +4395,7 @@
           // Clear table and show message
           if (tableBody) {
             tableBody.innerHTML = `<tr>
-              <td colspan="8" class="text-center p-8 text-slate-500">
+              <td colspan="9" class="text-center p-8 text-slate-500">
                 <i class="fas fa-calendar-check text-4xl mb-4 text-slate-300"></i>
                 <p class="text-base font-medium">Chưa chọn tháng/năm để xem báo cáo</p>
                 <p class="text-sm mt-2">Vui lòng chọn tháng/năm ở trên và nhấn "Xem Báo Cáo"</p>
@@ -4368,7 +4468,7 @@
         if (resultsSection) resultsSection.classList.add("hidden");
         if (tableBody) {
           tableBody.innerHTML = `<tr>
-            <td colspan="8" class="text-center p-8 text-slate-500">
+            <td colspan="9" class="text-center p-8 text-slate-500">
               <i class="fas fa-calendar-check text-4xl mb-4 text-slate-300"></i>
               <p class="text-base font-medium">Chưa chọn tháng/năm để xem báo cáo</p>
               <p class="text-sm mt-2">Vui lòng chọn tháng/năm ở trên và nhấn "Xem Báo Cáo"</p>
@@ -4551,7 +4651,53 @@
       if (input) {
         input.addEventListener("change", updateActiveFiltersCount);
         input.addEventListener("input", updateActiveFiltersCount);
-        setupDateInputFormat(input);
+        if (input.type === "date") setupDateInputFormat(input);
+      }
+    });
+
+    // Date picker (calendar) cho ô Từ ngày / Đến ngày: nút lịch mở native date picker, chọn xong ghi dd/mm/yyyy vào ô text
+    const filterDateFromPicker = mainContentContainer.querySelector("#filterDateFromPicker");
+    const filterDateToPicker = mainContentContainer.querySelector("#filterDateToPicker");
+    const yyyyMmDdToDdMmYyyy = (yyyyMmDd) => {
+      if (!yyyyMmDd) return "";
+      const d = new Date(yyyyMmDd + "T00:00:00");
+      if (isNaN(d.getTime())) return "";
+      const day = String(d.getDate()).padStart(2, "0");
+      const month = String(d.getMonth() + 1).padStart(2, "0");
+      const year = d.getFullYear();
+      return `${day}/${month}/${year}`;
+    };
+    const openFilterDatePicker = (which) => {
+      const textEl = mainContentContainer.querySelector(which === "from" ? "#filterDateFrom" : "#filterDateTo");
+      const pickerEl = which === "from" ? filterDateFromPicker : filterDateToPicker;
+      if (!textEl || !pickerEl) return;
+      const parsed = parseFilterDateStr(textEl.value.trim());
+      if (parsed) pickerEl.value = parsed;
+      else pickerEl.value = "";
+      try {
+        if (typeof pickerEl.showPicker === "function") pickerEl.showPicker();
+        else pickerEl.focus();
+      } catch (_) {
+        pickerEl.focus();
+      }
+    };
+    const onFilterDatePickerChange = (which) => {
+      const textEl = mainContentContainer.querySelector(which === "from" ? "#filterDateFrom" : "#filterDateTo");
+      const pickerEl = which === "from" ? filterDateFromPicker : filterDateToPicker;
+      if (!textEl || !pickerEl) return;
+      textEl.value = yyyyMmDdToDdMmYyyy(pickerEl.value);
+      updateActiveFiltersCount();
+    };
+    if (filterDateFromPicker) {
+      filterDateFromPicker.addEventListener("change", () => onFilterDatePickerChange("from"));
+    }
+    if (filterDateToPicker) {
+      filterDateToPicker.addEventListener("change", () => onFilterDatePickerChange("to"));
+    }
+    mainContentContainer.querySelectorAll("[data-filter-date-picker]").forEach((btn) => {
+      const target = btn.getAttribute("data-filter-date-picker");
+      if (target === "from" || target === "to") {
+        btn.addEventListener("click", () => openFilterDatePicker(target));
       }
     });
 
@@ -4566,10 +4712,17 @@
       const dateFromEl = mainContentContainer.querySelector("#filterDateFrom");
       const dateToEl = mainContentContainer.querySelector("#filterDateTo");
       if (dateFromEl && dateToEl) {
-        dateFromEl.value = formatDateForInput(from);
-        dateToEl.value = formatDateForInput(to);
-        setupDateInputFormat(dateFromEl);
-        setupDateInputFormat(dateToEl);
+        const fmt = (d) => {
+          const day = String(d.getDate()).padStart(2, "0");
+          const month = String(d.getMonth() + 1).padStart(2, "0");
+          const year = d.getFullYear();
+          return `${day}/${month}/${year}`;
+        };
+        const toYyyyMmDd = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+        dateFromEl.value = fmt(from);
+        dateToEl.value = fmt(to);
+        if (filterDateFromPicker) filterDateFromPicker.value = toYyyyMmDd(from);
+        if (filterDateToPicker) filterDateToPicker.value = toYyyyMmDd(to);
         updateActiveFiltersCount();
         filterIssueHistory();
       }
@@ -6135,6 +6288,16 @@
                             ? new Date(report.resolvedDate).toLocaleString("vi-VN")
                             : "-"
                       }</td>
+                      <td data-label="Ưu tiên" class="px-4 py-3">${
+                        (() => {
+                          const p = report.priority || '';
+                          const cls = p === 'Nghiêm trọng' ? 'priority-badge priority-badge-high'
+                            : p === 'Trung bình' ? 'priority-badge priority-badge-medium'
+                            : p === 'Thấp' ? 'priority-badge priority-badge-low'
+                            : 'priority-badge priority-badge-low';
+                          return `<span class="${cls}">${p || '-'}</span>`;
+                        })()
+                      }</td>
                       <td data-label="Trạng thái" class="px-4 py-3">${
                         (() => {
                           const s = report.status || '';
@@ -6153,7 +6316,7 @@
                 `;
             })
             .join("")
-        : `<tr><td colspan="8" class="text-center p-4">Không có báo cáo nào.</td></tr>`;
+        : `<tr><td colspan="9" class="text-center p-4">Không có báo cáo nào.</td></tr>`;
 
     tableBody.querySelectorAll(".detail-issue-btn").forEach((btn) => {
       btn.addEventListener("click", () => openIssueDetailModal(btn.dataset.id));
@@ -6601,8 +6764,10 @@
     const branch = mainContentContainer.querySelector("#filterBranch")?.value || "";
     const issueType = mainContentContainer.querySelector("#filterIssueType")?.value || "";
     const employeeId = mainContentContainer.querySelector("#filterEmployee")?.value || "";
-    const startDate = mainContentContainer.querySelector("#filterStartDate")?.value || "";
-    const endDate = mainContentContainer.querySelector("#filterEndDate")?.value || "";
+    const startDateRaw = mainContentContainer.querySelector("#filterStartDate")?.value?.trim() || "";
+    const endDateRaw = mainContentContainer.querySelector("#filterEndDate")?.value?.trim() || "";
+    const startDate = parseFilterDateStr(startDateRaw) || "";
+    const endDate = parseFilterDateStr(endDateRaw) || "";
 
     // Check if any filters are applied
     const hasFilters = branch || issueType || employeeId || startDate || endDate;
@@ -6711,9 +6876,10 @@
       mainContentContainer.querySelector("#filterIssueType")?.value;
     const employeeId =
       mainContentContainer.querySelector("#filterEmployee")?.value;
-    const startDate =
-      mainContentContainer.querySelector("#filterStartDate")?.value;
-    const endDate = mainContentContainer.querySelector("#filterEndDate")?.value;
+    const startDateEl = mainContentContainer.querySelector("#filterStartDate");
+    const endDateEl = mainContentContainer.querySelector("#filterEndDate");
+    const startDate = startDateEl ? (parseFilterDateStr(startDateEl.value?.trim() || "") || "") : "";
+    const endDate = endDateEl ? (parseFilterDateStr(endDateEl.value?.trim() || "") || "") : "";
 
     // If elements don't exist (because the tab isn't active), don't filter
     if (branch === undefined) {
@@ -6786,8 +6952,10 @@
     const branch = mainContentContainer.querySelector("#filterBranch")?.value || "";
     const issueType = mainContentContainer.querySelector("#filterIssueType")?.value || "";
     const employeeId = mainContentContainer.querySelector("#filterEmployee")?.value || "";
-    const startDate = mainContentContainer.querySelector("#filterStartDate")?.value || "";
-    const endDate = mainContentContainer.querySelector("#filterEndDate")?.value || "";
+    const startDateRaw = mainContentContainer.querySelector("#filterStartDate")?.value?.trim() || "";
+    const endDateRaw = mainContentContainer.querySelector("#filterEndDate")?.value?.trim() || "";
+    const startDate = parseFilterDateStr(startDateRaw) || "";
+    const endDate = parseFilterDateStr(endDateRaw) || "";
 
     const hasFilters = branch || issueType || employeeId || startDate || endDate;
 
@@ -12834,8 +13002,10 @@ ${priorityIcon} <b>Mức độ ưu tiên:</b> ${reportData.priority}
     const issueTypeFilter = mainContentContainer.querySelector("#filterIssueType")?.value || "";
     const statusFilter = mainContentContainer.querySelector("#filterStatus")?.value || "";
     const reporterFilter = mainContentContainer.querySelector("#filterReporter")?.value || "";
-    const dateFromFilter = dateOverride.dateFrom ?? mainContentContainer.querySelector("#filterDateFrom")?.value ?? "";
-    const dateToFilter = dateOverride.dateTo ?? mainContentContainer.querySelector("#filterDateTo")?.value ?? "";
+    const dateFromRaw = mainContentContainer.querySelector("#filterDateFrom")?.value?.trim() ?? "";
+    const dateToRaw = mainContentContainer.querySelector("#filterDateTo")?.value?.trim() ?? "";
+    const dateFromFilter = dateOverride.dateFrom ?? parseFilterDateStr(dateFromRaw) ?? "";
+    const dateToFilter = dateOverride.dateTo ?? parseFilterDateStr(dateToRaw) ?? "";
 
     let allReports = [];
     let lastVisible = null;
@@ -12947,8 +13117,10 @@ ${priorityIcon} <b>Mức độ ưu tiên:</b> ${reportData.priority}
     if (fromInput && toInput) {
       const filterFrom = mainContentContainer?.querySelector("#filterDateFrom");
       const filterTo = mainContentContainer?.querySelector("#filterDateTo");
-      fromInput.value = filterFrom?.value || "";
-      toInput.value = filterTo?.value || "";
+      const fromVal = filterFrom?.value?.trim() || "";
+      const toVal = filterTo?.value?.trim() || "";
+      fromInput.value = parseFilterDateStr(fromVal) || fromVal;
+      toInput.value = parseFilterDateStr(toVal) || toVal;
     }
     modal.style.display = "flex";
     modal.style.visibility = "visible";

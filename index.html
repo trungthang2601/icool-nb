@@ -732,9 +732,17 @@
                 <label class="block text-slate-600 text-sm font-medium mb-1.5">Phạm vi ngày báo cáo</label>
                 <div class="flex flex-wrap items-center gap-2">
                   <div class="flex items-center gap-1.5 flex-1 min-w-[140px]">
-                    <input type="date" id="filterDateFrom" class="input-field flex-1 min-w-0" placeholder="Từ ngày" />
+                    <div class="flex items-center gap-1 flex-1 min-w-0 relative">
+                      <input type="text" id="filterDateFrom" class="input-field flex-1 min-w-0 pr-9" placeholder="dd/mm/yyyy" autocomplete="off" data-date-filter="from" />
+                      <input type="date" id="filterDateFromPicker" class="absolute opacity-0 w-0 h-0 pointer-events-none" tabindex="-1" aria-hidden="true" />
+                      <button type="button" class="absolute right-2 p-1.5 rounded-md text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 transition-colors cursor-pointer border-0 bg-transparent" title="Chọn ngày" aria-label="Mở lịch chọn ngày" data-filter-date-picker="from"><i class="fas fa-calendar-alt text-sm"></i></button>
+                    </div>
                     <span class="text-slate-400 text-sm shrink-0">→</span>
-                    <input type="date" id="filterDateTo" class="input-field flex-1 min-w-0" placeholder="Đến ngày" />
+                    <div class="flex items-center gap-1 flex-1 min-w-0 relative">
+                      <input type="text" id="filterDateTo" class="input-field flex-1 min-w-0 pr-9" placeholder="dd/mm/yyyy" autocomplete="off" data-date-filter="to" />
+                      <input type="date" id="filterDateToPicker" class="absolute opacity-0 w-0 h-0 pointer-events-none" tabindex="-1" aria-hidden="true" />
+                      <button type="button" class="absolute right-2 p-1.5 rounded-md text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 transition-colors cursor-pointer border-0 bg-transparent" title="Chọn ngày" aria-label="Mở lịch chọn ngày" data-filter-date-picker="to"><i class="fas fa-calendar-alt text-sm"></i></button>
+                    </div>
                   </div>
                   <div class="flex flex-wrap gap-1.5 shrink-0">
                     <button type="button" id="filterDate7Days" class="px-2.5 py-1.5 text-xs font-medium rounded-lg bg-slate-100 text-slate-600 hover:bg-indigo-50 hover:text-indigo-600 transition-colors">7 ngày qua</button>
@@ -742,7 +750,7 @@
                     <button type="button" id="filterDateLastMonth" class="px-2.5 py-1.5 text-xs font-medium rounded-lg bg-slate-100 text-slate-600 hover:bg-indigo-50 hover:text-indigo-600 transition-colors">Tháng trước</button>
                   </div>
                 </div>
-                <p class="text-xs text-slate-500 mt-1">Chọn khoảng thời gian báo cáo được tạo</p>
+                <p class="text-xs text-slate-500 mt-1">Nhập dd/mm hoặc dd/mm/yyyy — thông tin bộ lọc hiển thị ngay khi có ngày/tháng</p>
               </div>
             </div>
             <div class="flex flex-wrap justify-end items-center gap-2 mt-4 pt-4 border-t border-slate-200">
@@ -827,6 +835,9 @@
                       Ngày giải quyết
                     </th>
                     <th class="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase">
+                      Mức Độ ưu tiên
+                    </th>
+                    <th class="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase">
                       Trạng thái
                     </th>
                     <th class="px-4 py-3 text-right text-xs font-semibold text-slate-500 uppercase">
@@ -836,7 +847,7 @@
                 </thead>
                 <tbody id="issueHistoryTableBody" class="bg-white divide-y divide-slate-200">
                   <tr>
-                    <td colspan="8" class="text-center p-8 text-slate-500">
+                    <td colspan="9" class="text-center p-8 text-slate-500">
                       <i class="fas fa-calendar-check text-4xl mb-4 text-slate-300"></i>
                       <p class="text-base font-medium">Chưa chọn tháng/năm để xem báo cáo</p>
                       <p class="text-sm mt-2">Vui lòng chọn tháng/năm ở trên và nhấn "Xem Báo Cáo"</p>
@@ -1377,7 +1388,7 @@
               <span id="detailReportDate"></span>
             </div>
             <div>
-              <strong>Ưu tiên:</strong> <span id="detailIssuePriority"></span>
+              <strong>Mức Độ ưu tiên:</strong> <span id="detailIssuePriority"></span>
             </div>
             <div id="resolutionInfoContainer" class="hidden pt-3 border-t border-dashed border-slate-300">
               <div class="font-semibold text-green-600 mb-2">
