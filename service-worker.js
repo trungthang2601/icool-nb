@@ -1,5 +1,5 @@
 // Service Worker for offline support
-const CACHE_NAME = 'icool-app-v3';
+const CACHE_NAME = 'icool-app-v4';
 const CDN_CACHE_NAME = 'icool-cdn-v1';
 
 // Resources to cache
@@ -111,7 +111,40 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // For local resources, use cache-first strategy
+  // For app shell files, use network-first so users receive latest UI logic quickly.
+  const isAppShellRequest =
+    url.origin === self.location.origin &&
+    (url.pathname === '/' ||
+      url.pathname.endsWith('/index.html') ||
+      url.pathname.endsWith('/app.js') ||
+      url.pathname.endsWith('/style.css'));
+
+  if (isAppShellRequest) {
+    event.respondWith(
+      fetch(request)
+        .then((response) => {
+          if (response && response.status === 200) {
+            const responseToCache = response.clone();
+            caches.open(CACHE_NAME).then((cache) => {
+              cache.put(request, responseToCache);
+            });
+          }
+          return response;
+        })
+        .catch(() =>
+          caches.match(request).then((cachedResponse) => {
+            if (cachedResponse) return cachedResponse;
+            if (request.destination === 'document') {
+              return caches.match('/index.html');
+            }
+            return new Response('Offline', { status: 503 });
+          })
+        )
+    );
+    return;
+  }
+
+  // For other local resources, use cache-first strategy
   event.respondWith(
     caches.match(request).then((cachedResponse) => {
       if (cachedResponse) {
