@@ -1,7 +1,6 @@
-/**
- * DOM Optimizer - Giảm thiểu reflow/repaint bằng cách batch updates
- * Sử dụng DocumentFragment và requestAnimationFrame để tối ưu performance
- */
+//
+ // DOM Optimizer - Giảm thiểu reflow/repaint bằng cách batch updates
+ // Sử dụng DocumentFragment và requestAnimationFrame để tối ưu performance
 
 class DOMOptimizer {
   constructor() {
@@ -10,10 +9,9 @@ class DOMOptimizer {
     this.isBatching = false;
   }
 
-  /**
-   * Batch multiple DOM updates vào một frame
-   * @param {Function} updateFn - Function thực hiện DOM update
-   */
+  //
+   // Batch multiple DOM updates vào một frame
+   // @param {Function} updateFn - Function thực hiện DOM update
   batchUpdate(updateFn) {
     this.updateQueue.push(updateFn);
     
@@ -24,9 +22,8 @@ class DOMOptimizer {
     }
   }
 
-  /**
-   * Thực thi tất cả updates trong queue
-   */
+  //
+   // Thực thi tất cả updates trong queue
   flushUpdates() {
     // Tạm thời ẩn container để tránh reflow
     const updates = [...this.updateQueue];
@@ -43,12 +40,11 @@ class DOMOptimizer {
     });
   }
 
-  /**
-   * Render HTML vào element sử dụng DocumentFragment (giảm reflow)
-   * @param {HTMLElement} container - Element container
-   * @param {string} html - HTML string
-   * @param {boolean} append - Có append hay replace
-   */
+  //
+   // Render HTML vào element sử dụng DocumentFragment (giảm reflow)
+   // @param {HTMLElement} container - Element container
+   // @param {string} html - HTML string
+   // @param {boolean} append - Có append hay replace
   renderHTML(container, html, append = false) {
     if (!container) return;
 
@@ -76,13 +72,12 @@ class DOMOptimizer {
     });
   }
 
-  /**
-   * Render table rows hiệu quả với virtual scrolling
-   * @param {HTMLElement} tbody - Table body element
-   * @param {Array} data - Array of data objects
-   * @param {Function} rowRenderer - Function render mỗi row: (item, index) => string
-   * @param {Object} options - Options { startIndex, endIndex, emptyMessage }
-   */
+  //
+   // Render table rows hiệu quả với virtual scrolling
+   // @param {HTMLElement} tbody - Table body element
+   // @param {Array} data - Array of data objects
+   // @param {Function} rowRenderer - Function render mỗi row: (item, index) => string
+   // @param {Object} options - Options { startIndex, endIndex, emptyMessage }
   renderTableRows(tbody, data, rowRenderer, options = {}) {
     if (!tbody) return;
 
@@ -115,11 +110,10 @@ class DOMOptimizer {
     });
   }
 
-  /**
-   * Update text content hiệu quả (không trigger reflow nếu không đổi)
-   * @param {HTMLElement} element - Element cần update
-   * @param {string} text - Text mới
-   */
+  //
+   // Update text content hiệu quả (không trigger reflow nếu không đổi)
+   // @param {HTMLElement} element - Element cần update
+   // @param {string} text - Text mới
   updateText(element, text) {
     if (!element) return;
     
@@ -130,11 +124,10 @@ class DOMOptimizer {
     }
   }
 
-  /**
-   * Update attributes hiệu quả
-   * @param {HTMLElement} element - Element
-   * @param {Object} attributes - Object { attrName: value }
-   */
+  //
+   // Update attributes hiệu quả
+   // @param {HTMLElement} element - Element
+   // @param {Object} attributes - Object { attrName: value }
   updateAttributes(element, attributes) {
     if (!element) return;
 
@@ -147,11 +140,10 @@ class DOMOptimizer {
     });
   }
 
-  /**
-   * Toggle classes hiệu quả
-   * @param {HTMLElement} element - Element
-   * @param {Object} classes - Object { className: boolean }
-   */
+  //
+   // Toggle classes hiệu quả
+   // @param {HTMLElement} element - Element
+   // @param {Object} classes - Object { className: boolean }
   toggleClasses(element, classes) {
     if (!element) return;
 
@@ -162,10 +154,9 @@ class DOMOptimizer {
     });
   }
 
-  /**
-   * Clear element content hiệu quả
-   * @param {HTMLElement} element - Element cần clear
-   */
+  //
+   // Clear element content hiệu quả
+   // @param {HTMLElement} element - Element cần clear
   clear(element) {
     if (!element) return;
     
@@ -175,9 +166,8 @@ class DOMOptimizer {
   }
 }
 
-/**
- * Virtual Scroller - Chỉ render phần visible của list/table
- */
+//
+ // Virtual Scroller - Chỉ render phần visible của list/table
 class VirtualScroller {
   constructor(container, itemHeight, renderItem, options = {}) {
     this.container = container;

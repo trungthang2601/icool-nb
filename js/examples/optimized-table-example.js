@@ -1,16 +1,15 @@
-/**
- * EXAMPLE: Cách refactor renderAccountsTable để sử dụng optimized table renderer
- * 
- * TRƯỚC (có vấn đề performance):
- * - Mỗi lần render lại toàn bộ table (innerHTML = ...)
- * - Gây reflow/repaint nhiều lần
- * - Phải re-attach event listeners mỗi lần
- * 
- * SAU (tối ưu):
- * - Chỉ update những rows thay đổi
- * - Batch DOM updates
- * - Giữ nguyên event listeners
- */
+//
+ // EXAMPLE: Cách refactor renderAccountsTable để sử dụng optimized table renderer
+ //
+ // TRƯỚC (có vấn đề performance):
+ // - Mỗi lần render lại toàn bộ table (innerHTML = ...)
+ // - Gây reflow/repaint nhiều lần
+ // - Phải re-attach event listeners mỗi lần
+ //
+ // SAU (tối ưu):
+ // - Chỉ update những rows thay đổi
+ // - Batch DOM updates
+ // - Giữ nguyên event listeners
 
 import { createTableRenderer } from '../utils/table-renderer.js';
 import { renderHTML, escapeHtml } from '../utils/dom-helpers.js';

@@ -17,7 +17,7 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/browser-image-compression@2.0.2/dist/browser-image-compression.js"></script>
   <script src="./telegram-config.js"></script>
-  <!-- Fallback: Nếu file không tồn tại, sẽ sử dụng giá trị mặc định trong app.js -->
+  <!-- Fallback: If file is missing, default values from app.js are used -->
   <link rel="stylesheet" href="style.css?v=3" />
   <style>
     .category-tab {
@@ -47,8 +47,8 @@
     .activity-time-btn:hover {
       color: #475569;
     }
-    /* Date input - không ẩn text, chỉ dùng span để hiển thị format hint */
-    /* Date input - ẩn text browser, hiển thị format dd/mm/yyyy */
+    /* Date input - do not hide text; use span to show format hint */
+    /* Date input - hide browser text, display dd/mm/yyyy format */
     .date-input-wrapper {
       position: relative;
     }
@@ -437,7 +437,7 @@
           </h2>
 
           <form id="issueReportForm" class="space-y-6">
-            <!-- Nhóm 1: Thông tin cơ bản -->
+            <!-- Group 1: Basic information -->
             <div class="bg-slate-50 rounded-lg p-4 border border-slate-200">
               <h3 class="text-lg font-semibold text-slate-700 mb-4 flex items-center">
                 <i class="fas fa-info-circle mr-2 text-indigo-600"></i>Thông tin cơ bản
@@ -480,13 +480,13 @@
               </div>
             </div>
 
-            <!-- Nhóm 2: Vị trí sự cố -->
+            <!-- Group 2: Issue location -->
             <div class="bg-slate-50 rounded-lg p-4 border border-slate-200">
               <h3 class="text-lg font-semibold text-slate-700 mb-4 flex items-center">
                 <i class="fas fa-map-marker-alt mr-2 text-indigo-600"></i>Vị trí sự cố
               </h3>
               
-              <!-- Tìm kiếm vị trí nhanh -->
+              <!-- Quick location search -->
               <div class="mb-4">
                 <label for="locationSearch" class="block text-slate-600 text-sm font-medium mb-2">
                   <i class="fas fa-search mr-1 text-indigo-600"></i>Tìm kiếm nhanh (Khuyến nghị)
@@ -555,7 +555,7 @@
               </div>
             </div>
 
-            <!-- Nhóm 3: Mô tả và hình ảnh -->
+            <!-- Group 3: Description and image -->
             <div class="bg-slate-50 rounded-lg p-4 border border-slate-200">
               <h3 class="text-lg font-semibold text-slate-700 mb-4 flex items-center">
                 <i class="fas fa-file-alt mr-2 text-indigo-600"></i>Mô tả và hình ảnh
@@ -589,7 +589,7 @@
               </div>
             </div>
 
-            <!-- Nút gửi -->
+            <!-- Submit button -->
             <div class="flex items-center justify-between pt-4 border-t border-slate-200">
               <p class="text-xs text-slate-500">
                 <span class="text-red-500">*</span> Trường bắt buộc
@@ -599,7 +599,7 @@
               </button>
             </div>
 
-            <!-- Thông báo -->
+            <!-- Notification -->
             <div id="issueMessage" class="hidden p-3 rounded-lg text-sm"></div>
           </form>
         </div>
@@ -766,7 +766,7 @@
             </div>
             </div>
             
-            <!-- Popup chọn khoảng thời gian khi xuất Excel -->
+            <!-- Date range popup for Excel export -->
             <div id="exportIssueHistoryDateModal" class="modal" role="dialog" aria-label="Chọn khoảng thời gian xuất Excel">
               <div class="modal-content max-w-md !bg-gradient-to-b from-indigo-50/90 to-slate-50/95 border border-indigo-200/60 shadow-xl">
                 <div class="flex items-center justify-between mb-4 pb-3 border-b border-indigo-200/50 -mx-1 px-1">
@@ -896,14 +896,14 @@
         </div>
       </div>
       
-      <!-- Quản Lý Ca Làm Việc (Admin only) -->
+      <!-- Shift Management (Admin only) -->
       <div id="manageShiftsView">
         <div class="card p-4 sm:p-6">
           <h2 class="text-xl sm:text-2xl font-bold text-slate-800 mb-4 sm:mb-6 flex items-center">
             <i class="fas fa-calendar-alt mr-2 sm:mr-3 text-indigo-600"></i>Quản Lý Ca Làm Việc
           </h2>
           
-          <!-- Tạo ca mới -->
+          <!-- Create new shift -->
           <div class="card p-4 sm:p-5 mb-6 bg-slate-50 border border-slate-200">
             <h3 class="text-base sm:text-lg font-semibold text-slate-700 mb-4">
               <i class="fas fa-plus-circle mr-2 text-indigo-600"></i>Tạo Ca Làm Việc Mới
@@ -940,7 +940,7 @@
             <div id="shiftMessage" class="hidden mt-4 p-3 rounded-lg text-sm"></div>
           </div>
 
-          <!-- Danh sách ca -->
+          <!-- Shift list -->
           <div class="mb-6">
             <h3 class="text-base sm:text-lg font-semibold text-slate-700 mb-4">
               <i class="fas fa-list mr-2 text-indigo-600"></i>Danh Sách Ca Làm Việc
@@ -967,7 +967,7 @@
             </div>
           </div>
 
-          <!-- Gán ca cho nhân viên -->
+          <!-- Assign shift to employees -->
           <div class="card p-4 sm:p-5 bg-slate-50 border border-slate-200">
             <h3 class="text-base sm:text-lg font-semibold text-slate-700 mb-4">
               <i class="fas fa-user-plus mr-2 text-indigo-600"></i>Gán Ca Cho Nhân Viên
@@ -1000,14 +1000,14 @@
         </div>
       </div>
 
-      <!-- Bảng Chấm Công (Admin & Manager) -->
+      <!-- Attendance Report (Admin & Manager) -->
       <div id="attendanceReportView">
         <div class="card p-6">
           <h2 class="text-2xl font-bold text-slate-800 mb-6 flex items-center">
             <i class="fas fa-file-invoice mr-3 text-indigo-600"></i>Bảng Chấm Công
           </h2>
           
-          <!-- Bộ lọc -->
+          <!-- Filters -->
           <div class="card p-5 mb-6 bg-slate-50 border border-slate-200">
             <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
@@ -1032,9 +1032,9 @@
             </div>
           </div>
 
-          <!-- Kết quả báo cáo -->
+          <!-- Report results -->
           <div id="attendanceReportResults" class="hidden">
-            <!-- Tổng quan -->
+            <!-- Overview -->
             <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
               <div class="card p-4 bg-blue-50 border border-blue-200">
                 <p class="text-sm text-blue-600 font-medium">Tổng số giờ</p>
@@ -1054,7 +1054,7 @@
               </div>
             </div>
 
-            <!-- Bảng chi tiết -->
+            <!-- Detail table -->
             <div class="overflow-x-auto">
               <table class="min-w-full divide-y divide-slate-200 responsive-table">
                 <thead class="bg-slate-50">
@@ -1073,7 +1073,7 @@
               </table>
             </div>
 
-            <!-- Nút xuất Excel -->
+            <!-- Export to Excel button -->
             <div class="mt-4 flex justify-end">
               <button id="exportAttendanceReportBtn" class="btn-primary">
                 <i class="fas fa-file-excel mr-2"></i>Xuất Excel
@@ -1454,7 +1454,7 @@
         </div>
         
         <div class="space-y-6">
-          <!-- Thông tin cá nhân -->
+          <!-- Personal information -->
           <div class="border-b border-slate-200 pb-6">
             <h3 class="text-xl font-semibold text-slate-800 mb-4">
               Thông tin cá nhân
@@ -1492,7 +1492,7 @@
             <div id="profileUpdateMessage" class="hidden mt-4 p-3 rounded-lg text-sm"></div>
           </div>
 
-          <!-- Đổi mật khẩu -->
+          <!-- Change password -->
           <div>
             <h3 class="text-xl font-semibold text-slate-800 mb-4">
               Đổi mật khẩu

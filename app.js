@@ -92,7 +92,7 @@
     "Văn phòng",
   ];
 
-  // Mapping mã chi nhánh (có thể chỉnh sửa theo nhu cầu)
+  // Branch code mapping (customizable as needed)
   const BRANCH_CODES = {
     "ICOOL XÔ VIẾT NGHỆ TĨNH": "XVT",
     "ICOOL BÌNH PHÚ": "BP",
@@ -124,7 +124,7 @@
     "Văn phòng": "VP",
   };
 
-  // Hàm helper để lấy mã chi nhánh
+  // Helper function to get branch code
   function getBranchCode(branchName) {
     return BRANCH_CODES[branchName] || branchName.substring(0, 3).toUpperCase();
   }
@@ -465,17 +465,17 @@
       "Tầng 1": [],
     },
     "SPACE A&A": {
-      // Dữ liệu phòng cho SPACE A&A
+      // Room data for SPACE A&A
       Trệt: [],
       "Tầng 1": [],
     },
     "Văn phòng": {
-      // Dữ liệu phòng cho Văn phòng
+      // Room data for Office
       Trệt: [],
       "Tầng 1": [],
     },
 
-    // Dữ liệu mặc định cho các chi nhánh không được liệt kê ở trên
+    // Default data for branches not listed above
     default: {
       "Tầng 1": ["P101", "P102", "P103", "P104", "P105"],
       "Tầng 2": ["P201", "P202", "P203", "P204", "P205"],
@@ -496,43 +496,43 @@
     attendanceReportView: "Bảng Chấm Công",
   };
   const ROLES = ["Admin", "Manager", "Nhân viên", "Chi nhánh"];
-    // Thứ tự menu hợp lý: Dashboard -> Chấm công -> Báo lỗi -> Công việc -> Quản lý
-    // Lưu ý: "Hồ sơ của tôi" đã được chuyển thành modal, không còn trong sidebar
+    // Recommended menu order: Dashboard -> Attendance -> Issues -> Tasks -> Management
+    // Note: "My Profile" was moved to a modal and is no longer in the sidebar
   const DEFAULT_VIEWS = {
     Admin: [
-      "dashboardView",              // 1. Tổng quan
-      "attendanceView",             // 2. Điểm danh
-      "attendanceReportView",        // 3. Bảng chấm công
-      "manageShiftsView",           // 4. Quản lý ca làm việc
-      "issueReportView",            // 5. Báo lỗi
-      "issueHistoryView",           // 6. Lịch sử báo cáo
-      "myTasksView",                // 7. Nhiệm vụ của tôi
-      "manageAccountsView",         // 8. Quản lý tài khoản
-      "activityLogView",            // 9. Nhật ký hoạt động
-      "myProfileView",              // 10. Hồ sơ của tôi
+      "dashboardView",              // 1. Overview
+      "attendanceView",             // 2. Attendance
+      "attendanceReportView",       // 3. Timesheet
+      "manageShiftsView",           // 4. Shift management
+      "issueReportView",            // 5. Issue reporting
+      "issueHistoryView",           // 6. Issue history
+      "myTasksView",                // 7. My tasks
+      "manageAccountsView",         // 8. Account management
+      "activityLogView",            // 9. Activity log
+      "myProfileView",              // 10. My profile
     ],
     Manager: [
-      "dashboardView",              // 1. Tổng quan
-      "attendanceView",             // 2. Điểm danh
-      "attendanceReportView",       // 3. Bảng chấm công
-      "issueReportView",            // 4. Báo lỗi
-      "issueHistoryView",           // 5. Lịch sử báo cáo
-      "myTasksView",                // 6. Nhiệm vụ của tôi
-      "activityLogView",            // 7. Nhật ký hoạt động
-      "myProfileView",              // 8. Hồ sơ của tôi
+      "dashboardView",              // 1. Overview
+      "attendanceView",             // 2. Attendance
+      "attendanceReportView",       // 3. Timesheet
+      "issueReportView",            // 4. Issue reporting
+      "issueHistoryView",           // 5. Issue history
+      "myTasksView",                // 6. My tasks
+      "activityLogView",            // 7. Activity log
+      "myProfileView",              // 8. My profile
     ],
     "Nhân viên": [
       "dashboardView",              // 1. Dashboard
-      "attendanceView",             // 2. Điểm danh
-      "issueReportView",            // 3. Báo lỗi
-      "issueHistoryView",           // 4. Lịch sử báo cáo
-      "myTasksView",                // 5. Nhiệm vụ của tôi
-      "myProfileView",              // 6. Hồ sơ của tôi
+      "attendanceView",             // 2. Attendance
+      "issueReportView",            // 3. Issue reporting
+      "issueHistoryView",           // 4. Issue history
+      "myTasksView",                // 5. My tasks
+      "myProfileView",              // 6. My profile
     ],
     "Chi nhánh": [
-      "issueReportView",            // 1. Báo lỗi
-      "issueHistoryView",          // 2. Lịch sử báo cáo
-      "myProfileView",             // 3. Hồ sơ của tôi
+      "issueReportView",            // 1. Issue reporting
+      "issueHistoryView",           // 2. Issue history
+      "myProfileView",              // 3. My profile
     ],
   };
   const ISSUE_STATUSES = ["Chờ xử lý", "Đang xử lý", "Đã giải quyết", "Đã hủy"];
@@ -659,7 +659,8 @@
     }
   };
   
-  // Translation function
+  // Returns translated text by key for current language.
+  // Falls back to Vietnamese, then key itself.
   function t(key) {
     return translations[currentLanguage]?.[key] || translations.vi[key] || key;
   }
@@ -829,7 +830,7 @@
       }
     } catch (error) {
       console.error("Lỗi khởi tạo Firebase:", error);
-      // Kiểm tra nếu là lỗi mạng
+      // Check whether this is a network error
       const isNetworkError = error.message?.includes('ERR_QUIC') || 
                             error.message?.includes('ERR_NAME_NOT_RESOLVED') || 
                             error.code === 'unavailable' ||
@@ -841,16 +842,16 @@
         console.warn("⚠️ Lỗi kết nối mạng: Không thể kết nối đến Firebase.");
         console.warn("⚠️ Ứng dụng sẽ hoạt động ở chế độ offline với dữ liệu đã cache.");
         
-        // Vẫn cố gắng khởi tạo Firebase với offline mode
+        // Still try to initialize Firebase in offline mode
         try {
-          // Firebase có thể vẫn hoạt động với offline persistence
+          // Firebase may still work with offline persistence
           app = initializeApp(firebaseConfig);
           auth = getAuth(app);
           db = getFirestore(app);
           storage = getStorage(app);
           functions = getFunctions(app);
           
-          // Enable offline persistence ngay cả khi có lỗi mạng
+          // Enable offline persistence even when network errors occur
           enableIndexedDbPersistence(db).catch(() => {
             console.warn("⚠️ Không thể bật offline persistence, nhưng vẫn tiếp tục.");
           });
@@ -858,13 +859,13 @@
           // Set up online/offline status monitoring
           setupOnlineStatusMonitoring();
           
-          // Vẫn lắng nghe auth state (có thể có session đã lưu)
+          // Keep listening to auth state (a cached session may exist)
           onAuthStateChanged(auth, handleAuthStateChange);
           
           // Initialize language
           initializeLanguage();
           
-          // Hiển thị thông báo offline
+          // Show offline message
           if (authMessage) {
             authMessage.textContent = "⚠️ Đang ở chế độ offline. Một số chức năng có thể bị hạn chế. Dữ liệu sẽ được đồng bộ khi có mạng trở lại.";
             authMessage.className = "mt-4 p-3 rounded-lg text-sm text-center bg-yellow-50 text-yellow-800 border border-yellow-200";
@@ -881,9 +882,8 @@
     }
   });
 
-  /**
-   * Sets up online/offline status monitoring and UI updates
-   */
+  //
+   // Sets up online/offline status monitoring and UI updates
   function setupOnlineStatusMonitoring() {
     if (!onlineStatusIndicator || !onlineStatusIcon || !onlineStatusText) {
       return; // Elements not available yet
@@ -918,7 +918,7 @@
       console.log("✅ Connection restored");
       updateOnlineStatus(true);
       
-      // Ẩn banner offline nếu có
+      // Hide offline banner if present
       const offlineBanner = document.getElementById('offlineBanner');
       if (offlineBanner) {
         offlineBanner.style.transition = 'opacity 0.5s';
@@ -944,7 +944,7 @@
       console.log("⚠️ Connection lost - Offline mode activated");
       updateOnlineStatus(false);
       
-      // Hiển thị banner offline nếu chưa có
+      // Show offline banner if it does not exist yet
       if (!document.getElementById('offlineBanner') && mainContentContainer) {
         const mainContent = mainContentContainer.querySelector('main');
         if (mainContent) {
@@ -974,6 +974,7 @@
   }
 
   // --- Escalation & Settings Functions (Admin only) ---
+  // Saves escalation settings from admin form into Firestore.
   async function handleSaveSettings() {
     const settingsMessage =
       mainContentContainer.querySelector("#settingsMessage");
@@ -1023,6 +1024,7 @@
     }
   }
 
+  // Loads escalation settings from Firestore and binds them to UI controls.
   async function fetchAndDisplaySettings() {
     const escalationTimeInput = mainContentContainer.querySelector(
       "#escalationTimeInput"
@@ -1054,6 +1056,7 @@
     }
   }
 
+  // Stops the escalation interval if it is currently running.
   function stopEscalationChecker() {
     if (escalationInterval) {
       clearInterval(escalationInterval);
@@ -1062,6 +1065,7 @@
     }
   }
 
+  // Starts periodic escalation checks for overdue unassigned issues.
   async function startEscalationChecker() {
     stopEscalationChecker(); // Ensure no multiple intervals are running
 
@@ -1130,6 +1134,7 @@
   }
 
   // --- Core Auth & UI Functions ---
+  // Handles Firebase auth state transitions and initializes app UI/session.
   async function handleAuthStateChange(user) {
     unsubscribeAll();
     stopEscalationChecker();
@@ -1140,29 +1145,29 @@
 
       if (currentUserProfile && currentUserProfile.status !== "disabled") {
         if (currentUserProfile.requiresPasswordChange) {
-          // Nếu cần đổi mật khẩu, chỉ hiển thị modal, KHÔNG cho phép truy cập app
+          // If password change is required, show only the modal and block app access
           authSection.classList.add("hidden");
           appContainer.classList.remove("hidden");
-          // Thiết lập header cơ bản để hiển thị thông tin user
+          // Set basic header information for the user
           loggedInUserDisplay.textContent = currentUserProfile.displayName;
           dropdownUserName.textContent = currentUserProfile.displayName;
           dropdownUserRole.textContent = currentUserProfile.role;
-          // Ẩn sidebar và main content để người dùng không thể truy cập
+          // Hide sidebar and main content to prevent access
           sidebar.classList.add("-translate-x-full");
           mainContentContainer.innerHTML = "";
-          // Hiển thị modal đổi mật khẩu
+          // Show force-change-password modal
           promptForcePasswordChange();
         } else {
-          // Nếu không cần đổi mật khẩu, thiết lập UI đầy đủ và tải các chức năng
+          // If password change is not required, initialize full UI and features
           setupUIForLoggedInUser();
           forceChangePasswordModal.style.display = "none";
           listenToNotifications();
           showInitialView();
           
-          // Kiểm tra trạng thái mạng và hiển thị thông báo nếu offline
+          // Check network status and show notice if offline
           if (!navigator.onLine) {
             console.warn("⚠️ Đang ở chế độ offline");
-            // Hiển thị thông báo offline trong main content
+            // Show offline notice in main content
             const offlineBanner = document.createElement('div');
             offlineBanner.id = 'offlineBanner';
             offlineBanner.className = 'bg-yellow-50 border-l-4 border-yellow-400 p-4 mb-4';
@@ -1197,7 +1202,7 @@
           }
         }
         
-        // Log activity (không block nếu offline)
+        // Log activity (do not block when offline)
         setTimeout(() => {
           logActivity("User Login", { email: user.email }, "auth").catch(err => {
             if (!navigator.onLine) {
@@ -1220,6 +1225,7 @@
     skeletonLoader.classList.add("hidden");
   }
 
+  // Fetches user profile, applies role/view defaults, and caches profile locally.
   async function fetchAndSetUserProfile(uid, authUser) {
     const userDocRef = doc(db, `/artifacts/${canvasAppId}/users/${uid}`);
     let userDoc;
@@ -1227,23 +1233,23 @@
     try {
       userDoc = await getDoc(userDocRef);
     } catch (error) {
-      // Nếu lỗi mạng, thử lấy từ cache hoặc localStorage
+      // On network error, try cache or localStorage
       console.warn("⚠️ Không thể fetch user profile từ server, thử lấy từ cache:", error);
       
-      // Thử lấy từ cache
+      // Try reading from cache
       const cachedProfile = localStorage.getItem(`userProfile_${uid}`);
       if (cachedProfile) {
         try {
           currentUserProfile = JSON.parse(cachedProfile);
           console.log("✅ Đã tải user profile từ cache");
-          // Vẫn tiếp tục xử lý như bình thường
+          // Continue normal processing
           userDoc = { exists: () => true, data: () => currentUserProfile };
         } catch (parseError) {
           console.error("Lỗi parse cache:", parseError);
         }
       }
       
-      // Nếu không có cache, tạo profile mặc định
+      // If no cache is available, create a default profile
       if (!userDoc || !userDoc.exists()) {
         const userRole = authUser.email === DEFAULT_ADMIN_EMAIL ? "Admin" : "Nhân viên";
         currentUserProfile = {
@@ -1253,12 +1259,12 @@
           role: userRole,
           allowedViews: DEFAULT_VIEWS[userRole],
           managedBranches: [],
-          requiresPasswordChange: false, // Không yêu cầu đổi mật khẩu khi offline
+          requiresPasswordChange: false, // Do not require password change in offline mode
         };
-        // Lưu vào localStorage để dùng sau
+        // Save to localStorage for later use
         localStorage.setItem(`userProfile_${uid}`, JSON.stringify(currentUserProfile));
         console.warn("⚠️ Đang sử dụng profile mặc định (offline mode)");
-        return; // Return sớm để tránh lỗi
+        return; // Return early to avoid errors
       }
     }
 
@@ -1291,7 +1297,7 @@
     
     currentUserProfile = userDoc.data();
     
-    // Lưu vào localStorage để dùng khi offline
+    // Save to localStorage for offline use
     try {
       localStorage.setItem(`userProfile_${uid}`, JSON.stringify(currentUserProfile));
     } catch (storageError) {
@@ -1330,15 +1336,14 @@
       }
     }
     
-    // Lưu ý: myProfileView được giữ trong allowedViews để đảm bảo quyền truy cập
-    // Nó sẽ được filter khi render sidebar (vì là modal, không phải sidebar view)
-    // Nhưng quyền vẫn được lưu trong allowedViews
+    // Note: myProfileView remains in allowedViews to preserve access permissions
+    // It is filtered out when rendering the sidebar (modal, not a sidebar view)
+    // Permissions are still stored in allowedViews
   }
 
-  /**
-   * Loads all users into cache (called once after login)
-   * This avoids repeated getDocs calls in openIssueDetailModal and setupMentionAutocomplete
-   */
+  //
+   // Loads all users into cache (called once after login)
+   // This avoids repeated getDocs calls in openIssueDetailModal and setupMentionAutocomplete
   async function loadUsersIntoCache() {
     if (usersCacheLoaded || !currentUser) {
       return; // Already loaded or user not logged in
@@ -1368,6 +1373,7 @@
     }
   }
 
+  // Resolves login input (email/loginName) and signs in the user.
   async function handleLogin() {
     const input = authEmailInput.value.trim();
     const password = authPasswordInput.value;
@@ -1378,37 +1384,37 @@
       return;
     }
     
-    // Xử lý đăng nhập: 
-    // - Nếu email đã là @mail.icool.com.vn thì giữ nguyên
-    // - Nếu email khác (như @gmail.com) thì giữ nguyên email đó
-    // - Nếu không có @, tìm email từ tên đăng nhập bằng Cloud Function
+    // Login handling:
+    // - If input is already an @mail.icool.com.vn email, keep it
+    // - If input is another email (e.g. @gmail.com), keep it unchanged
+    // - If there is no "@", resolve email from login name
     let email = input;
     
     if (input.includes("@")) {
-      // Nếu có @, kiểm tra xem có phải là @mail.icool.com.vn không
+      // If input contains "@", check whether it is @mail.icool.com.vn
       if (input.endsWith("@mail.icool.com.vn")) {
-        // Email đã đúng định dạng, giữ nguyên
+        // Email is already in expected format, keep as is
         email = input;
         console.log("Email đã đúng định dạng @mail.icool.com.vn, giữ nguyên:", email);
       } else {
-        // Email khác (như @gmail.com), giữ nguyên email đó
+        // Other email domain (e.g. @gmail.com), keep as is
         email = input;
         console.log("Email khác, giữ nguyên:", email);
       }
     } else {
-      // Không có @, tìm email từ tên đăng nhập
-      // Thử query Firestore trực tiếp trước (nếu có quyền)
+      // No "@": resolve email from login name
+      // Try direct Firestore query first (if permitted)
       try {
         console.log("Đang tìm email từ tên đăng nhập:", input);
         
-        // Query Firestore trực tiếp theo loginName hoặc displayName
+        // Query Firestore directly by loginName or displayName
         const usersRef = collection(db, `/artifacts/${canvasAppId}/users`);
         
-        // Thử tìm theo loginName trước
+        // Try loginName first
         let q = query(usersRef, where("loginName", "==", input.trim()), limit(1));
         let querySnapshot = await getDocs(q);
         
-        // Nếu không tìm thấy, thử tìm theo displayName
+        // If not found, try displayName
         if (querySnapshot.empty) {
           q = query(usersRef, where("displayName", "==", input.trim()), limit(1));
           querySnapshot = await getDocs(q);
@@ -1420,19 +1426,19 @@
           email = userData.email;
           console.log("Tìm thấy email từ Firestore:", email);
         } else {
-          // Fallback: tạo email từ tên đăng nhập (cho tài khoản @mail.icool.com.vn)
+          // Fallback: build email from login name (@mail.icool.com.vn)
           email = `${input.trim()}@mail.icool.com.vn`;
           console.log("Không tìm thấy, sử dụng email mặc định:", email);
         }
       } catch (error) {
         console.error("Lỗi khi tìm email từ tên đăng nhập:", error);
-        // Fallback: tạo email từ tên đăng nhập
+        // Fallback: build email from login name
         email = `${input.trim()}@mail.icool.com.vn`;
         console.log("Fallback: tạo email từ tên đăng nhập:", email);
       }
     }
     
-    // Đăng nhập bằng email
+    // Sign in with resolved email
     try {
       console.log("Đang đăng nhập với email:", email);
       await signInWithEmailAndPassword(auth, email, password);
@@ -1449,9 +1455,10 @@
     }
   }
 
+  // Logs logout activity and signs out current user.
   async function handleLogout() {
     try {
-      // Ghi log trước khi đăng xuất (vì sau khi signOut, currentUser sẽ null)
+      // Write activity log before signOut (currentUser becomes null afterward)
       if (currentUserProfile) {
         await logActivity("User Logout", { email: currentUser?.email }, "auth");
       }
@@ -1461,27 +1468,30 @@
     }
   }
 
+  // Switches shell layout into authenticated mode and renders sidebar.
   function setupUIForLoggedInUser() {
     authSection.classList.add("hidden");
     appContainer.classList.remove("hidden");
-    // KHÔNG được ẩn modal đổi mật khẩu ở đây
-    // forceChangePasswordModal.style.display = "none"; // <-- XÓA DÒNG NÀY
+    // DO NOT hide the force-change-password modal here
+    // forceChangePasswordModal.style.display = "none"; // <-- DO NOT RESTORE THIS LINE
     loggedInUserDisplay.textContent = currentUserProfile.displayName;
     dropdownUserName.textContent = currentUserProfile.displayName;
     dropdownUserRole.textContent = currentUserProfile.role;
     renderSidebarNav();
   }
 
+  // Switches shell layout into logged-out mode and clears session profile state.
   function setupUIForLoggedOutUser() {
     authSection.classList.remove("hidden");
     appContainer.classList.add("hidden");
     currentUserProfile = null;
   }
 
+  // Renders sidebar menu based on allowed views for current profile.
   function renderSidebarNav() {
     sidebarNav.innerHTML = "";
     
-    // Không render sidebar nếu chưa đổi mật khẩu
+    // Do not render sidebar until password is changed
     if (currentUserProfile && currentUserProfile.requiresPasswordChange) {
       return;
     }
@@ -1535,14 +1545,18 @@
     console.log(`✅ Sidebar rendered with ${filteredViews.length} menu items`);
   }
 
+  // Opens default startup view (prioritizes issue report when available).
   function showInitialView() {
-    const firstAllowedView =
-      currentUserProfile.allowedViews[0] || "attendanceView";
-    showView(firstAllowedView);
+    const allowedViews = currentUserProfile.allowedViews || [];
+    const defaultView = allowedViews.includes("issueReportView")
+      ? "issueReportView"
+      : allowedViews[0] || "attendanceView";
+    showView(defaultView);
   }
 
+  // Renders a specific view template and runs its setup hook if available.
   function showView(viewId) {
-    // Ngăn chặn truy cập các view nếu chưa đổi mật khẩu
+    // Prevent access to views before password change is completed
     if (currentUserProfile && currentUserProfile.requiresPasswordChange) {
       promptForcePasswordChange();
       return;
@@ -1557,7 +1571,7 @@
         btn.classList.toggle("active", btn.dataset.view === viewId);
       });
       
-      // Ghi log truy cập trang thành công
+      // Log successful page access
       const viewName = ALL_VIEWS[viewId] || viewId;
       let category = "other";
       if (viewId.includes("dashboard")) category = "other";
@@ -1579,7 +1593,7 @@
         toggleMobileMenu(true);
       }
     } catch (error) {
-      // Ghi log lỗi nếu không vào được trang
+      // Log error if view cannot be opened
       const viewName = ALL_VIEWS[viewId] || viewId;
       logActivity(`View ${viewName}`, { 
         viewId: viewId, 
@@ -1590,6 +1604,7 @@
     }
   }
 
+  // Toggles mobile sidebar visibility, optionally forcing close.
   function toggleMobileMenu(forceClose = false) {
     const overlay = document.getElementById("sidebarOverlay");
     if (forceClose) {
@@ -1602,6 +1617,7 @@
   }
 
   // --- Notifications & Logging ---
+  // Subscribes to current user's latest notifications and updates notification UI.
   function listenToNotifications() {
     const q = query(
       collection(
@@ -1634,6 +1650,7 @@
     unsubscribeListeners.push(unsubscribe);
   }
 
+  // Renders notification list, unread count, and item action handlers.
   function renderNotifications(notifications) {
     const unreadCount = notifications.filter((n) => !n.read).length;
     notificationBadge.textContent = unreadCount;
@@ -1716,6 +1733,7 @@
     });
   }
 
+  // Marks all unread notifications as read for current user.
   async function markAllNotificationsAsRead() {
     if (!currentUser) return;
     try {
@@ -1741,6 +1759,7 @@
     }
   }
 
+  // Creates a notification for a target user and logs "received notification" activity.
   async function sendNotification(userId, message, issueId = null) {
     if (!userId) return;
     try {
@@ -1792,6 +1811,7 @@
     }
   }
 
+  // Marks a single notification as read by id.
   async function markNotificationAsRead(notificationId) {
     if (!notificationId || !currentUser) return;
     try {
@@ -1805,13 +1825,12 @@
     }
   }
 
-  /**
-   * Lấy địa chỉ IP public của người dùng
-   * @returns {Promise<string>} IP address hoặc "N/A" nếu lỗi
-   */
+  //
+   // Get user's public IP address.
+   // @returns {Promise<string>} IP address or "N/A" on failure
   async function getPublicIP() {
     try {
-      // Thử nhiều API để lấy IP
+      // Try multiple APIs to fetch IP
       const apis = [
         { url: 'https://api.ipify.org?format=json', isJson: true },
         { url: 'https://api.ip.sb/ip', isJson: false },
@@ -1825,7 +1844,7 @@
           const response = await fetch(api.url, { 
             method: 'GET',
             headers: api.isJson ? { 'Accept': 'application/json' } : {},
-            signal: AbortSignal.timeout(5000) // Timeout 5 giây
+            signal: AbortSignal.timeout(5000) // 5-second timeout
           });
           
           if (response.ok) {
@@ -1855,10 +1874,9 @@
     }
   }
 
-  /**
-   * Lấy thông tin trình duyệt từ navigator
-   * @returns {object} Thông tin trình duyệt
-   */
+  //
+   // Get browser information from navigator.
+   // @returns {object} Browser details
   function getBrowserInfo() {
     const ua = navigator.userAgent;
     let browser = "Unknown";
@@ -1900,22 +1918,21 @@
     };
   }
 
-  // Cache IP để tránh gọi API nhiều lần
+  // Cache IP to avoid repeated API calls
   let cachedPublicIP = null;
   let ipFetchPromise = null;
 
-  /**
-   * Ghi nhật ký hoạt động vào hệ thống với phân loại tự động
-   * @param {string} action - Tên hành động (ví dụ: "User Login", "Check-In", "Create Issue")
-   * @param {object} details - Chi tiết hành động (optional)
-   * @param {string} category - Loại log (optional, sẽ tự động phân loại nếu không cung cấp)
-   *                            Các loại: "auth", "attendance", "issue", "user", "profile", "shift", "notification", "other"
-   */
+  //
+   // Write activity logs with automatic category classification.
+   // @param {string} action - Action name (e.g. "User Login", "Check-In", "Create Issue")
+   // @param {object} details - Action details (optional)
+   // @param {string} category - Log category (optional; auto-detected if omitted)
+   //                            Categories: "auth", "attendance", "issue", "user", "profile", "shift", "notification", "other"
   async function logActivity(action, details = {}, category = null) {
     try {
       if (!currentUserProfile) return;
       
-      // Tự động phân loại category nếu không được cung cấp
+      // Auto-detect category when not provided
       if (!category) {
         const actionLower = action.toLowerCase();
         if (actionLower.includes("login") || actionLower.includes("logout") || actionLower.includes("password")) {
@@ -1937,15 +1954,15 @@
         }
       }
       
-      // Lấy IP và browser info nếu chưa có trong details
+      // Resolve IP and browser info if missing in details
       let ipAddress = details.ipAddress || details.ip;
       let browserInfo = details.browser || details.userAgent;
       let platform = details.platform;
       
-      // Luôn lấy browser info từ navigator để đảm bảo có thông tin
+      // Always read browser info from navigator to ensure completeness
       const browserData = getBrowserInfo();
       
-      // Lấy IP từ cache hoặc fetch mới nếu chưa có
+      // Use cached IP or fetch a new one if unavailable
       if (!ipAddress || ipAddress === "N/A") {
         if (!cachedPublicIP && !ipFetchPromise) {
           ipFetchPromise = getPublicIP();
@@ -1958,7 +1975,7 @@
         ipAddress = cachedPublicIP || "N/A";
       }
       
-      // Luôn cập nhật browser info từ navigator để đảm bảo có thông tin mới nhất
+      // Always refresh browser info from navigator for latest values
       if (!browserInfo || browserInfo === "N/A" || browserInfo === "Unknown") {
         browserInfo = browserData.browser;
       }
@@ -1966,12 +1983,12 @@
         platform = browserData.platform;
       }
       
-      // Xác định status: success hoặc error
+      // Determine status: success or error
       const hasErrorInDetails = details.error || details.status === "error" || details.status === "failed";
       const hasErrorInAction = /error|fail|failed|lỗi|thất bại/i.test(action);
       const status = hasErrorInDetails || hasErrorInAction ? "error" : "success";
       
-      // Merge thông tin IP và browser vào details
+      // Merge IP and browser info into details
       const enhancedDetails = {
         ...details,
         ipAddress: ipAddress,
@@ -2015,6 +2032,7 @@
   }
 
   // --- Data Queries ---
+  // Returns issueReports query scoped by user role/branch visibility rules.
   function getScopedIssuesQuery() {
     let q = collection(db, `/artifacts/${canvasAppId}/public/data/issueReports`);
     // Chỉ filter cho role "Chi nhánh" - chỉ xem báo cáo của chi nhánh đó
@@ -2053,9 +2071,7 @@
     listenToAttendance();
   };
 
-  /**
-   * Setup Quản Lý Ca Làm Việc view (Admin only)
-   */
+  // Sets up Shift Management view (Admin only).
   window.setup_manageShiftsView = function () {
     if (!currentUserProfile || currentUserProfile.role !== "Admin") return;
 
@@ -2079,9 +2095,7 @@
     }
   };
 
-  /**
-   * Setup Bảng Chấm Công view (Admin & Manager)
-   */
+  // Sets up Attendance Report view (Admin & Manager).
   window.setup_attendanceReportView = function () {
     if (!currentUserProfile) return;
     if (currentUserProfile.role !== "Admin" && currentUserProfile.role !== "Manager") return;
@@ -2298,11 +2312,10 @@
     loadAccountsPage(true);
   };
 
-  /**
-   * Loads accounts page with server-side pagination
-   * @param {boolean} resetPage - Whether to reset to page 1
-   * @param {boolean} loadNext - Whether to load next page
-   */
+  //
+   // Loads accounts page with server-side pagination
+   // @param {boolean} resetPage - Whether to reset to page 1
+   // @param {boolean} loadNext - Whether to load next page
   async function loadAccountsPage(resetPage = false, loadNext = false) {
     const tableBody = mainContentContainer.querySelector("#accountsTableBody");
     if (!tableBody) return;
@@ -2844,10 +2857,9 @@
     loadDashboardAggregatedData();
   };
 
-  /**
-   * Loads dashboard data from aggregated document (optimized)
-   * Falls back to loading all reports if aggregated data is not available
-   */
+  //
+   // Loads dashboard data from aggregated document (optimized)
+   // Falls back to loading all reports if aggregated data is not available
   async function loadDashboardAggregatedData() {
     try {
       // Try to get aggregated data
@@ -2900,10 +2912,9 @@
     }
   }
 
-  /**
-   * Loads all reports for dashboard (fallback method)
-   * This is used when aggregated data is not available
-   */
+  //
+   // Loads all reports for dashboard (fallback method)
+   // This is used when aggregated data is not available
   function loadDashboardAllReports() {
     const q = getScopedIssuesQuery();
     const unsubscribe = onSnapshot(
@@ -2927,10 +2938,9 @@
     unsubscribeListeners.push(unsubscribe);
   }
 
-  /**
-   * Loads reports for filtering purposes (can be paginated later)
-   * This is a lighter load than loading everything
-   */
+  //
+   // Loads reports for filtering purposes (can be paginated later)
+   // This is a lighter load than loading everything
   function loadDashboardReportsForFiltering() {
     // For now, load a limited set for filtering
     // Can be optimized to load only when filters are applied
@@ -2961,10 +2971,9 @@
     unsubscribeListeners.push(unsubscribe);
   }
 
-  /**
-   * Renders dashboard using aggregated data
-   * @param {Object} aggregatedData - The aggregated statistics from Firestore
-   */
+  //
+   // Renders dashboard using aggregated data
+   // @param {Object} aggregatedData - The aggregated statistics from Firestore
   function renderDashboardFromAggregatedData(aggregatedData) {
     // Update quick stats
     const errorsTodayEl = document.getElementById("errorsToday");
@@ -3033,9 +3042,8 @@
     // These can be added to aggregation later if needed
   }
 
-  /**
-   * Updates dashboard warnings from aggregated data
-   */
+  //
+   // Updates dashboard warnings from aggregated data
   function updateDashboardWarningsFromAggregated(aggregatedData) {
     const dailySpikeEl = document.getElementById("dailySpikeWarning");
     const backlogEl = document.getElementById("backlogWarning");
@@ -3109,9 +3117,8 @@
     }
   }
 
-  /**
-   * Renders trend chart from aggregated data
-   */
+  //
+   // Renders trend chart from aggregated data
   function renderIncidentTrendChartFromAggregated(trendData) {
     const canvas = document.getElementById("incidentTrendChart");
     if (!canvas) return;
@@ -3176,9 +3183,8 @@
     });
   }
 
-  /**
-   * Renders heatmap from aggregated data
-   */
+  //
+   // Renders heatmap from aggregated data
   function renderIncidentHeatmapFromAggregated(heatmapData) {
     const container = document.getElementById("incidentHeatmapContainer");
     if (!container) return;
@@ -3227,9 +3233,8 @@
     container.innerHTML = html;
   }
 
-  /**
-   * Renders scope analysis from aggregated data
-   */
+  //
+   // Renders scope analysis from aggregated data
   function renderScopeAnalysisFromAggregated(scopeAnalysis) {
     const tableContainer = document.getElementById(
       "problematicRoomsTableContainer"
@@ -3537,11 +3542,10 @@
       // Lưu kết quả tìm kiếm hiện tại để truy cập khi click
       let currentSearchResults = [];
 
-      /**
-       * Tìm kiếm phòng hoặc chi nhánh trong BRANCH_DATA
-       * @param {string} searchTerm - Từ khóa tìm kiếm (tên phòng hoặc chi nhánh)
-       * @returns {Array} Mảng các kết quả tìm thấy
-       */
+      //
+       // Tìm kiếm phòng hoặc chi nhánh trong BRANCH_DATA
+       // @param {string} searchTerm - Từ khóa tìm kiếm (tên phòng hoặc chi nhánh)
+       // @returns {Array} Mảng các kết quả tìm thấy
       const searchLocation = (searchTerm) => {
         if (!searchTerm || searchTerm.trim().length < 2) return [];
 
@@ -3586,9 +3590,8 @@
         return results.slice(0, 10); // Giới hạn 10 kết quả
       };
 
-      /**
-       * Áp dụng kết quả tìm kiếm: tự động điền branch và floor
-       */
+      //
+       // Áp dụng kết quả tìm kiếm: tự động điền branch và floor
       const applySearchResult = (result) => {
         if (!result) return;
 
@@ -3760,11 +3763,10 @@
     }
   }
 
-  /**
-   * Parse chuỗi ngày dd/mm/yyyy hoặc dd/mm (năm hiện tại) thành yyyy-mm-dd để dùng trong query.
-   * @param {string} str - Chuỗi nhập từ user (vd: "01/02/2025", "1/2", "01/02")
-   * @returns {string|null} "yyyy-mm-dd" hoặc null nếu không parse được
-   */
+  //
+   // Parse chuỗi ngày dd/mm/yyyy hoặc dd/mm (năm hiện tại) thành yyyy-mm-dd để dùng trong query.
+   // @param {string} str - Chuỗi nhập từ user (vd: "01/02/2025", "1/2", "01/02")
+   // @returns {string|null} "yyyy-mm-dd" hoặc null nếu không parse được
   function parseFilterDateStr(str) {
     if (!str || typeof str !== "string") return null;
     const s = str.trim();
@@ -3793,9 +3795,8 @@
     return null;
   }
 
-  /**
-   * Kiểm tra chuỗi có giống ngày (dd/mm hoặc dd/mm/yyyy) để hiển thị số bộ lọc ngay khi user nhập ngày/tháng.
-   */
+  //
+   // Kiểm tra chuỗi có giống ngày (dd/mm hoặc dd/mm/yyyy) để hiển thị số bộ lọc ngay khi user nhập ngày/tháng.
   function hasFilterDateValue(str) {
     if (!str || typeof str !== "string") return false;
     const s = str.trim();
@@ -3833,11 +3834,10 @@
     }
   }
 
-  /**
-   * Loads issue history page with server-side pagination and filtering
-   * @param {boolean} resetPage - Whether to reset to page 1
-   * @param {boolean} loadNext - Whether to load next page (for pagination)
-   */
+  //
+   // Loads issue history page with server-side pagination and filtering
+   // @param {boolean} resetPage - Whether to reset to page 1
+   // @param {boolean} loadNext - Whether to load next page (for pagination)
   async function loadIssueHistoryPage(resetPage = false, loadNext = false) {
     const tableBody = mainContentContainer.querySelector("#issueHistoryTableBody");
     if (!tableBody) return;
@@ -4747,9 +4747,8 @@
     // Don't load data initially - wait for user to select month/year
   };
 
-  /**
-   * Handles loading issue history when user selects month/year
-   */
+  //
+   // Handles loading issue history when user selects month/year
   async function handleLoadIssueHistory() {
     // Only works in archive mode
     if (issueHistoryMode !== "archive") {
@@ -4851,11 +4850,10 @@
     }
   }
 
-  /**
-   * Loads my tasks page with server-side pagination
-   * @param {boolean} resetPage - Whether to reset to page 1
-   * @param {boolean} loadNext - Whether to load next page
-   */
+  //
+   // Loads my tasks page with server-side pagination
+   // @param {boolean} resetPage - Whether to reset to page 1
+   // @param {boolean} loadNext - Whether to load next page
   async function loadMyTasksPage(resetPage = false, loadNext = false) {
     if (!currentUser || !currentUserProfile) return;
     
@@ -4963,11 +4961,10 @@
     loadMyTasksPage(true);
   };
 
-  /**
-   * Loads activity log page with server-side pagination
-   * @param {boolean} resetPage - Whether to reset to page 1
-   * @param {boolean} loadNext - Whether to load next page
-   */
+  //
+   // Loads activity log page with server-side pagination
+   // @param {boolean} resetPage - Whether to reset to page 1
+   // @param {boolean} loadNext - Whether to load next page
   async function loadActivityLogPage(resetPage = false, loadNext = false) {
     const tableBody = mainContentContainer.querySelector("#activityLogTableBody");
     if (!tableBody) return;
@@ -5283,9 +5280,8 @@
     logActivity("Export Activity Log to Excel", { recordCount: filteredLogs.length }, "other");
   }
 
-  /**
-   * Opens the My Profile modal and populates it with current user data
-   */
+  //
+   // Opens the My Profile modal and populates it with current user data
   function openMyProfileModal() {
     if (!currentUserProfile || !currentUser) {
       console.error("Cannot open profile modal: missing user data");
@@ -5346,18 +5342,16 @@
     document.body.style.overflow = "hidden";
   }
 
-  /**
-   * Closes the My Profile modal
-   */
+  //
+   // Closes the My Profile modal
   function closeMyProfileModal() {
     if (!myProfileModal) return;
     myProfileModal.style.display = "none";
     document.body.style.overflow = "";
   }
 
-  /**
-   * Opens the Language Selection modal
-   */
+  //
+   // Opens the Language Selection modal
   function openLanguageModal() {
     if (!languageModal) {
       languageModal = document.getElementById("languageModal");
@@ -5374,29 +5368,26 @@
     document.body.style.overflow = "hidden";
   }
 
-  /**
-   * Closes the Language Selection modal
-   */
+  //
+   // Closes the Language Selection modal
   function closeLanguageModal() {
     if (!languageModal) return;
     languageModal.style.display = "none";
     document.body.style.overflow = "";
   }
 
-  /**
-   * Updates the Language modal UI to reflect current selection
-   * Note: This function is for the old modal, but we're using dropdown now
-   */
+  //
+   // Updates the Language modal UI to reflect current selection
+   // Note: This function is for the old modal, but we're using dropdown now
   function updateLanguageModalUI() {
     // This function is kept for compatibility but not actively used
     // The dropdown menu doesn't need this UI update
   }
 
-  /**
-   * Changes the application language and applies translations
-   * @param {string} lang - Language code: "vi" or "en"
-   * @param {string} region - Region code: "vi" for Vietnamese, "us" or "uk" for English
-   */
+  //
+   // Changes the application language and applies translations
+   // @param {string} lang - Language code: "vi" or "en"
+   // @param {string} region - Region code: "vi" for Vietnamese, "us" or "uk" for English
   function changeLanguage(lang, region = null) {
     if (lang !== "vi" && lang !== "en") {
       console.error("Invalid language:", lang);
@@ -5428,9 +5419,8 @@
     }, "profile");
   }
   
-  /**
-   * Applies translations to UI elements
-   */
+  //
+   // Applies translations to UI elements
   function applyTranslations() {
     // Update sidebar navigation (buttons, not a tags)
     const sidebarItems = document.querySelectorAll("#sidebarNav button[data-view-id]");
@@ -5477,9 +5467,8 @@
     }
   }
   
-  /**
-   * Initialize language on page load
-   */
+  //
+   // Initialize language on page load
   function initializeLanguage() {
     // Load language from localStorage
     const savedLanguage = localStorage.getItem("appLanguage") || "vi";
@@ -5497,9 +5486,8 @@
     }, 500);
   }
 
-  /**
-   * Sets up event listeners for My Profile modal buttons
-   */
+  //
+   // Sets up event listeners for My Profile modal buttons
   function setupMyProfileModalListeners() {
     if (!myProfileModal) return;
 
@@ -5518,11 +5506,10 @@
     }
   }
 
-  /**
-   * Populates activity log filter dropdowns
-   * Note: Most filters are now input text fields, so no population needed
-   * Only error status dropdown needs to be populated (already done in HTML)
-   */
+  //
+   // Populates activity log filter dropdowns
+   // Note: Most filters are now input text fields, so no population needed
+   // Only error status dropdown needs to be populated (already done in HTML)
   async function populateActivityLogFilters() {
     // Filters are now input text fields, no need to populate
     // Error status dropdown is already populated in HTML
@@ -5530,9 +5517,8 @@
     return Promise.resolve();
   }
 
-  /**
-   * Updates the active filters count badge
-   */
+  //
+   // Updates the active filters count badge
   function updateActiveActivityLogFiltersCount() {
     const activeFiltersCount = mainContentContainer.querySelector("#activeActivityLogFiltersCount");
     if (!activeFiltersCount) return;
@@ -5562,9 +5548,8 @@
     }
   }
 
-  /**
-   * Applies filters to activity log
-   */
+  //
+   // Applies filters to activity log
   function filterActivityLog() {
     const dateFromEl = mainContentContainer.querySelector("#activityLogFilterDateFrom");
     const dateToEl = mainContentContainer.querySelector("#activityLogFilterDateTo");
@@ -6439,13 +6424,12 @@
 
   // TÌM VÀ THAY THẾ TOÀN BỘ HÀM NÀY TRONG app.js
 
-  /**
-   * Updates the accounts count display
-   * @param {number} totalAllAccounts - Total number of all accounts (including disabled)
-   * @param {number} totalCount - Total number of accounts (after disabled filter)
-   * @param {number} displayedCount - Number of accounts currently displayed (after search filter)
-   * @param {string} searchTerm - Current search term (if any)
-   */
+  //
+   // Updates the accounts count display
+   // @param {number} totalAllAccounts - Total number of all accounts (including disabled)
+   // @param {number} totalCount - Total number of accounts (after disabled filter)
+   // @param {number} displayedCount - Number of accounts currently displayed (after search filter)
+   // @param {string} searchTerm - Current search term (if any)
   function updateAccountsCountDisplay(totalAllAccounts, totalCount, displayedCount, searchTerm) {
     const countTextEl = mainContentContainer.querySelector("#accountsCountText");
     if (!countTextEl) return;
@@ -6756,10 +6740,9 @@
     }
   }
 
-  /**
-   * Loads dashboard data with server-side filtering
-   * Similar to loadIssueHistoryPage but for dashboard
-   */
+  //
+   // Loads dashboard data with server-side filtering
+   // Similar to loadIssueHistoryPage but for dashboard
   async function loadDashboardWithFilters() {
     const branch = mainContentContainer.querySelector("#filterBranch")?.value || "";
     const issueType = mainContentContainer.querySelector("#filterIssueType")?.value || "";
@@ -6867,9 +6850,8 @@
     }
   }
 
-  /**
-   * Client-side filtering and rendering (used when no filters or as fallback)
-   */
+  //
+   // Client-side filtering and rendering (used when no filters or as fallback)
   function applyFiltersAndRenderClientSide(allReports, fullReportsForWarnings = null) {
     const branch = mainContentContainer.querySelector("#filterBranch")?.value;
     const issueType =
@@ -6944,9 +6926,8 @@
     renderLocationAnalysis(filteredReports);
   }
 
-  /**
-   * Main filter function - checks if filters are applied and routes accordingly
-   */
+  //
+   // Main filter function - checks if filters are applied and routes accordingly
   function applyFiltersAndRender(allReports) {
     // Check if any filters are applied
     const branch = mainContentContainer.querySelector("#filterBranch")?.value || "";
@@ -9152,9 +9133,8 @@
     // --- KẾT THÚC LOGIC QUẢN LÝ ---
   }
 
-  /**
-   * Mở modal xác nhận hủy sự cố
-   */
+  //
+   // Mở modal xác nhận hủy sự cố
   function openConfirmCancelModal(issueId, issueType, issueBranch) {
     const modal = document.getElementById("confirmCancelModal");
     const messageEl = modal.querySelector("#confirmCancelMessage");
@@ -9166,9 +9146,8 @@
     modal.style.display = "flex";
   }
 
-  /**
-   * Xử lý xác nhận hủy sự cố
-   */
+  //
+   // Xử lý xác nhận hủy sự cố
   async function handleConfirmCancelIssue() {
     const modal = document.getElementById("confirmCancelModal");
     const issueId = modal.dataset.issueId;
@@ -9655,9 +9634,8 @@
     }
   }
 
-  /**
-   * Sets up mention autocomplete for comment input
-   */
+  //
+   // Sets up mention autocomplete for comment input
   function setupMentionAutocomplete(issueId) {
     const commentInput = document.getElementById("newCommentInput");
     const suggestionsDiv = document.getElementById("mentionSuggestions");
@@ -11073,9 +11051,8 @@
 
   // --- Feature Handlers: Issue Report, Attendance ---
   
-  /**
-   * Phát hiện thiết bị từ User Agent
-   */
+  //
+   // Phát hiện thiết bị từ User Agent
   function detectDevice() {
     const ua = navigator.userAgent;
     let device = "Unknown";
@@ -11120,9 +11097,8 @@
     return `${device} (${platform})`;
   }
 
-  /**
-   * Lấy cấu hình Telegram từ file config
-   */
+  //
+   // Lấy cấu hình Telegram từ file config
   function getTelegramConfig() {
     // Thử lấy từ biến global nếu đã load
     if (typeof TELEGRAM_CONFIG !== 'undefined') {
@@ -11140,10 +11116,9 @@
     };
   }
 
-  /**
-   * Gửi thông báo Telegram (hàm chung)
-   * Gửi đến cả private chat và tất cả các group đã cấu hình
-   */
+  //
+   // Gửi thông báo Telegram (hàm chung)
+   // Gửi đến cả private chat và tất cả các group đã cấu hình
   async function sendTelegramMessage(message, options = {}) {
     const config = getTelegramConfig();
     const TELEGRAM_BOT_TOKEN = config.BOT_TOKEN;
@@ -11224,9 +11199,8 @@
     return results;
   }
 
-  /**
-   * Gửi thông báo Telegram khi có báo cáo lỗi mới
-   */
+  //
+   // Gửi thông báo Telegram khi có báo cáo lỗi mới
   async function sendTelegramNotification(reportData, reportId) {
     const config = getTelegramConfig();
     const TELEGRAM_BOT_TOKEN = config.BOT_TOKEN;
@@ -11280,9 +11254,8 @@ ${priorityIcon} <b>Mức độ ưu tiên:</b> ${reportData.priority}
     }
   }
 
-  /**
-   * Gửi thông báo Telegram khi giao việc cho người khác
-   */
+  //
+   // Gửi thông báo Telegram khi giao việc cho người khác
   async function sendTelegramAssignmentNotification(reportData, assigneeNames, assignerName, reportId) {
     try {
       console.log("📨 sendTelegramAssignmentNotification được gọi với:", {
@@ -11327,9 +11300,8 @@ ${priorityIcon} <b>Mức độ ưu tiên:</b> ${reportData.priority}
     }
   }
 
-  /**
-   * Gửi thông báo Telegram khi thay đổi trạng thái
-   */
+  //
+   // Gửi thông báo Telegram khi thay đổi trạng thái
   async function sendTelegramStatusChangeNotification(reportData, oldStatus, newStatus, changedBy, reportId) {
     try {
       console.log("📨 sendTelegramStatusChangeNotification được gọi với:", {
@@ -11381,9 +11353,8 @@ ${priorityIcon} <b>Mức độ ưu tiên:</b> ${reportData.priority}
     }
   }
 
-  /**
-   * Gửi thông báo Telegram khi sự cố được giải quyết
-   */
+  //
+   // Gửi thông báo Telegram khi sự cố được giải quyết
   async function sendTelegramResolvedNotification(reportData, resolverName, reportId) {
     try {
       console.log("📨 sendTelegramResolvedNotification được gọi với:", {
@@ -12007,9 +11978,8 @@ ${priorityIcon} <b>Mức độ ưu tiên:</b> ${reportData.priority}
 
   // --- Shift Management Functions ---
   
-  /**
-   * Initializes default shifts if no shifts exist, or updates existing default shifts
-   */
+  //
+   // Initializes default shifts if no shifts exist, or updates existing default shifts
   async function initializeDefaultShifts() {
     try {
       const shiftsRef = collection(db, `/artifacts/${canvasAppId}/public/data/shifts`);
@@ -12085,9 +12055,8 @@ ${priorityIcon} <b>Mức độ ưu tiên:</b> ${reportData.priority}
     }
   }
 
-  /**
-   * Loads all shifts and renders them in the table
-   */
+  //
+   // Loads all shifts and renders them in the table
   async function loadShifts() {
     const tableBody = mainContentContainer.querySelector("#shiftsTableBody");
     const assignShiftSelect = mainContentContainer.querySelector("#assignShiftName");
@@ -12179,9 +12148,8 @@ ${priorityIcon} <b>Mức độ ưu tiên:</b> ${reportData.priority}
     }
   }
 
-  /**
-   * Loads employees for shift assignment
-   */
+  //
+   // Loads employees for shift assignment
   async function loadEmployeesForShiftAssignment() {
     const employeeSelect = mainContentContainer.querySelector("#assignShiftEmployee");
     if (!employeeSelect) return;
@@ -12219,9 +12187,8 @@ ${priorityIcon} <b>Mức độ ưu tiên:</b> ${reportData.priority}
     }
   }
 
-  /**
-   * Creates a new shift
-   */
+  //
+   // Creates a new shift
   async function handleCreateShift() {
     const shiftNameInput = mainContentContainer.querySelector("#shiftName");
     const startTimeInput = mainContentContainer.querySelector("#shiftStartTime");
@@ -12307,9 +12274,8 @@ ${priorityIcon} <b>Mức độ ưu tiên:</b> ${reportData.priority}
     }
   }
 
-  /**
-   * Assigns a shift to an employee
-   */
+  //
+   // Assigns a shift to an employee
   async function handleAssignShift() {
     const employeeSelect = mainContentContainer.querySelector("#assignShiftEmployee");
     const shiftSelect = mainContentContainer.querySelector("#assignShiftName");
@@ -12410,9 +12376,8 @@ ${priorityIcon} <b>Mức độ ưu tiên:</b> ${reportData.priority}
     }
   }
 
-  /**
-   * Deletes a shift
-   */
+  //
+   // Deletes a shift
   async function handleDeleteShift(shiftId) {
     try {
       // Check if any employees are assigned to this shift
@@ -12440,9 +12405,8 @@ ${priorityIcon} <b>Mức độ ưu tiên:</b> ${reportData.priority}
     }
   }
 
-  /**
-   * Loads employees for attendance report filter
-   */
+  //
+   // Loads employees for attendance report filter
   async function loadEmployeesForAttendanceReport() {
     const employeeSelect = mainContentContainer.querySelector("#attendanceReportEmployee");
     if (!employeeSelect) return;
@@ -12480,9 +12444,8 @@ ${priorityIcon} <b>Mức độ ưu tiên:</b> ${reportData.priority}
     }
   }
 
-  /**
-   * Generates attendance report
-   */
+  //
+   // Generates attendance report
   async function generateAttendanceReport() {
     const monthInput = mainContentContainer.querySelector("#attendanceReportMonth");
     const employeeSelect = mainContentContainer.querySelector("#attendanceReportEmployee");
@@ -12853,9 +12816,8 @@ ${priorityIcon} <b>Mức độ ưu tiên:</b> ${reportData.priority}
     }
   }
 
-  /**
-   * Exports attendance report to Excel
-   */
+  //
+   // Exports attendance report to Excel
   function handleExportAttendanceReport() {
     if (!window.currentAttendanceReportData || window.currentAttendanceReportData.length === 0) {
       alert("Không có dữ liệu để xuất. Vui lòng tạo báo cáo trước.");
@@ -12925,12 +12887,11 @@ ${priorityIcon} <b>Mức độ ưu tiên:</b> ${reportData.priority}
     cameraModal.style.display = "none";
   }
 
-  /**
-   * Compresses an image file before upload.
-   * @param {File|Blob} imageFile - The image file to compress
-   * @param {Object} options - Compression options (optional)
-   * @returns {Promise<File|Blob>} - The compressed image file
-   */
+  //
+   // Compresses an image file before upload.
+   // @param {File|Blob} imageFile - The image file to compress
+   // @param {Object} options - Compression options (optional)
+   // @returns {Promise<File|Blob>} - The compressed image file
   async function compressImage(imageFile, options = {}) {
     try {
       // Default compression options
@@ -12965,11 +12926,10 @@ ${priorityIcon} <b>Mức độ ưu tiên:</b> ${reportData.priority}
     }
   }
 
-  /**
-   * Helper function to export an array of data to an Excel file.
-   * @param {Array<Object>} data The data to export.
-   * @param {string} fileName The desired name for the output file.
-   */
+  //
+   // Helper function to export an array of data to an Excel file.
+   // @param {Array<Object>} data The data to export.
+   // @param {string} fileName The desired name for the output file.
   function exportToExcel(data, fileName) {
     if (data.length === 0) {
       alert("Không có dữ liệu chấm công để xuất.");
@@ -12985,16 +12945,14 @@ ${priorityIcon} <b>Mức độ ưu tiên:</b> ${reportData.priority}
     XLSX.writeFile(wb, fileName);
   }
 
-  /**
-   * Fetches ALL issue history data for the current filters and date range (for Excel export).
-   * Paginates through Firestore until no more docs, then applies client-side filters.
-   * @param {function(string): void} onProgress - Optional callback with status message
-   * @returns {Promise<Array>} Full list of reports to export
-   */
-  /**
-   * @param {function(string): void} onProgress
-   * @param {{ dateFrom?: string, dateTo?: string }} dateOverride - Optional. Khi xuất từ popup, truyền khoảng ngày ở đây.
-   */
+  //
+   // Fetches ALL issue history data for the current filters and date range (for Excel export).
+   // Paginates through Firestore until no more docs, then applies client-side filters.
+   // @param {function(string): void} onProgress - Optional callback with status message
+   // @returns {Promise<Array>} Full list of reports to export
+  //
+   // @param {function(string): void} onProgress
+   // @param {{ dateFrom?: string, dateTo?: string }} dateOverride - Optional. Khi xuất từ popup, truyền khoảng ngày ở đây.
   async function fetchAllIssueHistoryForExport(onProgress, dateOverride = {}) {
     const report = (msg) => { if (onProgress) onProgress(msg); console.log(msg); };
 
@@ -13099,9 +13057,8 @@ ${priorityIcon} <b>Mức độ ưu tiên:</b> ${reportData.priority}
     return applyClientFilters(allReports);
   }
 
-  /**
-   * Shows the "Chọn khoảng thời gian xuất Excel" popup. Khi user bấm Xuất Excel trong popup sẽ gọi doExportIssueHistory.
-   */
+  //
+   // Shows the "Chọn khoảng thời gian xuất Excel" popup. Khi user bấm Xuất Excel trong popup sẽ gọi doExportIssueHistory.
   function handleExportIssueHistory() {
     if (typeof XLSX === 'undefined') {
       alert("Lỗi: Thư viện Excel chưa được tải. Vui lòng tải lại trang và thử lại.");
@@ -13130,11 +13087,10 @@ ${priorityIcon} <b>Mức độ ưu tiên:</b> ${reportData.priority}
     if (phTo) phTo.style.visibility = toInput?.value ? "hidden" : "visible";
   }
 
-  /**
-   * Thực hiện xuất Excel với khoảng ngày (từ popup hoặc từ bộ lọc). Gọi sau khi user chọn xong trong popup.
-   * @param {string} dateFromStr - Từ ngày (YYYY-MM-DD) hoặc ""
-   * @param {string} dateToStr - Đến ngày (YYYY-MM-DD) hoặc ""
-   */
+  //
+   // Thực hiện xuất Excel với khoảng ngày (từ popup hoặc từ bộ lọc). Gọi sau khi user chọn xong trong popup.
+   // @param {string} dateFromStr - Từ ngày (YYYY-MM-DD) hoặc ""
+   // @param {string} dateToStr - Đến ngày (YYYY-MM-DD) hoặc ""
   async function doExportIssueHistory(dateFromStr, dateToStr) {
     const exportBtn = mainContentContainer.querySelector("#exportIssueHistoryBtn");
     const originalText = exportBtn ? exportBtn.innerHTML : "";
@@ -13294,12 +13250,11 @@ ${priorityIcon} <b>Mức độ ưu tiên:</b> ${reportData.priority}
     }
   }
 
-  /**
-   * Handles the logic for exporting attendance for a single employee.
-   * @param {string} uid The UID of the user.
-   * @param {string} name The display name of the user.
-   * @param {HTMLElement} button The button element that was clicked.
-   */
+  //
+   // Handles the logic for exporting attendance for a single employee.
+   // @param {string} uid The UID of the user.
+   // @param {string} name The display name of the user.
+   // @param {HTMLElement} button The button element that was clicked.
   async function handleExportSingleUserAttendance(uid, name, button) {
     const originalContent = button.innerHTML;
     button.innerHTML = `<i class="fas fa-spinner fa-spin"></i>`;
@@ -13342,9 +13297,8 @@ ${priorityIcon} <b>Mức độ ưu tiên:</b> ${reportData.priority}
     }
   }
 
-  /**
-   * Handles the logic for exporting attendance data for all employees.
-   */
+  //
+   // Handles the logic for exporting attendance data for all employees.
   async function handleExportAllAttendance() {
     const button = document.getElementById("exportAllAttendanceBtn");
     const originalContent = button.innerHTML;
@@ -13412,9 +13366,8 @@ ${priorityIcon} <b>Mức độ ưu tiên:</b> ${reportData.priority}
     }
   }
 
-  /**
-   * Handles the logic for exporting all accounts to Excel.
-   */
+  //
+   // Handles the logic for exporting all accounts to Excel.
   async function handleExportAllAccounts() {
     const button = document.getElementById("exportAllAccountsBtn");
     if (!button) return;
@@ -14574,15 +14527,13 @@ ${priorityIcon} <b>Mức độ ưu tiên:</b> ${reportData.priority}
     }
   }
 
-  /**
-   * Function để format date input theo dd/mm/yyyy
-   * Thêm một span hiển thị format dd/mm/yyyy bên cạnh input
-   * Ẩn placeholder mặc định mm/dd/yyyy của browser
-   */
-  /**
-   * Function để format date input hiển thị dd/mm/yyyy
-   * Ẩn text của browser và hiển thị format đúng trong span overlay
-   */
+  //
+   // Function để format date input theo dd/mm/yyyy
+   // Thêm một span hiển thị format dd/mm/yyyy bên cạnh input
+   // Ẩn placeholder mặc định mm/dd/yyyy của browser
+  //
+   // Function để format date input hiển thị dd/mm/yyyy
+   // Ẩn text của browser và hiển thị format đúng trong span overlay
   function setupDateInputFormat(dateInput) {
     if (!dateInput || dateInput.type !== 'date') return;
     
@@ -14651,14 +14602,13 @@ ${priorityIcon} <b>Mức độ ưu tiên:</b> ${reportData.priority}
     updateDisplay();
   }
 
-  /**
-   * Function để cập nhật các báo cáo tháng 12/2025
-   * - Đổi trạng thái thành "Đã giải quyết"
-   * - Set ngày giải quyết = ngày báo cáo + random thời gian < 2 giờ
-   * - Lấy ảnh đã upload (repairedImageUrl nếu có, nếu không thì issueImageUrl)
-   * 
-   * Cách sử dụng: Gọi từ Console: updateDecemberReports()
-   */
+  //
+   // Function để cập nhật các báo cáo tháng 12/2025
+   // - Đổi trạng thái thành "Đã giải quyết"
+   // - Set ngày giải quyết = ngày báo cáo + random thời gian < 2 giờ
+   // - Lấy ảnh đã upload (repairedImageUrl nếu có, nếu không thì issueImageUrl)
+   //
+   // Cách sử dụng: Gọi từ Console: updateDecemberReports()
   window.updateDecemberReports = async function() {
     try {
       if (!db || !canvasAppId) {

@@ -1,7 +1,6 @@
-/**
- * Efficient Table Renderer - Render tables với incremental updates
- * Chỉ update những rows thay đổi thay vì re-render toàn bộ
- */
+//
+ // Efficient Table Renderer - Render tables với incremental updates
+ // Chỉ update những rows thay đổi thay vì re-render toàn bộ
 
 import { domOptimizer } from './dom-optimizer.js';
 
@@ -19,10 +18,9 @@ class TableRenderer {
     this.rowElements = new Map(); // Map key -> tr element
   }
 
-  /**
-   * Render hoặc update table với data mới
-   * @param {Array} newData - Array of data objects
-   */
+  //
+   // Render hoặc update table với data mới
+   // @param {Array} newData - Array of data objects
   render(newData) {
     if (!this.tbody) return;
 
@@ -76,9 +74,8 @@ class TableRenderer {
     this.currentData = newData;
   }
 
-  /**
-   * Insert row vào đúng vị trí trong table
-   */
+  //
+   // Insert row vào đúng vị trí trong table
   insertRowAtPosition(newRow, targetIndex) {
     const rows = Array.from(this.tbody.children);
     
@@ -105,9 +102,8 @@ class TableRenderer {
     }
   }
 
-  /**
-   * Get unique key cho row
-   */
+  //
+   // Get unique key cho row
   getKey(item, index) {
     if (this.options.keyField && item[this.options.keyField]) {
       return String(item[this.options.keyField]);
@@ -115,9 +111,8 @@ class TableRenderer {
     return `row-${index}`;
   }
 
-  /**
-   * Clear table
-   */
+  //
+   // Clear table
   clear() {
     if (this.tbody) {
       this.tbody.innerHTML = '';
@@ -126,9 +121,8 @@ class TableRenderer {
     this.currentData = [];
   }
 
-  /**
-   * Update single row
-   */
+  //
+   // Update single row
   updateRow(key, newItem) {
     const row = this.rowElements.get(key);
     if (row) {
@@ -141,9 +135,8 @@ class TableRenderer {
     }
   }
 
-  /**
-   * Remove single row
-   */
+  //
+   // Remove single row
   removeRow(key) {
     const row = this.rowElements.get(key);
     if (row) {
@@ -154,9 +147,8 @@ class TableRenderer {
   }
 }
 
-/**
- * Helper function để tạo table renderer
- */
+//
+ // Helper function để tạo table renderer
 export function createTableRenderer(tbody, rowRenderer, options) {
   return new TableRenderer(tbody, rowRenderer, options);
 }

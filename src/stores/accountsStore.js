@@ -1,12 +1,11 @@
-/**
- * Accounts Store - Svelte store for managing accounts state
- * 
- * This replaces global variables like:
- * - allUsersCache
- * - allUsersCacheUnfiltered
- * - accountsSearchTerm
- * - showDisabledAccounts
- */
+//
+ // Accounts Store - Svelte store for managing accounts state
+ //
+ // This replaces global variables like:
+ // - allUsersCache
+ // - allUsersCacheUnfiltered
+ // - accountsSearchTerm
+ // - showDisabledAccounts
 
 import { writable, derived } from 'svelte/store';
 
