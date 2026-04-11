@@ -150,6 +150,53 @@ body {
     box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.15);
 }
 
+/* Native <input type="date">: Chromium có thể làm mờ ngày/tháng khi blur; ép màu đọc được.
+   Activity Log dùng overlay dd/mm/yyyy: .date-input-wrapper ẩn chữ native (setupDateInputFormat trong app.js). */
+.date-input-wrapper {
+    position: relative;
+}
+
+input[type="date"] {
+    color-scheme: light;
+    color: #1e293b;
+}
+
+input[type="date"]::-webkit-datetime-edit,
+input[type="date"]::-webkit-datetime-edit-fields-wrapper,
+input[type="date"]::-webkit-datetime-edit-text,
+input[type="date"]::-webkit-datetime-edit-month-field,
+input[type="date"]::-webkit-datetime-edit-day-field,
+input[type="date"]::-webkit-datetime-edit-year-field {
+    color: #1e293b;
+    opacity: 1;
+}
+
+.date-input-wrapper input[type="date"],
+.date-input-wrapper input[type="date"]::-webkit-datetime-edit,
+.date-input-wrapper input[type="date"]::-webkit-datetime-edit-fields-wrapper,
+.date-input-wrapper input[type="date"]::-webkit-datetime-edit-text,
+.date-input-wrapper input[type="date"]::-webkit-datetime-edit-month-field,
+.date-input-wrapper input[type="date"]::-webkit-datetime-edit-day-field,
+.date-input-wrapper input[type="date"]::-webkit-datetime-edit-year-field {
+    color: transparent !important;
+}
+
+.date-input-wrapper input[type="date"]:focus {
+    caret-color: #475569;
+}
+
+/* Ô nhập ngày dạng text: placeholder biến mất khi gõ — gợi ý định dạng đặt ngoài placeholder (luôn thấy). */
+.date-input-format-hint {
+    font-size: 0.6875rem;
+    line-height: 1.3;
+    color: #94a3b8;
+    margin-top: 0.35rem;
+}
+
+.date-input-format-hint .font-mono {
+    color: #64748b;
+}
+
 .modal {
     display: none;
     position: fixed;

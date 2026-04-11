@@ -47,18 +47,7 @@
     .activity-time-btn:hover {
       color: #475569;
     }
-    /* Date input - do not hide text; use span to show format hint */
-    /* Date input - hide browser text, display dd/mm/yyyy format */
-    .date-input-wrapper {
-      position: relative;
-    }
-    input[type="date"] {
-      color: transparent;
-    }
-    input[type="date"]:focus {
-      color: transparent;
-      caret-color: #475569;
-    }
+    /* Date overlay (.date-input-wrapper, .date-format-overlay): style.css + setupDateInputFormat trong app.js */
     .date-format-overlay {
       pointer-events: none;
       user-select: none;
@@ -691,14 +680,14 @@
             </div>
             
             <!-- Filter Section -->
-          <div id="filterSection" class="mb-6 p-5 bg-slate-50/80 rounded-xl border border-slate-200 hidden">
+          <div id="filterSection" class="mb-6 p-4 sm:p-5 bg-slate-50/80 rounded-xl border border-slate-200 hidden">
             <div class="flex items-center justify-between mb-4">
               <h3 class="text-base font-semibold text-slate-700 flex items-center">
                 <i class="fas fa-sliders-h mr-2 text-indigo-600"></i>Lọc dữ liệu
               </h3>
               <span id="activeFiltersCount" class="text-xs font-medium text-indigo-600 bg-indigo-50 px-2 py-1 rounded-full hidden"></span>
             </div>
-            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
               <div>
                 <label for="filterBranch" class="block text-slate-600 text-sm font-medium mb-1.5">Chi nhánh</label>
                 <select id="filterBranch" class="select-field">
@@ -732,35 +721,30 @@
                 </select>
               </div>
               <div class="sm:col-span-2 lg:col-span-2">
-                <label class="block text-slate-600 text-sm font-medium mb-1.5">Phạm vi ngày báo cáo</label>
-                <div class="flex flex-wrap items-center gap-2">
-                  <div class="flex items-center gap-1.5 flex-1 min-w-[140px]">
-                    <div class="flex items-center gap-1 flex-1 min-w-0 relative">
-                      <input type="text" id="filterDateFrom" class="input-field flex-1 min-w-0 pr-9" placeholder="dd/mm/yyyy" autocomplete="off" data-date-filter="from" />
-                      <input type="date" id="filterDateFromPicker" class="absolute opacity-0 w-0 h-0 pointer-events-none" tabindex="-1" aria-hidden="true" />
-                      <button type="button" class="absolute right-2 p-1.5 rounded-md text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 transition-colors cursor-pointer border-0 bg-transparent" title="Chọn ngày" aria-label="Mở lịch chọn ngày" data-filter-date-picker="from"><i class="fas fa-calendar-alt text-sm"></i></button>
-                    </div>
-                    <span class="text-slate-400 text-sm shrink-0">→</span>
-                    <div class="flex items-center gap-1 flex-1 min-w-0 relative">
-                      <input type="text" id="filterDateTo" class="input-field flex-1 min-w-0 pr-9" placeholder="dd/mm/yyyy" autocomplete="off" data-date-filter="to" />
-                      <input type="date" id="filterDateToPicker" class="absolute opacity-0 w-0 h-0 pointer-events-none" tabindex="-1" aria-hidden="true" />
-                      <button type="button" class="absolute right-2 p-1.5 rounded-md text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 transition-colors cursor-pointer border-0 bg-transparent" title="Chọn ngày" aria-label="Mở lịch chọn ngày" data-filter-date-picker="to"><i class="fas fa-calendar-alt text-sm"></i></button>
-                    </div>
+                <div class="flex flex-col gap-4 xl:flex-row xl:items-end xl:gap-4">
+                  <div class="grid w-full min-w-0 grid-cols-1 gap-y-3 sm:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] sm:gap-x-2 sm:gap-y-1 sm:items-end">
+                    <label for="filterDateFrom" class="block text-slate-600 text-sm font-medium mb-1.5 sm:mb-0 col-start-1 row-start-1">Từ ngày</label>
+                    <input type="date" id="filterDateFrom" lang="vi" class="input-field w-full bg-indigo-50/70 border-2 border-indigo-200 text-base sm:text-sm text-slate-800 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 min-h-[44px] sm:min-h-[2.5rem] col-start-1 row-start-2 sm:row-start-2 touch-manipulation" title="Chọn ngày bắt đầu" autocomplete="off" />
+                    <label for="filterDateTo" class="block text-slate-600 text-sm font-medium mb-1.5 sm:mb-0 col-start-1 row-start-3 sm:col-start-3 sm:row-start-1">Đến ngày</label>
+                    <input type="date" id="filterDateTo" lang="vi" class="input-field w-full bg-indigo-50/70 border-2 border-indigo-200 text-base sm:text-sm text-slate-800 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 min-h-[44px] sm:min-h-[2.5rem] col-start-1 row-start-4 sm:col-start-3 sm:row-start-2 touch-manipulation" title="Chọn ngày kết thúc" autocomplete="off" />
+                    <span class="hidden sm:flex text-slate-400 text-sm select-none items-center justify-center col-start-2 row-start-2 min-h-[2.5rem]" aria-hidden="true">→</span>
                   </div>
-                  <div class="flex flex-wrap gap-1.5 shrink-0">
-                    <button type="button" id="filterDate7Days" class="px-2.5 py-1.5 text-xs font-medium rounded-lg bg-slate-100 text-slate-600 hover:bg-indigo-50 hover:text-indigo-600 transition-colors">7 ngày qua</button>
-                    <button type="button" id="filterDateThisMonth" class="px-2.5 py-1.5 text-xs font-medium rounded-lg bg-slate-100 text-slate-600 hover:bg-indigo-50 hover:text-indigo-600 transition-colors">Tháng này</button>
-                    <button type="button" id="filterDateLastMonth" class="px-2.5 py-1.5 text-xs font-medium rounded-lg bg-slate-100 text-slate-600 hover:bg-indigo-50 hover:text-indigo-600 transition-colors">Tháng trước</button>
+                  <div class="flex w-full min-w-0 flex-col gap-2 border-t border-slate-200/90 pt-3 sm:flex sm:flex-row sm:flex-wrap sm:items-center sm:gap-x-1.5 sm:gap-y-1.5 sm:border-t-0 sm:pt-0 xl:border-l xl:border-slate-200 xl:pl-4 xl:pb-0.5">
+                    <span class="text-xs font-medium text-slate-600 sm:mr-0.5 sm:shrink-0">Nút nhanh</span>
+                    <div class="grid w-full grid-cols-3 gap-2 sm:flex sm:w-auto sm:flex-wrap sm:items-center sm:justify-end sm:gap-1.5 min-w-0">
+                      <button type="button" id="filterDate7Days" class="min-h-[44px] sm:min-h-0 px-2 py-2.5 sm:px-2.5 sm:py-1.5 text-xs font-medium rounded-lg bg-white/90 border border-slate-200 text-slate-600 hover:bg-indigo-50 hover:border-indigo-200 hover:text-indigo-600 active:bg-indigo-100 transition-colors touch-manipulation">7 ngày qua</button>
+                      <button type="button" id="filterDateThisMonth" class="min-h-[44px] sm:min-h-0 px-2 py-2.5 sm:px-2.5 sm:py-1.5 text-xs font-medium rounded-lg bg-white/90 border border-slate-200 text-slate-600 hover:bg-indigo-50 hover:border-indigo-200 hover:text-indigo-600 active:bg-indigo-100 transition-colors touch-manipulation">Tháng này</button>
+                      <button type="button" id="filterDateLastMonth" class="min-h-[44px] sm:min-h-0 px-2 py-2.5 sm:px-2.5 sm:py-1.5 text-xs font-medium rounded-lg bg-white/90 border border-slate-200 text-slate-600 hover:bg-indigo-50 hover:border-indigo-200 hover:text-indigo-600 active:bg-indigo-100 transition-colors touch-manipulation">Tháng trước</button>
+                    </div>
                   </div>
                 </div>
-                <p class="text-xs text-slate-500 mt-1">Nhập dd/mm hoặc dd/mm/yyyy — thông tin bộ lọc hiển thị ngay khi có ngày/tháng</p>
               </div>
             </div>
-            <div class="flex flex-wrap justify-end items-center gap-2 mt-4 pt-4 border-t border-slate-200">
-              <button id="clearFiltersBtn" class="btn-secondary text-sm">
+            <div class="flex flex-col-reverse gap-2 sm:flex-row sm:flex-wrap sm:justify-end sm:items-center mt-4 pt-4 border-t border-slate-200">
+              <button id="clearFiltersBtn" type="button" class="btn-secondary text-sm w-full sm:w-auto min-h-[44px] sm:min-h-0 touch-manipulation inline-flex items-center justify-center gap-0">
                 <i class="fas fa-redo mr-1.5"></i>Xóa bộ lọc
               </button>
-              <button id="applyFiltersBtn" class="btn-primary text-sm">
+              <button id="applyFiltersBtn" type="button" class="btn-primary text-sm w-full sm:w-auto min-h-[44px] sm:min-h-0 touch-manipulation inline-flex items-center justify-center gap-0">
                 <i class="fas fa-search mr-1.5"></i>Áp dụng
               </button>
             </div>
@@ -780,18 +764,12 @@
                 <div class="space-y-4">
                   <div>
                     <label for="exportDateFrom" class="block text-slate-600 text-sm font-medium mb-1.5">Từ ngày</label>
-                    <div class="relative">
-                      <input type="date" id="exportDateFrom" class="input-field export-date-input w-full bg-indigo-50/70 border-2 border-indigo-200 text-slate-800 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200" title="Chọn ngày bắt đầu (ngày/tháng/năm)" />
-                      <span id="exportDateFromPlaceholder" class="export-date-placeholder pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">dd/mm/yyyy</span>
-                    </div>
+                    <input type="date" id="exportDateFrom" class="input-field w-full bg-indigo-50/70 border-2 border-indigo-200 text-slate-800 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200" title="Chọn ngày bắt đầu (ngày/tháng/năm)" />
                     <p class="text-xs text-slate-500 mt-1">Gợi ý: chọn ngày/tháng/năm hoặc bấm nút nhanh bên dưới</p>
                   </div>
                   <div>
                     <label for="exportDateTo" class="block text-slate-600 text-sm font-medium mb-1.5">Đến ngày</label>
-                    <div class="relative">
-                      <input type="date" id="exportDateTo" class="input-field export-date-input w-full bg-indigo-50/70 border-2 border-indigo-200 text-slate-800 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200" title="Chọn ngày kết thúc (ngày/tháng/năm)" />
-                      <span id="exportDateToPlaceholder" class="export-date-placeholder pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">dd/mm/yyyy</span>
-                    </div>
+                    <input type="date" id="exportDateTo" class="input-field w-full bg-indigo-50/70 border-2 border-indigo-200 text-slate-800 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200" title="Chọn ngày kết thúc (ngày/tháng/năm)" />
                     <p class="text-xs text-slate-500 mt-1">Gợi ý: chọn ngày/tháng/năm</p>
                   </div>
                   <div class="flex flex-wrap gap-2 pt-1">
@@ -1339,10 +1317,16 @@
             <h3 class="text-xl sm:text-2xl font-bold text-slate-800 flex-1 pr-10 sm:pr-0">Chi Tiết Sự Cố</h3>
             <span id="closeIssueDetailModalBtn" class="cursor-pointer text-2xl absolute top-0 right-0 sm:relative sm:top-0 sm:right-0 hover:text-slate-600 transition-colors flex items-center justify-center w-8 h-8 sm:w-auto sm:h-auto" aria-label="Đóng">&times;</span>
           </div>
-          <!-- Location display -->
-          <div class="flex items-start gap-2 bg-indigo-50 border border-indigo-200 rounded-lg p-3 sm:p-4 mt-4">
-            <div class="flex-1 min-w-0">
+          <!-- Location + Firestore document ID (ID luôn cạnh phải thanh) -->
+          <div class="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 bg-indigo-50 border border-indigo-200 rounded-lg p-3 sm:p-4 mt-4">
+            <div class="flex-1 min-w-0 sm:pr-2">
               <p id="detailIssueLocation" class="text-sm sm:text-base font-semibold text-indigo-600 break-words" title=""></p>
+            </div>
+            <div class="shrink-0 min-w-0 max-w-full w-fit ml-auto sm:ml-0 sm:w-auto sm:max-w-[min(100%,50%)] lg:max-w-[45%] border-t border-indigo-200/60 pt-2 sm:border-t-0 sm:border-l sm:pl-3 sm:pt-0 text-right">
+              <p class="flex w-full min-w-0 flex-nowrap items-baseline justify-end gap-x-1.5 text-xs sm:text-sm text-slate-800 overflow-x-auto [scrollbar-width:thin]">
+                <span class="text-slate-500 font-medium text-[10px] sm:text-xs shrink-0">ID sự cố:</span>
+                <span id="detailIssueDocId" class="font-mono text-slate-800 whitespace-nowrap select-all cursor-text" title=""></span>
+              </p>
             </div>
           </div>
         </div>
