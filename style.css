@@ -739,6 +739,23 @@ input[type="date"]::-webkit-datetime-edit-year-field {
         white-space: normal;
     }
 
+    /* Ngày báo cáo / Ngày giải quyết: hai dòng (giờ + ngày) — không bị word-break toàn cục làm vỡ */
+    .issue-table-datetime,
+    .issue-table-datetime span {
+        word-break: normal !important;
+        overflow-wrap: normal !important;
+        -webkit-hyphens: manual !important;
+        hyphens: manual !important;
+    }
+
+    .responsive-table td[data-label="Ngày báo cáo"] > .issue-table-datetime,
+    .responsive-table td[data-label="Ngày giải quyết"] > .issue-table-datetime {
+        flex: 0 1 auto !important;
+        min-width: 0;
+        max-width: min(100%, calc(100vw - 7.5rem));
+        align-self: flex-end;
+    }
+
     /* Better card-like appearance for rows */
     .responsive-table tr:hover {
         box-shadow: 0 2px 4px 0 rgba(0, 0, 0, 0.1);

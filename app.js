@@ -5948,6 +5948,28 @@
     // Note: Pagination controls are already in HTML, we just update their state above
   }
 
+  //
+   // Bảng báo cáo: dòng 1 = giờ, dòng 2 = ngày (vi-VN) — dùng chung cho ngày báo cáo & ngày giải quyết.
+  function formatIssueTableDateTimeCell(raw, emptyLabel = "N/A") {
+    if (raw == null || raw === "") return emptyLabel;
+    const d = raw?.toDate ? raw.toDate() : new Date(raw);
+    if (Number.isNaN(d.getTime())) return emptyLabel;
+    const time = d.toLocaleTimeString("vi-VN", {
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+      hour12: false,
+    });
+    const day = d.toLocaleDateString("vi-VN", {
+      day: "numeric",
+      month: "numeric",
+      year: "numeric",
+    });
+    return `<span class="issue-table-datetime inline-flex flex-col items-end gap-0.5 text-right min-w-0 md:inline-block md:align-top md:items-start md:gap-0 md:text-left leading-tight"><span class="block whitespace-nowrap tabular-nums">${escapeHtml(
+      time
+    )}</span><span class="block whitespace-nowrap tabular-nums">${escapeHtml(day)}</span></span>`;
+  }
+
   function renderIssueHistoryTable(reports) {
     const tableBody = mainContentContainer.querySelector(
       "#issueHistoryTableBody"
@@ -5988,20 +6010,14 @@
                       <td data-label="Loại sự cố" class="px-4 py-3">${
                         report.issueType
                       }</td>
-                      <td data-label="Ngày báo cáo" class="px-4 py-3">${
-                        report.reportDate && report.reportDate.toDate 
-                          ? report.reportDate.toDate().toLocaleString("vi-VN")
-                          : report.reportDate 
-                            ? new Date(report.reportDate).toLocaleString("vi-VN")
-                            : "N/A"
-                      }</td>
-                      <td data-label="Ngày giải quyết" class="px-4 py-3 whitespace-nowrap">${
-                        report.resolvedDate && report.resolvedDate.toDate
-                          ? report.resolvedDate.toDate().toLocaleString("vi-VN")
-                          : report.resolvedDate
-                            ? new Date(report.resolvedDate).toLocaleString("vi-VN")
-                            : "-"
-                      }</td>
+                      <td data-label="Ngày báo cáo" class="px-4 py-3 align-top">${formatIssueTableDateTimeCell(
+                        report.reportDate,
+                        "N/A"
+                      )}</td>
+                      <td data-label="Ngày giải quyết" class="px-4 py-3 align-top">${formatIssueTableDateTimeCell(
+                        report.resolvedDate,
+                        "-"
+                      )}</td>
                       <td data-label="Ưu tiên" class="px-4 py-3">${
                         (() => {
                           const p = report.priority || '';
@@ -6089,9 +6105,10 @@
               <td data-label="Loại sự cố" class="px-4 py-3">${
                 task.issueType
               }</td>
-              <td data-label="Ngày báo cáo" class="px-4 py-3">${new Date(
-                task.reportDate
-              ).toLocaleString("vi-VN")}</td>
+              <td data-label="Ngày báo cáo" class="px-4 py-3 align-top">${formatIssueTableDateTimeCell(
+                task.reportDate,
+                "N/A"
+              )}</td>
               <td data-label="Trạng thái" class="px-4 py-3">${task.status}</td>
               <td data-label="Hành động" class="px-4 py-3 text-right">
                   <button class="detail-issue-btn btn-secondary !text-sm !py-1 !px-2" data-id="${
