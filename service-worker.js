@@ -61,6 +61,15 @@ self.addEventListener('fetch', (event) => {
   const { request } = event;
   const url = new URL(request.url);
 
+  // Only handle cache logic for normal web GET requests.
+  // This prevents Cache API errors for HEAD and chrome-extension:// requests.
+  if (request.method !== 'GET') {
+    return;
+  }
+  if (url.protocol !== 'http:' && url.protocol !== 'https:') {
+    return;
+  }
+
   // Skip Firebase and other external APIs
   if (url.hostname.includes('firebase') || 
       url.hostname.includes('googleapis') ||

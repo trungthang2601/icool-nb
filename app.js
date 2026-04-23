@@ -88,6 +88,7 @@
     "ICOOL LÊ VĂN THỌ",
     "ICOOL PHAN HUY ÍCH",
     "ICOOL VŨNG TÀU",
+    "VTCODE",
     "SPACE A&A",
     "Văn phòng",
   ];
@@ -120,6 +121,7 @@
     "ICOOL LÊ VĂN THỌ": "LVT",
     "ICOOL PHAN HUY ÍCH": "PHI",
     "ICOOL VŨNG TÀU": "VT",
+    VTCODE: "VTC",
     "SPACE A&A": "SPAA",
     "Văn phòng": "VP",
   };
@@ -305,6 +307,10 @@
       Trệt: [],
       "Tầng 1": [],
     },
+    VTCODE: {
+      Trệt: [],
+      "Tầng 1": [],
+    },
     "SPACE A&A": {
       // Room data for SPACE A&A
       Trệt: [],
@@ -426,6 +432,7 @@
   let accountsCurrentPage = 1;
   let issueHistoryCurrentPage = 1;
   let myTasksCurrentPage = 1;
+  let activeViewId = null;
   const ITEMS_PER_PAGE = 10;
   const EXPORT_PAGE_SIZE = 500; // Batch size when fetching all data for Excel export
   // Server-side pagination state
@@ -522,117 +529,63 @@
     bindShellEventListeners();
 
     // Register Service Worker for offline support
-    if ('serviceWorker' in navigator) {
-      // First, unregister any existing service workers that might be causing issues
-      navigator.serviceWorker.getRegistrations().then((registrations) => {
-        registrations.forEach((registration) => {
-          // Check if the service worker script exists before keeping it
-          fetch(registration.active?.scriptURL || registration.scope + 'service-worker.js', { method: 'HEAD' })
-            .then((response) => {
-              if (!response.ok) {
-                // Service worker file doesn't exist, unregister it
-                console.log('🗑️ Unregistering old Service Worker (file not found):', registration.scope);
-                registration.unregister();
-              }
-            })
-            .catch(() => {
-              // If fetch fails, unregister to be safe
-              console.log('🗑️ Unregistering old Service Worker (fetch failed):', registration.scope);
-              registration.unregister();
-            });
-        });
-      }).catch((error) => {
-        console.warn('⚠️ Error checking existing Service Workers:', error);
-      });
-      
-      // Try multiple paths to find service-worker.js (handle different deployment scenarios)
+    if ("serviceWorker" in navigator) {
+      const basePath = new URL("./service-worker.js", window.location.href).pathname;
       const serviceWorkerPaths = [
-        '/service-worker.js',
-        './service-worker.js',
-        'service-worker.js'
+        basePath, // e.g. /Index/service-worker.js when running from /Index/index.html
+        "/service-worker.js",
+        "./service-worker.js",
+        "service-worker.js",
       ];
-      
-      let registrationAttempted = false;
-      
+      const uniquePaths = [...new Set(serviceWorkerPaths)];
+
       const tryRegisterServiceWorker = async (pathIndex = 0) => {
-        if (pathIndex >= serviceWorkerPaths.length) {
-          if (!registrationAttempted) {
-            console.warn('⚠️ Service Worker không tìm thấy ở bất kỳ đường dẫn nào. Bỏ qua đăng ký.');
-            // Unregister any existing service workers to prevent update errors
-            navigator.serviceWorker.getRegistrations().then((registrations) => {
-              registrations.forEach((registration) => {
-                registration.unregister();
-              });
-            });
-          }
+        if (pathIndex >= uniquePaths.length) {
+          console.warn("⚠️ Service Worker không tìm thấy ở bất kỳ đường dẫn nào. Bỏ qua đăng ký.");
           return;
         }
-        
-        const swPath = serviceWorkerPaths[pathIndex];
-        
-        // First check if file exists before trying to register
-        try {
-          const response = await fetch(swPath, { method: 'HEAD' });
-          if (!response.ok) {
-            // File doesn't exist, try next path
-            console.log(`⚠️ Service Worker không tìm thấy tại ${swPath}, thử đường dẫn khác...`);
-            tryRegisterServiceWorker(pathIndex + 1);
-            return;
-          }
-        } catch (fetchError) {
-          // Fetch failed, try next path
-          console.log(`⚠️ Không thể kiểm tra ${swPath}, thử đường dẫn khác...`);
-          tryRegisterServiceWorker(pathIndex + 1);
-          return;
-        }
-        
-        // File exists, try to register
+
+        const swPath = uniquePaths[pathIndex];
         try {
           const registration = await navigator.serviceWorker.register(swPath);
-          console.log('✅ Service Worker đã được đăng ký:', registration.scope, 'từ:', swPath);
-          registrationAttempted = true;
-          
-          // Handle update errors gracefully
-          registration.addEventListener('updatefound', () => {
+          console.log("✅ Service Worker đã được đăng ký:", registration.scope, "từ:", swPath);
+
+          registration.addEventListener("updatefound", () => {
             const newWorker = registration.installing;
             if (newWorker) {
-              newWorker.addEventListener('statechange', () => {
-                if (newWorker.state === 'activated') {
-                  console.log('✅ Service Worker đã được cập nhật');
+              newWorker.addEventListener("statechange", () => {
+                if (newWorker.state === "activated") {
+                  console.log("✅ Service Worker đã được cập nhật");
                 }
               });
             }
           });
-          
-          // Check for updates periodically, but handle errors
+
           setInterval(() => {
             registration.update().catch((updateError) => {
-              // Silently handle update errors (file might not exist anymore)
-              if (!updateError.message?.includes('404') && 
-                  !updateError.message?.includes('bad HTTP response code')) {
-                console.warn('⚠️ Service Worker update error:', updateError);
+              if (
+                !updateError.message?.includes("404") &&
+                !updateError.message?.includes("bad HTTP response code")
+              ) {
+                console.warn("⚠️ Service Worker update error:", updateError);
               }
             });
-          }, 60000); // Check every minute
+          }, 60000);
         } catch (error) {
-          // If 404 or fetch error, try next path
-          if (error.message?.includes('404') || 
-              error.message?.includes('Failed to fetch') ||
-              error.message?.includes('bad HTTP response code')) {
+          if (
+            error.message?.includes("404") ||
+            error.message?.includes("Failed to fetch") ||
+            error.message?.includes("bad HTTP response code")
+          ) {
             console.log(`⚠️ Service Worker không tìm thấy tại ${swPath}, thử đường dẫn khác...`);
             tryRegisterServiceWorker(pathIndex + 1);
           } else {
-            // Other errors (like scope issues) - log and stop trying
-            console.warn('⚠️ Service Worker registration failed:', error);
-            registrationAttempted = true;
+            console.warn("⚠️ Service Worker registration failed:", error);
           }
         }
       };
-      
-      // Wait a bit before trying to register (to allow unregister to complete)
-      setTimeout(() => {
-        tryRegisterServiceWorker();
-      }, 100);
+
+      tryRegisterServiceWorker();
     }
 
     try {
@@ -1326,6 +1279,7 @@
     authSection.classList.remove("hidden");
     appContainer.classList.add("hidden");
     currentUserProfile = null;
+    activeViewId = null;
   }
 
   // Renders sidebar menu based on allowed views for current profile.
@@ -1404,10 +1358,14 @@
     }
 
     try {
+      if (activeViewId === viewId && mainContentContainer.children.length > 0) {
+        return;
+      }
       const viewTemplate = viewsContainer.querySelector(`#${viewId}`);
       mainContentContainer.innerHTML = viewTemplate
         ? viewTemplate.innerHTML
         : `<h2>${ALL_VIEWS[viewId] || "Trang không xác định"}</h2>`;
+      activeViewId = viewId;
       document.querySelectorAll(".sidebar-nav-link").forEach((btn) => {
         btn.classList.toggle("active", btn.dataset.view === viewId);
       });
@@ -1454,6 +1412,21 @@
     } else {
       sidebar.classList.toggle("-translate-x-full");
       if (overlay) overlay.classList.toggle("hidden");
+    }
+  }
+
+  function syncMobileNavigationState() {
+    const overlay = document.getElementById("sidebarOverlay");
+    if (!overlay) return;
+    if (window.innerWidth >= 1024) {
+      sidebar.classList.remove("-translate-x-full");
+      overlay.classList.add("hidden");
+      return;
+    }
+    if (!sidebar.classList.contains("-translate-x-full")) {
+      overlay.classList.remove("hidden");
+    } else {
+      overlay.classList.add("hidden");
     }
   }
 
@@ -1526,52 +1499,15 @@
                 clickableClass
               } ${n.read ? "" : "unread"}" ${hasIssueId} data-notification-id="${n.id}">
                 <div class="flex-1 ${n.issueId ? "cursor-pointer" : ""}">
-                  <p class="text-sm">${n.message}</p>
-                  <p class="text-xs text-slate-400 mt-1">${timestamp}</p>
+                  <p class="text-sm">${escapeHtml(n.message || "")}</p>
+                  <p class="text-xs text-slate-400 mt-1">${escapeHtml(timestamp)}</p>
                 </div>
                 ${readButton}
               </div>`;
             })
             .join("");
 
-    // Add click handlers for notifications with issueId
-    notificationList.querySelectorAll(".notification-clickable").forEach((item) => {
-      const clickableContent = item.querySelector(".flex-1");
-      if (clickableContent) {
-        clickableContent.addEventListener("click", async () => {
-          const issueId = item.getAttribute("data-issue-id");
-          const notificationId = item.getAttribute("data-notification-id");
-          
-          if (issueId) {
-            // Mark as read
-            if (notificationId && !item.classList.contains("read")) {
-              await markNotificationAsRead(notificationId);
-            }
-            
-            // Open issue detail modal
-            openIssueDetailModal(issueId);
-            
-            // Close notification menu
-            notificationMenu.classList.remove("show");
-          }
-        });
-      }
-    });
-
-    // Add click handlers for mark as read buttons
-    notificationList.querySelectorAll(".mark-read-btn").forEach((btn) => {
-      btn.addEventListener("click", async (e) => {
-        e.stopPropagation();
-        const notificationId = btn.getAttribute("data-notification-id");
-        if (notificationId) {
-          await markNotificationAsRead(notificationId);
-          // Log to activity log
-          await logActivity("Mark Notification as Read", { 
-            notificationId: notificationId 
-          }, "notification");
-        }
-      });
-    });
+    // Interaction handlers are delegated once in shell listeners for performance.
   }
 
   // Marks all unread notifications as read for current user.
@@ -2096,7 +2032,7 @@
             } catch (error) {
               console.error("Error loading users for search:", error);
               if (tableBody) {
-                tableBody.innerHTML = `<tr><td colspan="5" class="text-center p-4 text-red-500">Lỗi tìm kiếm: ${error.message}</td></tr>`;
+                tableBody.innerHTML = `<tr><td colspan="5" class="text-center p-4 text-red-500">Lỗi tìm kiếm: ${escapeHtml(error.message || "Unknown error")}</td></tr>`;
               }
               // Fallback to current cache
               renderAccountsTable(allUsersCache);
@@ -2238,7 +2174,7 @@
       renderAccountsTable(allUsersCache);
     } catch (error) {
       console.error("Error loading accounts:", error);
-      tableBody.innerHTML = `<tr><td colspan="5" class="text-center p-4 text-red-500">Lỗi tải dữ liệu: ${error.message}</td></tr>`;
+      tableBody.innerHTML = `<tr><td colspan="5" class="text-center p-4 text-red-500">Lỗi tải dữ liệu: ${escapeHtml(error.message || "Unknown error")}</td></tr>`;
       
       // Update count display to show error
       const countTextEl = mainContentContainer.querySelector("#accountsCountText");
@@ -3173,8 +3109,11 @@
     // --- Logic ẩn/hiện phần "Phạm vi sự cố" dựa trên chi nhánh ---
     const updateIssueScopeVisibility = () => {
       const selectedBranch = branchSelect.value;
-      // Ẩn phần "Phạm vi sự cố" nếu là "Văn phòng" hoặc "SPACE A&A"
-      const shouldHideScope = selectedBranch === "Văn phòng" || selectedBranch === "SPACE A&A";
+      // Ẩn phần "Phạm vi sự cố" nếu là "Văn phòng", "SPACE A&A" hoặc "VTCODE"
+      const shouldHideScope =
+        selectedBranch === "Văn phòng" ||
+        selectedBranch === "SPACE A&A" ||
+        selectedBranch === "VTCODE";
       
       if (issueScopeContainer) {
         issueScopeContainer.classList.toggle("hidden", shouldHideScope);
@@ -3199,8 +3138,12 @@
     // --- Logic ẩn/hiện mục chọn Tầng và Phòng ---
     const updateScopeVisibility = () => {
       const selectedBranch = branchSelect.value;
-      // Nếu là "Văn phòng" hoặc "SPACE A&A", không hiển thị phần này
-      if (selectedBranch === "Văn phòng" || selectedBranch === "SPACE A&A") {
+      // Nếu là "Văn phòng", "SPACE A&A" hoặc "VTCODE", không hiển thị phần này
+      if (
+        selectedBranch === "Văn phòng" ||
+        selectedBranch === "SPACE A&A" ||
+        selectedBranch === "VTCODE"
+      ) {
         floorSelectorContainer.classList.add("hidden");
         specificRoomsContainer.classList.add("hidden");
         return;
@@ -3402,8 +3345,12 @@
             floorSelect.value = result.floor;
             populateRooms(result.branch, result.floor);
             
-            // Chỉ tự động chọn phòng cụ thể nếu không phải "Văn phòng" hoặc "SPACE A&A"
-            if (result.branch !== "Văn phòng" && result.branch !== "SPACE A&A") {
+            // Chỉ tự động chọn phòng cụ thể nếu không phải "Văn phòng", "SPACE A&A" hoặc "VTCODE"
+            if (
+              result.branch !== "Văn phòng" &&
+              result.branch !== "SPACE A&A" &&
+              result.branch !== "VTCODE"
+            ) {
               const specificRoomsRadio = mainContentContainer.querySelector(
                 'input[name="issueScope"][value="specific_rooms"]'
               );
@@ -4087,7 +4034,7 @@
         `;
       } else {
         // Other errors
-        tableBody.innerHTML = `<tr><td colspan="9" class="text-center p-4 text-red-500">Lỗi tải dữ liệu: ${error.message}</td></tr>`;
+        tableBody.innerHTML = `<tr><td colspan="9" class="text-center p-4 text-red-500">Lỗi tải dữ liệu: ${escapeHtml(error.message || "Unknown error")}</td></tr>`;
       }
     }
   }
@@ -4744,7 +4691,7 @@
       await populateActivityLogFilters();
     } catch (error) {
       console.error("Error loading activity logs:", error);
-      tableBody.innerHTML = `<tr><td colspan="4" class="text-center p-4 text-red-500">Lỗi tải dữ liệu: ${error.message}</td></tr>`;
+      tableBody.innerHTML = `<tr><td colspan="4" class="text-center p-4 text-red-500">Lỗi tải dữ liệu: ${escapeHtml(error.message || "Unknown error")}</td></tr>`;
     }
   }
 
@@ -9304,7 +9251,7 @@
       } else {
         console.error("Lỗi khi tải bình luận:", error);
         if (commentsContainer) {
-          commentsContainer.innerHTML = `<p class="text-sm text-red-600 italic">Lỗi khi tải bình luận: ${error.message}</p>`;
+          commentsContainer.innerHTML = `<p class="text-sm text-red-600 italic">Lỗi khi tải bình luận: ${escapeHtml(error.message || "Unknown error")}</p>`;
         }
       }
     });
@@ -10859,20 +10806,12 @@
   //
    // Lấy cấu hình Telegram từ file config
   function getTelegramConfig() {
-    // Thử lấy từ biến global nếu đã load
-    if (typeof TELEGRAM_CONFIG !== 'undefined') {
+    // Security hardening: never use hardcoded fallback token in client bundle.
+    if (typeof TELEGRAM_CONFIG !== "undefined") {
       return TELEGRAM_CONFIG;
     }
-    
-    // Fallback: Sử dụng giá trị mặc định (chỉ dùng cho development/testing)
-    // ⚠️ CẢNH BÁO: Trong production, file telegram-config.js phải được deploy
-    console.warn("⚠️ Telegram config chưa được load từ file! Sử dụng giá trị mặc định.");
-    console.warn("⚠️ Để bot hoạt động đúng, đảm bảo file Index/telegram-config.js được deploy lên server.");
-    return {
-      BOT_TOKEN: "8488858047:AAEtC7KlC2omv6IWkQPoHg4JKlrT-e2VB3A",
-      CHAT_ID: "1049752212",
-      GROUP_CHAT_IDS: ["-5070808095"] // Group Chat ID của group "IT_ICOOI"
-    };
+    console.warn("⚠️ Telegram config is unavailable on client. Notification send is skipped.");
+    return null;
   }
 
   //
@@ -10880,6 +10819,9 @@
    // Gửi đến cả private chat và tất cả các group đã cấu hình
   async function sendTelegramMessage(message, options = {}) {
     const config = getTelegramConfig();
+    if (!config || !config.BOT_TOKEN) {
+      return;
+    }
     const TELEGRAM_BOT_TOKEN = config.BOT_TOKEN;
     const TELEGRAM_CHAT_ID = config.CHAT_ID;
     const GROUP_CHAT_IDS = config.GROUP_CHAT_IDS || [];
@@ -11163,12 +11105,15 @@ ${priorityIcon} <b>Mức độ ưu tiên:</b> ${reportData.priority}
     const imageFile = mainContentContainer.querySelector("#issueImage").files[0];
     const messageEl = mainContentContainer.querySelector("#issueMessage");
     const button = mainContentContainer.querySelector("#reportIssueBtn");
-    // Kiểm tra xem có cần phạm vi sự cố không (ẩn nếu là "Văn phòng" hoặc "SPACE A&A")
-    const shouldRequireScope = issueBranch !== "Văn phòng" && issueBranch !== "SPACE A&A";
+    // Kiểm tra xem có cần phạm vi sự cố không (ẩn nếu là "Văn phòng", "SPACE A&A" hoặc "VTCODE")
+    const shouldRequireScope =
+      issueBranch !== "Văn phòng" &&
+      issueBranch !== "SPACE A&A" &&
+      issueBranch !== "VTCODE";
     const checkedScopeRadio = mainContentContainer.querySelector(
       'input[name="issueScope"]:checked'
     );
-    // Nếu là "Văn phòng" hoặc "SPACE A&A", luôn set là "all_rooms"
+    // Nếu là "Văn phòng", "SPACE A&A" hoặc "VTCODE", luôn set là "all_rooms"
     const issueScope = (!shouldRequireScope || !checkedScopeRadio) ? "all_rooms" : checkedScopeRadio.value;
 
     // Logic lấy danh sách phòng đã chọn từ các checkbox
@@ -11205,7 +11150,7 @@ ${priorityIcon} <b>Mức độ ưu tiên:</b> ${reportData.priority}
     if (!imageFile || !imageInput || !imageInput.files || imageInput.files.length === 0) {
       validationErrors.push("Ảnh mô tả lỗi");
     }
-    // Chỉ yêu cầu phạm vi sự cố nếu không phải "Văn phòng" hoặc "SPACE A&A"
+    // Chỉ yêu cầu phạm vi sự cố nếu không phải "Văn phòng", "SPACE A&A" hoặc "VTCODE"
     if (shouldRequireScope && issueScope === "specific_rooms" && !specificRooms) {
       validationErrors.push("Chọn ít nhất 1 phòng cụ thể");
     }
@@ -11902,7 +11847,7 @@ ${priorityIcon} <b>Mức độ ưu tiên:</b> ${reportData.priority}
         console.warn("   Xem hướng dẫn trong file: FIRESTORE_RULES_FOR_USERNAME_LOGIN.md");
       }
       if (tableBody) {
-        tableBody.innerHTML = `<tr><td colspan="7" class="text-center p-4 text-red-500">Lỗi tải dữ liệu: ${error.message}</td></tr>`;
+        tableBody.innerHTML = `<tr><td colspan="7" class="text-center p-4 text-red-500">Lỗi tải dữ liệu: ${escapeHtml(error.message || "Unknown error")}</td></tr>`;
       }
     }
   }
@@ -13464,27 +13409,18 @@ ${priorityIcon} <b>Mức độ ưu tiên:</b> ${reportData.priority}
         languageDropdownMenu.classList.toggle("show");
       });
       
-      // Language selection buttons
-      const vietnameseBtn = document.getElementById("selectVietnameseBtn");
-      const englishBtn = document.getElementById("selectEnglishBtn");
-      
-      if (vietnameseBtn) {
-        vietnameseBtn.addEventListener("click", (e) => {
+      // Language selection buttons (both dropdown and modal options).
+      document.querySelectorAll(".language-option[data-lang]").forEach((btn) => {
+        btn.addEventListener("click", (e) => {
           e.preventDefault();
           e.stopPropagation();
-          changeLanguage("vi");
+          const lang = btn.getAttribute("data-lang");
+          if (lang) {
+            changeLanguage(lang);
+          }
           languageDropdownMenu.classList.remove("show");
         });
-      }
-      
-      if (englishBtn) {
-        englishBtn.addEventListener("click", (e) => {
-          e.preventDefault();
-          e.stopPropagation();
-          changeLanguage("en");
-          languageDropdownMenu.classList.remove("show");
-        });
-      }
+      });
     } else {
       console.error("Language toggle elements not found!");
     }
@@ -13509,8 +13445,37 @@ ${priorityIcon} <b>Mức độ ưu tiên:</b> ${reportData.priority}
       });
     }
 
+    notificationList.addEventListener("click", async (e) => {
+      const markBtn = e.target.closest(".mark-read-btn");
+      if (markBtn) {
+        e.stopPropagation();
+        const notificationId = markBtn.getAttribute("data-notification-id");
+        if (notificationId) {
+          await markNotificationAsRead(notificationId);
+          await logActivity("Mark Notification as Read", { notificationId }, "notification");
+        }
+        return;
+      }
+
+      const clickableItem = e.target.closest(".notification-clickable");
+      if (!clickableItem) return;
+      const issueId = clickableItem.getAttribute("data-issue-id");
+      const notificationId = clickableItem.getAttribute("data-notification-id");
+      if (!issueId) return;
+
+      if (notificationId && !clickableItem.classList.contains("read")) {
+        await markNotificationAsRead(notificationId);
+      }
+      openIssueDetailModal(issueId);
+      notificationMenu.classList.remove("show");
+    });
+
     mobileMenuToggle.addEventListener("click", () => toggleMobileMenu(false));
     sidebarOverlay.addEventListener("click", () => toggleMobileMenu(true));
+    window.addEventListener("resize", syncMobileNavigationState);
+    window.addEventListener("orientationchange", () => {
+      setTimeout(syncMobileNavigationState, 150);
+    });
 
     document.addEventListener("click", (e) => {
       if (
@@ -13691,29 +13656,21 @@ ${priorityIcon} <b>Mức độ ưu tiên:</b> ${reportData.priority}
     }
 
     try {
-      // Gọi Cloud Function để reset mật khẩu về mặc định
-      const resetPasswordToDefault = httpsCallable(functions, "resetPasswordToDefault");
-      const result = await resetPasswordToDefault({
-        email: finalEmail,
-        appId: canvasAppId
-      });
-
-      if (result.data && result.data.success) {
-        messageEl.textContent = result.data.message || "Mật khẩu đã được reset về mặc định (icool123). Vui lòng đăng nhập và đổi mật khẩu.";
-        messageEl.className = "p-3 rounded-lg text-sm alert-success";
-        messageEl.classList.remove("hidden");
-        emailInput.value = "";
-      } else {
-        throw new Error("Không nhận được phản hồi từ server");
-      }
+      // Security hardening: use native Firebase password reset email flow.
+      await sendPasswordResetEmail(auth, finalEmail);
+      messageEl.textContent =
+        "Đã gửi email đặt lại mật khẩu. Vui lòng kiểm tra hộp thư và làm theo hướng dẫn.";
+      messageEl.className = "p-3 rounded-lg text-sm alert-success";
+      messageEl.classList.remove("hidden");
+      emailInput.value = "";
     } catch (error) {
       console.error("Password Reset Error:", error);
       
       let errorMessage = "Lỗi: Không thể reset mật khẩu. Vui lòng thử lại.";
       
-      if (error.code === "functions/not-found" || error.message?.includes("not-found")) {
+      if (error.code === "auth/user-not-found" || error.message?.includes("user-not-found")) {
         errorMessage = "Không tìm thấy tài khoản với email/tên đăng nhập này.";
-      } else if (error.code === "functions/invalid-argument") {
+      } else if (error.code === "auth/invalid-email") {
         errorMessage = "Email/tên đăng nhập không hợp lệ.";
       } else if (error.message) {
         errorMessage = `Lỗi: ${error.message}`;

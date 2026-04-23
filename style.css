@@ -229,6 +229,18 @@ input[type="date"]::-webkit-datetime-edit-year-field {
     max-width: 600px;
     box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.15);
     border: 1px solid rgba(0, 0, 0, 0.05);
+    max-height: min(92vh, 92dvh);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    padding-bottom: max(1.5rem, env(safe-area-inset-bottom));
+}
+
+.touch-target {
+    min-width: 44px;
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
 }
 
 @media (min-width: 640px) {
@@ -332,6 +344,17 @@ input[type="date"]::-webkit-datetime-edit-year-field {
 
 /* Mobile optimizations */
 @media (max-width: 767px) {
+    .modal {
+        align-items: flex-end;
+        padding-bottom: env(safe-area-inset-bottom);
+    }
+
+    .modal-content {
+        width: min(96vw, 96%);
+        max-height: min(94vh, 94dvh);
+        border-radius: 1rem 1rem 0.75rem 0.75rem;
+    }
+
     /* Prevent horizontal scroll */
     html, body {
         overflow-x: hidden !important;

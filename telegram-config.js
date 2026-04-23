@@ -9,11 +9,11 @@
 // 3. Hoặc tạo file này trực tiếp trên server
 
 const TELEGRAM_CONFIG = {
-  BOT_TOKEN: "8488858047:AAEtC7KlC2omv6IWkQPoHg4JKlrT-e2VB3A",
-  CHAT_ID: "1049752212", // Private chat ID (để nhận thông báo cá nhân)
+  BOT_TOKEN: "",
+  CHAT_ID: "", // Private chat ID (để nhận thông báo cá nhân)
   // Danh sách Group Chat IDs để gửi thông báo vào group
   GROUP_CHAT_IDS: [
-    "-5070808095" // Group Chat ID của group "IT_ICOOI"
+    ""
     // Có thể thêm nhiều group khác:
     // "-1001234567890", // Group Chat ID của group khác
   ]
