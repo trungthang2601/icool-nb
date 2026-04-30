@@ -8,12 +8,12 @@
 // 2. Hoặc sử dụng environment variables
 // 3. Hoặc tạo file này trực tiếp trên server
 
-const TELEGRAM_CONFIG = {
-  BOT_TOKEN: "",
-  CHAT_ID: "", // Private chat ID (để nhận thông báo cá nhân)
+globalThis.TELEGRAM_CONFIG = {
+  BOT_TOKEN: "8488858047:AAEtC7KlC2omv6IWkQPoHg4JKlrT-e2VB3A",
+  CHAT_ID: "819607634", // Private chat ID (để nhận thông báo cá nhân)
   // Danh sách Group Chat IDs để gửi thông báo vào group
   GROUP_CHAT_IDS: [
-    ""
+    "-5070808095"
     // Có thể thêm nhiều group khác:
     // "-1001234567890", // Group Chat ID của group khác
   ]
@@ -21,6 +21,6 @@ const TELEGRAM_CONFIG = {
 
 // Export để sử dụng trong app.js
 if (typeof module !== 'undefined' && module.exports) {
-  module.exports = TELEGRAM_CONFIG;
+  module.exports = globalThis.TELEGRAM_CONFIG;
 }
 

@@ -1167,7 +1167,7 @@
     }
   }
 
-  // Resolves login input (email/loginName) and signs in the user.
+  // Resolves login strictly from loginName and signs in.
   async function handleLogin() {
     const input = authEmailInput.value.trim();
     const password = authPasswordInput.value;
@@ -1178,63 +1178,46 @@
       return;
     }
     
-    // Login handling:
-    // - If input is already an @mail.icool.com.vn email, keep it
-    // - If input is another email (e.g. @gmail.com), keep it unchanged
-    // - If there is no "@", resolve email from login name
-    let email = input;
-    
+    // Enforce username-only login on UI.
     if (input.includes("@")) {
-      // If input contains "@", check whether it is @mail.icool.com.vn
-      if (input.endsWith("@mail.icool.com.vn")) {
-        // Email is already in expected format, keep as is
-        email = input;
-        console.log("Email đã đúng định dạng @mail.icool.com.vn, giữ nguyên:", email);
-      } else {
-        // Other email domain (e.g. @gmail.com), keep as is
-        email = input;
-        console.log("Email khác, giữ nguyên:", email);
+      authMessage.textContent = "Vui lòng đăng nhập bằng tên đăng nhập, không dùng email.";
+      authMessage.className = "p-3 rounded-lg text-sm text-center alert-error";
+      authMessage.classList.remove("hidden");
+      return;
+    }
+
+    let email = "";
+    try {
+      console.log("Đang tìm email từ tên đăng nhập:", input);
+      const usersRef = collection(db, `/artifacts/${canvasAppId}/users`);
+      const q = query(usersRef, where("loginName", "==", input), limit(1));
+      const querySnapshot = await getDocs(q);
+
+      if (querySnapshot.empty) {
+        authMessage.textContent = "Không tìm thấy tên đăng nhập.";
+        authMessage.className = "p-3 rounded-lg text-sm text-center alert-error";
+        authMessage.classList.remove("hidden");
+        return;
       }
-    } else {
-      // No "@": resolve email from login name
-      // Try direct Firestore query first (if permitted)
-      try {
-        console.log("Đang tìm email từ tên đăng nhập:", input);
-        
-        // Query Firestore directly by loginName or displayName
-        const usersRef = collection(db, `/artifacts/${canvasAppId}/users`);
-        
-        // Try loginName first
-        let q = query(usersRef, where("loginName", "==", input.trim()), limit(1));
-        let querySnapshot = await getDocs(q);
-        
-        // If not found, try displayName
-        if (querySnapshot.empty) {
-          q = query(usersRef, where("displayName", "==", input.trim()), limit(1));
-          querySnapshot = await getDocs(q);
-        }
-        
-        if (!querySnapshot.empty) {
-          const userDoc = querySnapshot.docs[0];
-          const userData = userDoc.data();
-          email = userData.email;
-          console.log("Tìm thấy email từ Firestore:", email);
-        } else {
-          // Fallback: build email from login name (@mail.icool.com.vn)
-          email = `${input.trim()}@mail.icool.com.vn`;
-          console.log("Không tìm thấy, sử dụng email mặc định:", email);
-        }
-      } catch (error) {
-        console.error("Lỗi khi tìm email từ tên đăng nhập:", error);
-        // Fallback: build email from login name
-        email = `${input.trim()}@mail.icool.com.vn`;
-        console.log("Fallback: tạo email từ tên đăng nhập:", email);
+
+      email = querySnapshot.docs[0].data().email || "";
+      if (!email) {
+        authMessage.textContent = "Tài khoản chưa có email đăng nhập hợp lệ. Vui lòng liên hệ quản trị.";
+        authMessage.className = "p-3 rounded-lg text-sm text-center alert-error";
+        authMessage.classList.remove("hidden");
+        return;
       }
+    } catch (error) {
+      console.error("Lỗi khi tìm email từ tên đăng nhập:", error);
+      authMessage.textContent = "Không thể xác thực tên đăng nhập lúc này. Vui lòng thử lại.";
+      authMessage.className = "p-3 rounded-lg text-sm text-center alert-error";
+      authMessage.classList.remove("hidden");
+      return;
     }
     
     // Sign in with resolved email
     try {
-      console.log("Đang đăng nhập với email:", email);
+      console.log("Đăng nhập bằng tên đăng nhập:", input);
       await signInWithEmailAndPassword(auth, email, password);
       authMessage.classList.add("hidden");
     } catch (error) {
@@ -10806,12 +10789,20 @@
   //
    // Lấy cấu hình Telegram từ file config
   function getTelegramConfig() {
-    // Security hardening: never use hardcoded fallback token in client bundle.
-    if (typeof TELEGRAM_CONFIG !== "undefined") {
-      return TELEGRAM_CONFIG;
+    const runtimeConfig =
+      (typeof globalThis !== "undefined" && globalThis.TELEGRAM_CONFIG) ||
+      (typeof TELEGRAM_CONFIG !== "undefined" ? TELEGRAM_CONFIG : null);
+
+    if (runtimeConfig && typeof runtimeConfig === "object") {
+      return runtimeConfig;
     }
+
     console.warn("⚠️ Telegram config is unavailable on client. Notification send is skipped.");
-    return null;
+    return {
+      BOT_TOKEN: "",
+      CHAT_ID: "",
+      GROUP_CHAT_IDS: [],
+    };
   }
 
   //
@@ -10904,8 +10895,10 @@
    // Gửi thông báo Telegram khi có báo cáo lỗi mới
   async function sendTelegramNotification(reportData, reportId) {
     const config = getTelegramConfig();
-    const TELEGRAM_BOT_TOKEN = config.BOT_TOKEN;
-    const TELEGRAM_CHAT_ID = config.CHAT_ID;
+    if (!config || !config.BOT_TOKEN) {
+      console.warn("⚠️ Telegram chưa được cấu hình BOT_TOKEN. Bỏ qua gửi thông báo.");
+      return;
+    }
     
     try {
       // Format thông tin báo cáo
