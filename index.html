@@ -18,6 +18,10 @@
   <script src="https://cdn.jsdelivr.net/npm/browser-image-compression@2.0.2/dist/browser-image-compression.js"></script>
   <link rel="stylesheet" href="style.css?v=3" />
   <style>
+    /* Nếu Tailwind CDN chậm hoặc lỗi, class .hidden từ app.js vẫn ẩn được skeleton / form */
+    .hidden {
+      display: none !important;
+    }
     .category-tab {
       @apply px-4 py-2 text-sm font-medium text-slate-600 border-b-2 border-transparent transition-all duration-200;
       @apply hover:text-indigo-600 hover:border-indigo-300;
@@ -69,8 +73,6 @@
     }
   </style>
 </head>
-<script src="../Tokens/telegram-config.js"></script>
-<script src="app.js?v=3" type="module"></script>
 
 <body class="min-h-screen">
   <div id="skeletonLoader" class="w-full h-full flex flex-col items-center">
@@ -1813,6 +1815,33 @@
           img.onerror = null; // Prevent infinite loop
           tryNextPath();
         };
+      });
+    })();
+  </script>
+  <!-- Module sau body: DOM đầy đủ trước khi app chạy; ?v= ép trình duyệt tải lại bundle -->
+  <script src="app.js?v=6" type="module"></script>
+  <script>
+    (function () {
+      function failsafeDismissSkeleton() {
+        var sk = document.getElementById("skeletonLoader");
+        var auth = document.getElementById("authSection");
+        var appEl = document.getElementById("appContainer");
+        if (!sk || !auth || !appEl) return;
+        if (sk.classList.contains("hidden")) return;
+        if (!appEl.classList.contains("hidden")) return;
+        sk.classList.add("hidden");
+        auth.classList.remove("hidden");
+        var msg = document.getElementById("authMessage");
+        if (msg) {
+          msg.textContent =
+            "Giao diện tải chậm hoặc có lỗi script. Hãy Ctrl+F5 hoặc xóa Service Worker (Application → Service Workers). Mở tab Console để xem lỗi đỏ.";
+          msg.className =
+            "mt-4 p-3 rounded-lg text-sm text-center bg-amber-50 text-amber-900 border border-amber-200";
+          msg.classList.remove("hidden");
+        }
+      }
+      document.addEventListener("DOMContentLoaded", function () {
+        setTimeout(failsafeDismissSkeleton, 5000);
       });
     })();
   </script>

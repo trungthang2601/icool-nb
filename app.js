@@ -14,7 +14,9 @@
   } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
   import {
     getFirestore,
-    enableIndexedDbPersistence,
+    initializeFirestore,
+    persistentLocalCache,
+    persistentMultipleTabManager,
     doc,
     collection,
     query,
@@ -42,6 +44,52 @@
     getFunctions,
     httpsCallable,
   } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-functions.js";
+
+  // Tải Telegram config không chặn module: nếu await import treo, app sẽ không bao giờ khởi tạo (skeleton vĩnh viễn).
+  void (async () => {
+    const importWithTimeout = (href, ms) =>
+      Promise.race([
+        import(href),
+        new Promise((_, reject) =>
+          setTimeout(() => reject(new Error("telegram-config import timeout")), ms)
+        ),
+      ]);
+    try {
+      const candidateHrefs = [
+        new URL("./telegram-config.js", import.meta.url).href,
+        new URL("../telegram-config.js", import.meta.url).href,
+      ];
+      let telegramMod = null;
+      let lastErr = null;
+      for (const href of candidateHrefs) {
+        try {
+          telegramMod = await importWithTimeout(href, 6000);
+          break;
+        } catch (e) {
+          lastErr = e;
+        }
+      }
+      if (!telegramMod) {
+        throw lastErr || new Error("Không tải được telegram-config.js");
+      }
+      const cfg =
+        telegramMod?.TELEGRAM_CONFIG ??
+        telegramMod?.default?.TELEGRAM_CONFIG ??
+        telegramMod?.default;
+      if (cfg && typeof cfg === "object" && cfg.BOT_TOKEN) {
+        globalThis.TELEGRAM_CONFIG = cfg;
+      } else {
+        console.warn(
+          "Telegram: telegram-config.js đã tải nhưng không có TELEGRAM_CONFIG / BOT_TOKEN hợp lệ."
+        );
+      }
+    } catch (err) {
+      console.warn(
+        "Telegram: không tải được telegram-config.js. Đặt file cùng thư mục với app.js (vd: /tokens/) hoặc một cấp trên (vd: gốc site), rồi deploy lại — file này không nằm trong GitHub.",
+        err?.message || err
+      );
+    }
+  })();
 
   // --- Configuration Constants ---
   const firebaseConfig =
@@ -526,7 +574,20 @@
   document.addEventListener("DOMContentLoaded", async () => {
     // Bind DOM elements first to ensure they are available for the catch block
     bindShellDOMElements();
-    bindShellEventListeners();
+    try {
+      bindShellEventListeners();
+    } catch (bindErr) {
+      console.error("Lỗi gắn sự kiện giao diện (bindShellEventListeners):", bindErr);
+      if (skeletonLoader) skeletonLoader.classList.add("hidden");
+      if (authSection) authSection.classList.remove("hidden");
+      if (authMessage) {
+        authMessage.textContent =
+          "Một phần giao diện không khởi tạo được. Hãy tải lại trang (Ctrl+F5). Chi tiết xem Console.";
+        authMessage.className =
+          "mt-4 p-3 rounded-lg text-sm text-center bg-amber-50 text-amber-900 border border-amber-200";
+        authMessage.classList.remove("hidden");
+      }
+    }
 
     // Register Service Worker for offline support
     if ("serviceWorker" in navigator) {
@@ -591,25 +652,22 @@
     try {
       app = initializeApp(firebaseConfig);
       auth = getAuth(app);
-      db = getFirestore(app);
+      try {
+        db = initializeFirestore(app, {
+          localCache: persistentLocalCache({
+            tabManager: persistentMultipleTabManager(),
+          }),
+        });
+        console.log("✅ Đã bật chế độ offline persistence (persistentLocalCache)");
+      } catch (persistenceInitError) {
+        console.warn(
+          "⚠️ Không khởi tạo được persistent cache, dùng Firestore mặc định:",
+          persistenceInitError
+        );
+        db = getFirestore(app);
+      }
       storage = getStorage(app);
       functions = getFunctions(app);
-
-      // Enable offline persistence for Firestore
-      // This allows the app to work offline and sync when connection is restored
-      try {
-        await enableIndexedDbPersistence(db);
-        console.log("✅ Đã bật chế độ offline persistence");
-      } catch (persistenceError) {
-        // Handle errors (e.g., multiple tabs open, browser doesn't support it)
-        if (persistenceError.code === "failed-precondition") {
-          console.warn("⚠️ Offline persistence failed: Multiple tabs open. Persistence can only be enabled in one tab at a time.");
-        } else if (persistenceError.code === "unimplemented") {
-          console.warn("⚠️ Offline persistence not supported in this browser.");
-        } else {
-          console.warn("⚠️ Offline persistence error:", persistenceError);
-        }
-      }
 
       // Set up online/offline status monitoring
       setupOnlineStatusMonitoring();
@@ -641,21 +699,24 @@
           // Firebase may still work with offline persistence
           app = initializeApp(firebaseConfig);
           auth = getAuth(app);
-          db = getFirestore(app);
+          try {
+            db = initializeFirestore(app, {
+              localCache: persistentLocalCache({
+                tabManager: persistentMultipleTabManager(),
+              }),
+            });
+          } catch {
+            db = getFirestore(app);
+          }
           storage = getStorage(app);
           functions = getFunctions(app);
-          
-          // Enable offline persistence even when network errors occur
-          enableIndexedDbPersistence(db).catch(() => {
-            console.warn("⚠️ Không thể bật offline persistence, nhưng vẫn tiếp tục.");
-          });
           
           // Set up online/offline status monitoring
           setupOnlineStatusMonitoring();
           
           // Keep listening to auth state (a cached session may exist)
           onAuthStateChanged(auth, handleAuthStateChange);
-          
+
           // Initialize language
           initializeLanguage();
           
@@ -930,102 +991,133 @@
   // --- Core Auth & UI Functions ---
   // Handles Firebase auth state transitions and initializes app UI/session.
   async function handleAuthStateChange(user) {
-    unsubscribeAll();
-    stopEscalationChecker();
-    currentUser = user;
+    try {
+      // Ẩn skeleton TRƯỚC mọi await: nếu getDoc(profile) treo, finally không chạy → trước đây màn hình xám vĩnh viễn.
+      if (skeletonLoader) skeletonLoader.classList.add("hidden");
+      unsubscribeAll();
+      stopEscalationChecker();
+      currentUser = user;
 
-    if (user) {
-      await fetchAndSetUserProfile(user.uid, user);
+      if (user) {
+        await fetchAndSetUserProfile(user.uid, user);
 
-      if (currentUserProfile && currentUserProfile.status !== "disabled") {
-        if (currentUserProfile.requiresPasswordChange) {
-          // If password change is required, show only the modal and block app access
-          authSection.classList.add("hidden");
-          appContainer.classList.remove("hidden");
-          // Set basic header information for the user
-          loggedInUserDisplay.textContent = currentUserProfile.displayName;
-          dropdownUserName.textContent = currentUserProfile.displayName;
-          dropdownUserRole.textContent = currentUserProfile.role;
-          // Hide sidebar and main content to prevent access
-          sidebar.classList.add("-translate-x-full");
-          mainContentContainer.innerHTML = "";
-          // Show force-change-password modal
-          promptForcePasswordChange();
-        } else {
-          // If password change is not required, initialize full UI and features
-          setupUIForLoggedInUser();
-          forceChangePasswordModal.style.display = "none";
-          listenToNotifications();
-          showInitialView();
-          
-          // Check network status and show notice if offline
-          if (!navigator.onLine) {
-            console.warn("⚠️ Đang ở chế độ offline");
-            // Show offline notice in main content
-            const offlineBanner = document.createElement('div');
-            offlineBanner.id = 'offlineBanner';
-            offlineBanner.className = 'bg-yellow-50 border-l-4 border-yellow-400 p-4 mb-4';
-            offlineBanner.innerHTML = `
-              <div class="flex items-center">
-                <i class="fas fa-exclamation-triangle text-yellow-400 mr-3"></i>
-                <div>
-                  <p class="font-medium text-yellow-800">Đang ở chế độ offline</p>
-                  <p class="text-sm text-yellow-700 mt-1">
-                    Bạn đang sử dụng dữ liệu đã cache. Một số chức năng có thể bị hạn chế. 
-                    Dữ liệu sẽ tự động đồng bộ khi có mạng trở lại.
-                  </p>
+        if (currentUserProfile && currentUserProfile.status !== "disabled") {
+          if (currentUserProfile.requiresPasswordChange) {
+            // If password change is required, show only the modal and block app access
+            authSection.classList.add("hidden");
+            appContainer.classList.remove("hidden");
+            // Set basic header information for the user
+            loggedInUserDisplay.textContent = currentUserProfile.displayName;
+            dropdownUserName.textContent = currentUserProfile.displayName;
+            dropdownUserRole.textContent = currentUserProfile.role;
+            // Hide sidebar and main content to prevent access
+            sidebar.classList.add("-translate-x-full");
+            mainContentContainer.innerHTML = "";
+            // Show force-change-password modal
+            promptForcePasswordChange();
+          } else {
+            // If password change is not required, initialize full UI and features
+            setupUIForLoggedInUser();
+            forceChangePasswordModal.style.display = "none";
+            listenToNotifications();
+            showInitialView();
+            
+            // Check network status and show notice if offline
+            if (!navigator.onLine) {
+              console.warn("⚠️ Đang ở chế độ offline");
+              // Show offline notice in main content
+              const offlineBanner = document.createElement('div');
+              offlineBanner.id = 'offlineBanner';
+              offlineBanner.className = 'bg-yellow-50 border-l-4 border-yellow-400 p-4 mb-4';
+              offlineBanner.innerHTML = `
+                <div class="flex items-center">
+                  <i class="fas fa-exclamation-triangle text-yellow-400 mr-3"></i>
+                  <div>
+                    <p class="font-medium text-yellow-800">Đang ở chế độ offline</p>
+                    <p class="text-sm text-yellow-700 mt-1">
+                      Bạn đang sử dụng dữ liệu đã cache. Một số chức năng có thể bị hạn chế. 
+                      Dữ liệu sẽ tự động đồng bộ khi có mạng trở lại.
+                    </p>
+                  </div>
                 </div>
-              </div>
-            `;
-            const mainContent = mainContentContainer.querySelector('main');
-            if (mainContent && !mainContent.querySelector('#offlineBanner')) {
-              mainContent.insertBefore(offlineBanner, mainContent.firstChild);
+              `;
+              const mainContent = mainContentContainer.querySelector('main');
+              if (mainContent && !mainContent.querySelector('#offlineBanner')) {
+                mainContent.insertBefore(offlineBanner, mainContent.firstChild);
+              }
+            }
+            
+            // Load users into cache (for dropdowns and mentions)
+            // Don't await - load in background to not block UI
+            loadUsersIntoCache().catch(err => {
+              console.error("Failed to load users cache:", err);
+              if (!navigator.onLine) {
+                console.warn("⚠️ Không thể tải users cache - đang offline, sẽ sử dụng cache cũ nếu có");
+              }
+            });
+            if (currentUserProfile.role === "Admin") {
+              startEscalationChecker();
             }
           }
           
-          // Load users into cache (for dropdowns and mentions)
-          // Don't await - load in background to not block UI
-          loadUsersIntoCache().catch(err => {
-            console.error("Failed to load users cache:", err);
-            if (!navigator.onLine) {
-              console.warn("⚠️ Không thể tải users cache - đang offline, sẽ sử dụng cache cũ nếu có");
-            }
-          });
-          if (currentUserProfile.role === "Admin") {
-            startEscalationChecker();
-          }
+          // Log activity (do not block when offline)
+          setTimeout(() => {
+            logActivity("User Login", { email: user.email }, "auth").catch(err => {
+              if (!navigator.onLine) {
+                console.warn("⚠️ Không thể log activity - đang offline");
+              }
+            });
+          }, 500);
+        } else {
+          console.error(
+            "User profile not found or account is disabled. Logging out."
+          );
+          handleLogout();
         }
-        
-        // Log activity (do not block when offline)
-        setTimeout(() => {
-          logActivity("User Login", { email: user.email }, "auth").catch(err => {
-            if (!navigator.onLine) {
-              console.warn("⚠️ Không thể log activity - đang offline");
-            }
-          });
-        }, 500);
       } else {
-        console.error(
-          "User profile not found or account is disabled. Logging out."
-        );
-        handleLogout();
+        setupUIForLoggedOutUser();
+        // Clear cache on logout
+        allUsersCache = [];
+        usersCacheLoaded = false;
       }
-    } else {
-      setupUIForLoggedOutUser();
-      // Clear cache on logout
-      allUsersCache = [];
-      usersCacheLoaded = false;
+    } catch (err) {
+      console.error("Lỗi trong handleAuthStateChange:", err);
+      try {
+        setupUIForLoggedOutUser();
+        if (authMessage) {
+          authMessage.textContent =
+            "Không tải được phiên đăng nhập. Vui lòng tải lại trang hoặc đăng nhập lại.";
+          authMessage.className =
+            "mt-4 p-3 rounded-lg text-sm text-center bg-red-50 text-red-800 border border-red-200";
+          authMessage.classList.remove("hidden");
+        }
+      } catch (e2) {
+        console.error("Không thể chuyển về màn hình đăng nhập:", e2);
+      }
+    } finally {
+      if (skeletonLoader) skeletonLoader.classList.add("hidden");
     }
-    skeletonLoader.classList.add("hidden");
   }
 
   // Fetches user profile, applies role/view defaults, and caches profile locally.
   async function fetchAndSetUserProfile(uid, authUser) {
     const userDocRef = doc(db, `/artifacts/${canvasAppId}/users/${uid}`);
     let userDoc;
-    
+
+    const PROFILE_GETDOC_MS = 15000;
+    const getDocWithTimeout = () =>
+      Promise.race([
+        getDoc(userDocRef),
+        new Promise((_, reject) =>
+          setTimeout(
+            () => reject(new Error("Firestore getDoc(profile) timeout")),
+            PROFILE_GETDOC_MS
+          )
+        ),
+      ]);
+
     try {
-      userDoc = await getDoc(userDocRef);
+      userDoc = await getDocWithTimeout();
     } catch (error) {
       // On network error, try cache or localStorage
       console.warn("⚠️ Không thể fetch user profile từ server, thử lấy từ cache:", error);
@@ -10805,6 +10897,15 @@
     };
   }
 
+  /** Nội dung từ người dùng/DB: tránh Telegram từ chối tin (parse_mode HTML, lỗi can't parse entities). */
+  function escapeTelegramHtml(str) {
+    if (str == null) return "";
+    return String(str)
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;");
+  }
+
   //
    // Gửi thông báo Telegram (hàm chung)
    // Gửi đến cả private chat và tất cả các group đã cấu hình
@@ -10929,17 +11030,17 @@
       
       const message = `🚨 <b>BÁO CÁO SỰ CỐ MỚI</b>
 
-📋 <b>Loại sự cố:</b> ${reportData.issueType}
-${priorityIcon} <b>Mức độ ưu tiên:</b> ${reportData.priority}
-🏢 <b>Chi nhánh:</b> ${reportData.issueBranch}
-📍 <b>Phạm vi:</b> ${scopeText}
-👤 <b>Người báo cáo:</b> ${reportData.reporterName}
+📋 <b>Loại sự cố:</b> ${escapeTelegramHtml(reportData.issueType)}
+${priorityIcon} <b>Mức độ ưu tiên:</b> ${escapeTelegramHtml(reportData.priority)}
+🏢 <b>Chi nhánh:</b> ${escapeTelegramHtml(reportData.issueBranch)}
+📍 <b>Phạm vi:</b> ${escapeTelegramHtml(scopeText)}
+👤 <b>Người báo cáo:</b> ${escapeTelegramHtml(reportData.reporterName)}
 📅 <b>Thời gian:</b> ${formattedDate}
-💻 <b>Thiết bị:</b> ${deviceInfo}
-📝 <b>Mô tả:</b> ${reportData.issueDescription}
-🆔 <b>Mã báo cáo:</b> ${reportId}
+💻 <b>Thiết bị:</b> ${escapeTelegramHtml(deviceInfo)}
+📝 <b>Mô tả:</b> ${escapeTelegramHtml(reportData.issueDescription)}
+🆔 <b>Mã báo cáo:</b> ${escapeTelegramHtml(reportId)}
 
-🔗 <b>Trạng thái:</b> ${reportData.status}`;
+🔗 <b>Trạng thái:</b> ${escapeTelegramHtml(reportData.status)}`;
 
       await sendTelegramMessage(message);
     } catch (error) {
@@ -10976,15 +11077,15 @@ ${priorityIcon} <b>Mức độ ưu tiên:</b> ${reportData.priority}
       
       const message = `📌 <b>GIAO VIỆC MỚI</b>
 
-📋 <b>Loại sự cố:</b> ${reportData.issueType || "N/A"}
-🏢 <b>Chi nhánh:</b> ${reportData.issueBranch || "N/A"}
-👥 <b>Người được giao:</b> ${assigneesText}
-👤 <b>Người giao:</b> ${assignerName || "N/A"}
+📋 <b>Loại sự cố:</b> ${escapeTelegramHtml(reportData.issueType || "N/A")}
+🏢 <b>Chi nhánh:</b> ${escapeTelegramHtml(reportData.issueBranch || "N/A")}
+👥 <b>Người được giao:</b> ${escapeTelegramHtml(assigneesText)}
+👤 <b>Người giao:</b> ${escapeTelegramHtml(assignerName || "N/A")}
 📅 <b>Thời gian giao:</b> ${formattedDate}
-💻 <b>Thiết bị:</b> ${deviceInfo}
-🆔 <b>Mã báo cáo:</b> ${reportId || reportData.id || "N/A"}
+💻 <b>Thiết bị:</b> ${escapeTelegramHtml(deviceInfo)}
+🆔 <b>Mã báo cáo:</b> ${escapeTelegramHtml(reportId || reportData.id || "N/A")}
 
-📝 <b>Mô tả:</b> ${reportData.issueDescription || "N/A"}`;
+📝 <b>Mô tả:</b> ${escapeTelegramHtml(reportData.issueDescription || "N/A")}`;
 
       console.log("📤 Đang gửi message đến Telegram:", message.substring(0, 100) + "...");
       await sendTelegramMessage(message);
@@ -11028,16 +11129,16 @@ ${priorityIcon} <b>Mức độ ưu tiên:</b> ${reportData.priority}
       
       const message = `${emoji} <b>CẬP NHẬT TRẠNG THÁI</b>
 
-📋 <b>Loại sự cố:</b> ${reportData.issueType || "N/A"}
-🏢 <b>Chi nhánh:</b> ${reportData.issueBranch || "N/A"}
-📊 <b>Trạng thái cũ:</b> ${oldStatus || "N/A"}
-📊 <b>Trạng thái mới:</b> ${newStatus || "N/A"}
-👤 <b>Người cập nhật:</b> ${changedBy || "N/A"}
+📋 <b>Loại sự cố:</b> ${escapeTelegramHtml(reportData.issueType || "N/A")}
+🏢 <b>Chi nhánh:</b> ${escapeTelegramHtml(reportData.issueBranch || "N/A")}
+📊 <b>Trạng thái cũ:</b> ${escapeTelegramHtml(oldStatus || "N/A")}
+📊 <b>Trạng thái mới:</b> ${escapeTelegramHtml(newStatus || "N/A")}
+👤 <b>Người cập nhật:</b> ${escapeTelegramHtml(changedBy || "N/A")}
 📅 <b>Thời gian:</b> ${formattedDate}
-💻 <b>Thiết bị:</b> ${deviceInfo}
-🆔 <b>Mã báo cáo:</b> ${reportId || reportData.id || "N/A"}
+💻 <b>Thiết bị:</b> ${escapeTelegramHtml(deviceInfo)}
+🆔 <b>Mã báo cáo:</b> ${escapeTelegramHtml(reportId || reportData.id || "N/A")}
 
-📝 <b>Mô tả:</b> ${reportData.issueDescription || "N/A"}`;
+📝 <b>Mô tả:</b> ${escapeTelegramHtml(reportData.issueDescription || "N/A")}`;
 
       console.log("📤 Đang gửi message thay đổi trạng thái đến Telegram:", message.substring(0, 100) + "...");
       await sendTelegramMessage(message);
@@ -11070,14 +11171,14 @@ ${priorityIcon} <b>Mức độ ưu tiên:</b> ${reportData.priority}
       
       const message = `✅ <b>SỰ CỐ ĐÃ ĐƯỢC GIẢI QUYẾT</b>
 
-📋 <b>Loại sự cố:</b> ${reportData.issueType || "N/A"}
-🏢 <b>Chi nhánh:</b> ${reportData.issueBranch || "N/A"}
-👤 <b>Người giải quyết:</b> ${resolverName || "N/A"}
+📋 <b>Loại sự cố:</b> ${escapeTelegramHtml(reportData.issueType || "N/A")}
+🏢 <b>Chi nhánh:</b> ${escapeTelegramHtml(reportData.issueBranch || "N/A")}
+👤 <b>Người giải quyết:</b> ${escapeTelegramHtml(resolverName || "N/A")}
 📅 <b>Thời gian giải quyết:</b> ${formattedDate}
-💻 <b>Thiết bị:</b> ${deviceInfo}
-🆔 <b>Mã báo cáo:</b> ${reportId || reportData.id || "N/A"}
+💻 <b>Thiết bị:</b> ${escapeTelegramHtml(deviceInfo)}
+🆔 <b>Mã báo cáo:</b> ${escapeTelegramHtml(reportId || reportData.id || "N/A")}
 
-📝 <b>Mô tả:</b> ${reportData.issueDescription || "N/A"}`;
+📝 <b>Mô tả:</b> ${escapeTelegramHtml(reportData.issueDescription || "N/A")}`;
 
       console.log("📤 Đang gửi message giải quyết đến Telegram:", message.substring(0, 100) + "...");
       await sendTelegramMessage(message);
