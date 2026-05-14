@@ -79,8 +79,8 @@
       if (cfg && typeof cfg === "object" && cfg.BOT_TOKEN) {
         globalThis.TELEGRAM_CONFIG = cfg;
       } else {
-        console.warn(
-          "Telegram: telegram-config.js đã tải nhưng không có TELEGRAM_CONFIG / BOT_TOKEN hợp lệ."
+        console.info(
+          "Telegram: telegram-config.js không chứa BOT_TOKEN (bình thường trên production). Thông báo sẽ dùng Cloud Function nếu đã cấu hình."
         );
       }
     } catch (err) {
@@ -473,6 +473,13 @@
   let activityLogsCache = [];
   let issueHistoryCache = [];
   let issueHistoryFiltered = [];
+  /** Danh sách tên người gửi cho gợi ý (đồng bộ với combobox lọc). */
+  let issueHistoryReporterOptionsList = [];
+  /**
+   * Giới hạn số dòng gợi ý hiển thị cùng lúc (DOM + cuộn). Không giới hạn tổng số tên đã tải;
+   * nếu khớp nhiều hơn, gõ thêm ký tự để thu hẹp — hoặc tăng giá trị này khi cần.
+   */
+  const REPORTER_SUGGESTIONS_UI_CAP = 120;
   let issueHistorySelectedMonth = ""; // Store selected month/year for archive query
   let issueHistoryMode = "current"; // "current" or "archive" - mode for viewing issue history
   let myTasksCache = [];
@@ -3544,40 +3551,258 @@
     }
   };
 
-  // Populate reporter filter dropdown with unique reporter names
-  // Note: With server-side pagination, this only shows reporters from loaded data
-  // For a complete list, would need a separate query to get all unique reporters
-  async function populateReporterFilter() {
-    const reporterFilter = mainContentContainer.querySelector("#filterReporter");
-    if (!reporterFilter) return;
+  function getIssueHistoryReporterSelectedNames() {
+    const root = mainContentContainer.querySelector("#filterReporterMulti");
+    if (!root) return [];
+    try {
+      const arr = JSON.parse(root.dataset.selected || "[]");
+      return Array.isArray(arr) ? arr.map((x) => String(x).trim()).filter(Boolean) : [];
+    } catch {
+      return [];
+    }
+  }
 
-    // Preserve current selection
-    const currentValue = reporterFilter.value;
+  function setIssueHistoryReporterSelected(names) {
+    const root = mainContentContainer.querySelector("#filterReporterMulti");
+    if (!root) return;
+    const uniq = [...new Set(names.map((n) => String(n).trim()).filter(Boolean))];
+    root.dataset.selected = JSON.stringify(uniq);
+    renderReporterFilterChips();
+  }
 
-    // Get unique reporter names from currently loaded/filtered data
-    const uniqueReporters = [...new Set(
-      issueHistoryFiltered
-        .map(report => report.reporterName)
-        .filter(name => name && name.trim())
-    )].sort();
-    
-    // Optionally: Load all unique reporters from server for complete filter
-    // This would require a separate query, but for now we use loaded data only
+  function renderReporterFilterChips() {
+    const el = mainContentContainer.querySelector("#filterReporterChips");
+    if (!el) return;
+    el.innerHTML = "";
+    getIssueHistoryReporterSelectedNames().forEach((name) => {
+      const span = document.createElement("span");
+      span.className =
+        "inline-flex max-w-full items-center gap-1 rounded-full bg-indigo-100 px-2 py-0.5 text-xs font-medium text-indigo-800";
+      const t = document.createElement("span");
+      t.className = "truncate";
+      t.textContent = name;
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "shrink-0 text-indigo-600 hover:text-indigo-900 leading-none";
+      btn.setAttribute("aria-label", "Bỏ chọn");
+      btn.textContent = "×";
+      btn.addEventListener("click", () => {
+        setIssueHistoryReporterSelected(
+          getIssueHistoryReporterSelectedNames().filter((x) => x !== name)
+        );
+        updateActiveFiltersCount();
+      });
+      span.appendChild(t);
+      span.appendChild(btn);
+      el.appendChild(span);
+    });
+  }
 
-    // Clear existing options except "Tất cả"
-    reporterFilter.innerHTML = '<option value="">Tất cả</option>';
+  function getReporterSuggestionRows() {
+    const search = mainContentContainer.querySelector("#filterReporterSearch");
+    const q = (search?.value || "").trim().toLowerCase();
+    const selected = new Set(getIssueHistoryReporterSelectedNames());
+    const matched = issueHistoryReporterOptionsList.filter((n) => {
+      if (selected.has(n)) return false;
+      if (!q) return true;
+      return String(n).toLowerCase().includes(q);
+    });
+    const total = matched.length;
+    const rows = matched.slice(0, REPORTER_SUGGESTIONS_UI_CAP);
+    return { rows, total };
+  }
 
-    // Add unique reporters
-    uniqueReporters.forEach(reporterName => {
-      const option = document.createElement("option");
-      option.value = reporterName;
-      option.textContent = reporterName;
-      reporterFilter.appendChild(option);
+  function updateReporterSuggestions(showDropdown) {
+    const sugg = mainContentContainer.querySelector("#filterReporterSuggestions");
+    const search = mainContentContainer.querySelector("#filterReporterSearch");
+    if (!sugg || !search) return;
+    const { rows, total } = getReporterSuggestionRows();
+    sugg.innerHTML = "";
+    rows.forEach((name) => {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className =
+        "w-full border-b border-slate-50 px-3 py-2 text-left text-sm last:border-0 hover:bg-indigo-50";
+      btn.textContent = name;
+      btn.addEventListener("click", () => {
+        setIssueHistoryReporterSelected([...getIssueHistoryReporterSelectedNames(), name]);
+        search.value = "";
+        sugg.classList.add("hidden");
+        updateActiveFiltersCount();
+      });
+      sugg.appendChild(btn);
+    });
+    if (total > rows.length) {
+      const hint = document.createElement("div");
+      hint.className =
+        "pointer-events-none border-t border-slate-100 bg-slate-50 px-3 py-2 text-xs text-slate-500";
+      hint.textContent = `Hiển thị ${rows.length}/${total} tên — gõ thêm để thu hẹp (giới hạn hiển thị: ${REPORTER_SUGGESTIONS_UI_CAP}).`;
+      sugg.appendChild(hint);
+    }
+    if (showDropdown && rows.length) sugg.classList.remove("hidden");
+    else if (!rows.length) sugg.classList.add("hidden");
+  }
+
+  function getVisibleReporterSuggestionNames() {
+    const sugg = mainContentContainer.querySelector("#filterReporterSuggestions");
+    if (!sugg) return [];
+    return [...sugg.querySelectorAll("button[type=button]")]
+      .map((b) => b.textContent || "")
+      .filter(Boolean);
+  }
+
+  function wireReporterFilterMultiUI() {
+    const root = mainContentContainer.querySelector("#filterReporterMulti");
+    if (!root || root.dataset.wired === "1") return;
+    root.dataset.wired = "1";
+    const search = root.querySelector("#filterReporterSearch");
+    const sugg = root.querySelector("#filterReporterSuggestions");
+    const clearBtn = root.querySelector("#filterReporterClear");
+    const pickVisible = root.querySelector("#filterReporterPickVisible");
+
+    search.addEventListener("input", () => {
+      updateReporterSuggestions(true);
+    });
+    search.addEventListener("focus", () => {
+      updateReporterSuggestions(true);
+    });
+    search.addEventListener("keydown", (e) => {
+      if (e.key === "Escape") sugg?.classList.add("hidden");
+    });
+    document.addEventListener("click", (e) => {
+      if (!root.contains(e.target)) sugg?.classList.add("hidden");
     });
 
-    // Restore previous selection if it still exists
-    if (currentValue && uniqueReporters.includes(currentValue)) {
-      reporterFilter.value = currentValue;
+    clearBtn?.addEventListener("click", () => {
+      setIssueHistoryReporterSelected([]);
+      search.value = "";
+      updateReporterSuggestions(false);
+      updateActiveFiltersCount();
+    });
+
+    pickVisible?.addEventListener("click", () => {
+      const vis = getVisibleReporterSuggestionNames();
+      if (!vis.length) return;
+      setIssueHistoryReporterSelected([
+        ...new Set([...getIssueHistoryReporterSelectedNames(), ...vis]),
+      ]);
+      updateActiveFiltersCount();
+    });
+  }
+
+  //
+   // Lấy danh sách reporterName phân biệt từ Firestore (theo phạm vi giống lịch sử báo cáo),
+   // không phụ thuộc trang phân trang — tránh dropdown "Người gửi" chỉ vài người.
+  async function fetchDistinctReporterNamesForIssueHistory() {
+    const names = new Set();
+    const batchSize = 500;
+    const maxBatches = 30; // tối đa ~15k bản ghi quét cho một dropdown
+
+    let baseRefOrQuery;
+    if (issueHistoryMode === "current") {
+      baseRefOrQuery = getScopedIssuesQuery();
+    } else {
+      if (!issueHistorySelectedMonth) return [];
+      const [yearStr, monthStr] = issueHistorySelectedMonth.split("-");
+      const y = parseInt(yearStr, 10);
+      const m = parseInt(monthStr, 10);
+      if (Number.isNaN(y) || Number.isNaN(m)) return [];
+
+      const startDate = new Date(y, m - 1, 1);
+      const endDate = new Date(y, m, 0, 23, 59, 59, 999);
+
+      baseRefOrQuery = collection(
+        db,
+        `/artifacts/${canvasAppId}/public/data/issueReports_archive`
+      );
+      if (currentUserProfile.role === "Chi nhánh") {
+        const userBranch = currentUserProfile.branch;
+        if (userBranch === "Tất cả" || userBranch === "All" || userBranch === "TẤT CẢ") {
+          // Giống báo cáo hiện tại: không lọc theo chi nhánh
+        } else if (userBranch) {
+          baseRefOrQuery = query(baseRefOrQuery, where("issueBranch", "==", userBranch));
+        } else {
+          return [];
+        }
+      }
+      baseRefOrQuery = query(
+        baseRefOrQuery,
+        where("reportDate", ">=", Timestamp.fromDate(startDate)),
+        where("reportDate", "<=", Timestamp.fromDate(endDate))
+      );
+    }
+
+    let lastVisible = null;
+    for (let b = 0; b < maxBatches; b++) {
+      let q = lastVisible
+        ? query(
+            baseRefOrQuery,
+            orderBy("reportDate", "desc"),
+            startAfter(lastVisible),
+            limit(batchSize)
+          )
+        : query(baseRefOrQuery, orderBy("reportDate", "desc"), limit(batchSize));
+
+      let snapshot;
+      try {
+        snapshot = await getDocs(q);
+      } catch (err) {
+        console.warn("fetchDistinctReporterNamesForIssueHistory:", err?.message || err);
+        break;
+      }
+
+      snapshot.docs.forEach((d) => {
+        const n = d.data()?.reporterName;
+        if (n && String(n).trim()) names.add(String(n).trim());
+      });
+
+      if (snapshot.docs.length < batchSize) break;
+      lastVisible = snapshot.docs[snapshot.docs.length - 1];
+    }
+
+    return [...names].sort((a, b) => a.localeCompare(b, "vi"));
+  }
+
+  // Populate reporter combobox: cập nhật danh sách gợi ý + giữ chip đã chọn.
+  async function populateReporterFilter() {
+    const fromCurrentPage = new Set(
+      (issueHistoryFiltered || [])
+        .map((report) => report.reporterName)
+        .filter((name) => name && String(name).trim())
+        .map((name) => String(name).trim())
+    );
+
+    let fromServer = [];
+    try {
+      fromServer = await fetchDistinctReporterNamesForIssueHistory();
+    } catch (err) {
+      console.warn("populateReporterFilter — không tải được danh sách từ server:", err?.message || err);
+    }
+
+    const merged = new Set([...fromCurrentPage, ...fromServer]);
+    issueHistoryReporterOptionsList = [...merged].sort((a, b) => a.localeCompare(b, "vi"));
+
+    renderReporterFilterChips();
+    const searchFocused = document.activeElement === mainContentContainer.querySelector("#filterReporterSearch");
+    updateReporterSuggestions(!!searchFocused);
+  }
+
+  // Khi tải thêm trang: bổ sung tên vào danh sách gợi ý (không quét lại Firestore).
+  function mergeReporterFilterFromCurrentData() {
+    let changed = false;
+    (issueHistoryFiltered || []).forEach((r) => {
+      const raw = r?.reporterName;
+      if (!raw || !String(raw).trim()) return;
+      const v = String(raw).trim();
+      if (!issueHistoryReporterOptionsList.includes(v)) {
+        issueHistoryReporterOptionsList.push(v);
+        changed = true;
+      }
+    });
+    if (changed) {
+      issueHistoryReporterOptionsList.sort((a, b) => a.localeCompare(b, "vi"));
+      const searchFocused = document.activeElement === mainContentContainer.querySelector("#filterReporterSearch");
+      updateReporterSuggestions(!!searchFocused);
     }
   }
 
@@ -3639,7 +3864,7 @@
     const branchFilter = mainContentContainer.querySelector("#filterBranch")?.value || "";
     const issueTypeFilter = mainContentContainer.querySelector("#filterIssueType")?.value || "";
     const statusFilter = mainContentContainer.querySelector("#filterStatus")?.value || "";
-    const reporterFilter = mainContentContainer.querySelector("#filterReporter")?.value || "";
+    const reporterNames = getIssueHistoryReporterSelectedNames();
     const dateFromEl = mainContentContainer.querySelector("#filterDateFrom");
     const dateToEl = mainContentContainer.querySelector("#filterDateTo");
     const dateFromFilter = dateFromEl?.value?.trim() || "";
@@ -3649,7 +3874,7 @@
     if (branchFilter) count++;
     if (issueTypeFilter) count++;
     if (statusFilter) count++;
-    if (reporterFilter) count++;
+    if (reporterNames.length) count++;
     if (hasFilterDateValue(dateFromFilter)) count++;
     if (hasFilterDateValue(dateToFilter)) count++;
 
@@ -3659,6 +3884,32 @@
     } else {
       activeFiltersCount.classList.add("hidden");
     }
+  }
+
+  // Firestore `in` — tối đa 30 giá trị (giới hạn dịch vụ). Dùng lọc người gửi trên server để không bị lệch phân trang.
+  const REPORTER_FILTER_FIRESTORE_IN_MAX = 30;
+
+  function normalizeReporterFilterNames(names) {
+    return [...new Set((names || []).map((s) => String(s).trim()).filter(Boolean))];
+  }
+
+  function applyReporterNamesToIssueQuery(baseQuery, reporterNames) {
+    const names = normalizeReporterFilterNames(reporterNames);
+    if (names.length === 0) return baseQuery;
+    if (names.length === 1) {
+      return query(baseQuery, where("reporterName", "==", names[0]));
+    }
+    if (names.length <= REPORTER_FILTER_FIRESTORE_IN_MAX) {
+      return query(baseQuery, where("reporterName", "in", names));
+    }
+    return baseQuery;
+  }
+
+  function reportMatchesReporterFilters(report, reporterNames) {
+    const names = normalizeReporterFilterNames(reporterNames);
+    if (names.length === 0) return true;
+    const rn = report?.reporterName != null ? String(report.reporterName).trim() : "";
+    return names.some((n) => rn === String(n).trim());
   }
 
   //
@@ -3731,7 +3982,7 @@
       const branchFilter = mainContentContainer.querySelector("#filterBranch")?.value || "";
       const issueTypeFilter = mainContentContainer.querySelector("#filterIssueType")?.value || "";
       const statusFilter = mainContentContainer.querySelector("#filterStatus")?.value || "";
-      const reporterFilter = mainContentContainer.querySelector("#filterReporter")?.value || "";
+      const reporterNames = getIssueHistoryReporterSelectedNames();
       const dateFromRaw = mainContentContainer.querySelector("#filterDateFrom")?.value?.trim() || "";
       const dateToRaw = mainContentContainer.querySelector("#filterDateTo")?.value?.trim() || "";
       const dateFromFilter = parseFilterDateStr(dateFromRaw) || "";
@@ -3787,8 +4038,8 @@
       if (statusFilter) {
         q = query(q, where("status", "==", statusFilter));
       }
-      // Note: reporterName filter cannot be done server-side, will filter client-side
-      // Additional date filters (within the selected month) will be handled client-side
+      q = applyReporterNamesToIssueQuery(q, reporterNames);
+      // reporterName: với ≤30 người đã lọc trên server; nhiều hơn thì lọc client bên dưới.
 
       // Add ordering and pagination
       q = query(q, orderBy("reportDate", "desc"), limit(ITEMS_PER_PAGE));
@@ -3826,6 +4077,7 @@
           if (statusFilter) {
             q = query(q, where("status", "==", statusFilter));
           }
+          q = applyReporterNamesToIssueQuery(q, reporterNames);
           
           // Add ordering and pagination (without date filter)
           // Increase limit significantly to ensure we get enough data for the month
@@ -3859,6 +4111,7 @@
         if (statusFilter) {
           q = query(q, where("status", "==", statusFilter));
         }
+        q = applyReporterNamesToIssueQuery(q, reporterNames);
         
         // Add ordering and pagination (without date filter)
         // Increase limit significantly to ensure we get enough data for the month
@@ -3952,9 +4205,9 @@
       // Chỉ role "Chi nhánh" đã được filter ở server-side theo branch
       
       // Additional client-side filtering for reporterName and date range
-      if (reporterFilter || dateFromFilter || dateToFilter) {
+      if (reporterNames.length || dateFromFilter || dateToFilter) {
         filteredReports = filteredReports.filter((report) => {
-          if (reporterFilter && report.reporterName !== reporterFilter) {
+          if (!reportMatchesReporterFilters(report, reporterNames)) {
             return false;
           }
           if (dateFromFilter || dateToFilter) {
@@ -4030,9 +4283,13 @@
         }
       }
       
-      // Update reporter filter dropdown (load all unique reporters for filter)
+      // Cập nhật dropdown Người gửi: quét Firestore khi về trang 1; khi tải thêm trang thì merge tên mới.
       if (resetPage) {
-        populateReporterFilter();
+        populateReporterFilter().catch((err) => {
+          console.warn("populateReporterFilter:", err);
+        });
+      } else if (loadNext) {
+        mergeReporterFilterFromCurrentData();
       }
     } catch (error) {
       console.error("❌ Lỗi khi tải lịch sử sự cố:", error);
@@ -4154,7 +4411,15 @@
     issueHistoryCache = [];
     issueHistoryLastVisible = null;
     issueHistoryMode = "current"; // Default to current reports mode
-    
+    issueHistoryReporterOptionsList = [];
+    const rMulti = mainContentContainer.querySelector("#filterReporterMulti");
+    if (rMulti) {
+      rMulti.dataset.selected = "[]";
+      renderReporterFilterChips();
+    }
+    const rSearchReset = mainContentContainer.querySelector("#filterReporterSearch");
+    if (rSearchReset) rSearchReset.value = "";
+    mainContentContainer.querySelector("#filterReporterSuggestions")?.classList.add("hidden");
     // Get elements
     const resultsSection = mainContentContainer.querySelector("#issueHistoryResults");
     const archiveSelector = mainContentContainer.querySelector("#issueHistoryArchiveSelector");
@@ -4362,21 +4627,21 @@
         const branchFilter = mainContentContainer.querySelector("#filterBranch");
         const issueTypeFilter = mainContentContainer.querySelector("#filterIssueType");
         const statusFilter = mainContentContainer.querySelector("#filterStatus");
-        const reporterFilter = mainContentContainer.querySelector("#filterReporter");
         const dateFromFilter = mainContentContainer.querySelector("#filterDateFrom");
         const dateToFilter = mainContentContainer.querySelector("#filterDateTo");
 
         if (branchFilter) branchFilter.value = "";
         if (issueTypeFilter) issueTypeFilter.value = "";
         if (statusFilter) statusFilter.value = "";
-        if (reporterFilter) reporterFilter.value = "";
+        setIssueHistoryReporterSelected([]);
+        const reporterSearch = mainContentContainer.querySelector("#filterReporterSearch");
+        if (reporterSearch) reporterSearch.value = "";
+        mainContentContainer.querySelector("#filterReporterSuggestions")?.classList.add("hidden");
         if (dateFromFilter) dateFromFilter.value = "";
         if (dateToFilter) dateToFilter.value = "";
 
-        // Reload from archive with current selected month and cleared filters
-        if (issueHistorySelectedMonth) {
-          loadIssueHistoryPage(true);
-        }
+        updateActiveFiltersCount();
+        loadIssueHistoryPage(true);
       });
     }
 
@@ -4440,7 +4705,6 @@
       mainContentContainer.querySelector("#filterBranch"),
       mainContentContainer.querySelector("#filterIssueType"),
       mainContentContainer.querySelector("#filterStatus"),
-      mainContentContainer.querySelector("#filterReporter")
     ];
 
     const filterInputs = [
@@ -4494,6 +4758,8 @@
       const last = new Date(today.getFullYear(), today.getMonth(), 0);
       setFilterDatesAndApply(first, last);
     });
+
+    wireReporterFilterMultiUI();
 
     // Don't load data initially - wait for user to select month/year
   };
@@ -10885,11 +11151,10 @@
       (typeof globalThis !== "undefined" && globalThis.TELEGRAM_CONFIG) ||
       (typeof TELEGRAM_CONFIG !== "undefined" ? TELEGRAM_CONFIG : null);
 
-    if (runtimeConfig && typeof runtimeConfig === "object") {
+    if (runtimeConfig && typeof runtimeConfig === "object" && runtimeConfig.BOT_TOKEN) {
       return runtimeConfig;
     }
 
-    console.warn("⚠️ Telegram config is unavailable on client. Notification send is skipped.");
     return {
       BOT_TOKEN: "",
       CHAT_ID: "",
@@ -10909,98 +11174,111 @@
   //
    // Gửi thông báo Telegram (hàm chung)
    // Gửi đến cả private chat và tất cả các group đã cấu hình
+   // Nếu không có BOT_TOKEN trên client (bảo mật), thử gửi qua Cloud Function sendTelegramIssueMessage.
   async function sendTelegramMessage(message, options = {}) {
     const config = getTelegramConfig();
-    if (!config || !config.BOT_TOKEN) {
-      return;
-    }
-    const TELEGRAM_BOT_TOKEN = config.BOT_TOKEN;
-    const TELEGRAM_CHAT_ID = config.CHAT_ID;
-    const GROUP_CHAT_IDS = config.GROUP_CHAT_IDS || [];
-    
-    // Tùy chọn: chỉ gửi vào group, bỏ qua private chat
-    const onlyGroups = options.onlyGroups || false;
-    
-    // Danh sách chat IDs cần gửi
-    const chatIdsToSend = [];
-    
-    if (!onlyGroups && TELEGRAM_CHAT_ID) {
-      chatIdsToSend.push(TELEGRAM_CHAT_ID);
-    }
-    
-    // Thêm tất cả group chat IDs
-    if (GROUP_CHAT_IDS && Array.isArray(GROUP_CHAT_IDS) && GROUP_CHAT_IDS.length > 0) {
-      GROUP_CHAT_IDS.forEach(groupId => {
-        if (groupId && groupId.trim()) {
-          chatIdsToSend.push(groupId.trim());
+    if (config?.BOT_TOKEN) {
+      const TELEGRAM_BOT_TOKEN = config.BOT_TOKEN;
+      const TELEGRAM_CHAT_ID = config.CHAT_ID;
+      const GROUP_CHAT_IDS = config.GROUP_CHAT_IDS || [];
+
+      const onlyGroups = options.onlyGroups || false;
+
+      const chatIdsToSend = [];
+
+      if (!onlyGroups && TELEGRAM_CHAT_ID) {
+        chatIdsToSend.push(TELEGRAM_CHAT_ID);
+      }
+
+      if (GROUP_CHAT_IDS && Array.isArray(GROUP_CHAT_IDS) && GROUP_CHAT_IDS.length > 0) {
+        GROUP_CHAT_IDS.forEach((groupId) => {
+          if (groupId && groupId.trim()) {
+            chatIdsToSend.push(groupId.trim());
+          }
+        });
+      }
+
+      if (chatIdsToSend.length === 0) {
+        console.warn("⚠️ Không có chat ID nào để gửi thông báo Telegram");
+        return null;
+      }
+
+      console.log(`📤 Gửi thông báo đến ${chatIdsToSend.length} chat(s):`, chatIdsToSend);
+
+      const sendPromises = chatIdsToSend.map(async (chatId) => {
+        try {
+          const telegramUrl = `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`;
+
+          console.log(`🌐 Gửi request đến Telegram API cho chat ${chatId}...`);
+          const response = await fetch(telegramUrl, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              chat_id: chatId,
+              text: message,
+              parse_mode: "HTML",
+            }),
+          });
+
+          const result = await response.json();
+
+          if (!response.ok || !result.ok) {
+            console.error(`❌ Telegram notification error cho chat ${chatId}:`, result);
+            console.error("Response status:", response.status);
+            console.error("Response body:", result);
+            return { success: false, chatId, error: result };
+          } else {
+            console.log(`✅ Telegram notification sent successfully to chat ${chatId}:`, result);
+            return { success: true, chatId, result };
+          }
+        } catch (error) {
+          console.error(`❌ Error sending Telegram notification to chat ${chatId}:`, error);
+          console.error("Error details:", error.message, error.stack);
+          return { success: false, chatId, error: error.message };
         }
       });
-    }
-    
-    if (chatIdsToSend.length === 0) {
-      console.warn("⚠️ Không có chat ID nào để gửi thông báo Telegram");
-      return;
-    }
-    
-    console.log(`📤 Gửi thông báo đến ${chatIdsToSend.length} chat(s):`, chatIdsToSend);
-    
-    // Gửi đến tất cả các chat
-    const sendPromises = chatIdsToSend.map(async (chatId) => {
-      try {
-        const telegramUrl = `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`;
-        
-        console.log(`🌐 Gửi request đến Telegram API cho chat ${chatId}...`);
-        const response = await fetch(telegramUrl, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            chat_id: chatId,
-            text: message,
-            parse_mode: "HTML",
-          }),
-        });
 
-        const result = await response.json();
-        
-        if (!response.ok || !result.ok) {
-          console.error(`❌ Telegram notification error cho chat ${chatId}:`, result);
-          console.error("Response status:", response.status);
-          console.error("Response body:", result);
-          return { success: false, chatId, error: result };
-        } else {
-          console.log(`✅ Telegram notification sent successfully to chat ${chatId}:`, result);
-          return { success: true, chatId, result };
-        }
-      } catch (error) {
-        console.error(`❌ Error sending Telegram notification to chat ${chatId}:`, error);
-        console.error("Error details:", error.message, error.stack);
-        return { success: false, chatId, error: error.message };
+      const results = await Promise.allSettled(sendPromises);
+
+      const successCount = results.filter((r) => r.status === "fulfilled" && r.value.success).length;
+      const failCount = results.length - successCount;
+
+      console.log(`📊 Kết quả gửi thông báo: ${successCount} thành công, ${failCount} thất bại`);
+
+      return results;
+    }
+
+    if (typeof functions === "undefined" || functions == null) {
+      console.warn(
+        "⚠️ Telegram: không có BOT_TOKEN trên client và Firebase Functions chưa khởi tạo — bỏ qua gửi tin."
+      );
+      return null;
+    }
+
+    try {
+      const sendIssueTelegram = httpsCallable(functions, "sendTelegramIssueMessage");
+      const res = await sendIssueTelegram({
+        message,
+        onlyGroups: !!options.onlyGroups,
+      });
+      console.log("✅ Telegram đã gửi qua Cloud Function (sendTelegramIssueMessage).", res?.data ?? "");
+      return res;
+    } catch (err) {
+      console.error("❌ Gửi Telegram qua Cloud Function thất bại:", err?.message || err);
+      if (err?.code === "functions/not-found") {
+        console.warn(
+          "   Gợi ý: deploy function sendTelegramIssueMessage (firebase deploy --only functions:sendTelegramIssueMessage)."
+        );
       }
-    });
-    
-    // Đợi tất cả các request hoàn thành
-    const results = await Promise.allSettled(sendPromises);
-    
-    // Tóm tắt kết quả
-    const successCount = results.filter(r => r.status === 'fulfilled' && r.value.success).length;
-    const failCount = results.length - successCount;
-    
-    console.log(`📊 Kết quả gửi thông báo: ${successCount} thành công, ${failCount} thất bại`);
-    
-    return results;
+      return null;
+    }
   }
 
   //
    // Gửi thông báo Telegram khi có báo cáo lỗi mới
   async function sendTelegramNotification(reportData, reportId) {
-    const config = getTelegramConfig();
-    if (!config || !config.BOT_TOKEN) {
-      console.warn("⚠️ Telegram chưa được cấu hình BOT_TOKEN. Bỏ qua gửi thông báo.");
-      return;
-    }
-    
     try {
       // Format thông tin báo cáo
       const date = new Date(reportData.reportDate);
@@ -12757,7 +13035,7 @@ ${priorityIcon} <b>Mức độ ưu tiên:</b> ${escapeTelegramHtml(reportData.pr
     const branchFilter = mainContentContainer.querySelector("#filterBranch")?.value || "";
     const issueTypeFilter = mainContentContainer.querySelector("#filterIssueType")?.value || "";
     const statusFilter = mainContentContainer.querySelector("#filterStatus")?.value || "";
-    const reporterFilter = mainContentContainer.querySelector("#filterReporter")?.value || "";
+    const reporterNames = getIssueHistoryReporterSelectedNames();
     const dateFromRaw = mainContentContainer.querySelector("#filterDateFrom")?.value?.trim() ?? "";
     const dateToRaw = mainContentContainer.querySelector("#filterDateTo")?.value?.trim() ?? "";
     const dateFromFilter = dateOverride.dateFrom ?? parseFilterDateStr(dateFromRaw) ?? "";
@@ -12778,9 +13056,9 @@ ${priorityIcon} <b>Mức độ ưu tiên:</b> ${escapeTelegramHtml(reportData.pr
           return d >= start && d <= end;
         });
       }
-      if (reporterFilter || dateFromFilter || dateToFilter) {
+      if (reporterNames.length || dateFromFilter || dateToFilter) {
         filtered = filtered.filter((r) => {
-          if (reporterFilter && r.reporterName !== reporterFilter) return false;
+          if (!reportMatchesReporterFilters(r, reporterNames)) return false;
           if (dateFromFilter || dateToFilter) {
             const d = r.reportDate?.toDate ? r.reportDate.toDate() : new Date(r.reportDate);
             d.setHours(0, 0, 0, 0);
@@ -12823,6 +13101,7 @@ ${priorityIcon} <b>Mức độ ưu tiên:</b> ${escapeTelegramHtml(reportData.pr
       if (branchFilter) q = query(q, where("issueBranch", "==", branchFilter));
       if (issueTypeFilter) q = query(q, where("issueType", "==", issueTypeFilter));
       if (statusFilter) q = query(q, where("status", "==", statusFilter));
+      q = applyReporterNamesToIssueQuery(q, reporterNames);
       q = query(q, orderBy("reportDate", "desc"), limit(EXPORT_PAGE_SIZE));
       if (lastVisible) q = query(q, startAfter(lastVisible));
 
@@ -12837,6 +13116,7 @@ ${priorityIcon} <b>Mức độ ưu tiên:</b> ${escapeTelegramHtml(reportData.pr
           if (branchFilter) q = query(q, where("issueBranch", "==", branchFilter));
           if (issueTypeFilter) q = query(q, where("issueType", "==", issueTypeFilter));
           if (statusFilter) q = query(q, where("status", "==", statusFilter));
+          q = applyReporterNamesToIssueQuery(q, reporterNames);
           q = query(q, orderBy("reportDate", "desc"), limit(EXPORT_PAGE_SIZE));
           if (lastVisible) q = query(q, startAfter(lastVisible));
           snapshot = await getDocs(q);
