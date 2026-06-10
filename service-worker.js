@@ -1,5 +1,5 @@
 // Service Worker for offline support
-const CACHE_NAME = 'icool-app-v4';
+const CACHE_NAME = 'icool-app-v5';
 const CDN_CACHE_NAME = 'icool-cdn-v1';
 
 // Resources to cache
@@ -67,6 +67,24 @@ self.addEventListener('fetch', (event) => {
     return;
   }
   if (url.protocol !== 'http:' && url.protocol !== 'https:') {
+    return;
+  }
+
+  // telegram-config.js chứa cấu hình hay đổi (chat ID, token) -> luôn lấy bản mới từ mạng,
+  // chỉ dùng cache khi offline. Tránh tình trạng sửa config mà trình duyệt vẫn dùng bản cũ.
+  if (url.pathname.endsWith('/telegram-config.js')) {
+    event.respondWith(
+      caches.open(CACHE_NAME).then((cache) => {
+        return fetch(request)
+          .then((response) => {
+            if (response.status === 200) {
+              cache.put(request, response.clone());
+            }
+            return response;
+          })
+          .catch(() => cache.match(request).then((c) => c || new Response('Offline', { status: 503 })));
+      })
+    );
     return;
   }
 

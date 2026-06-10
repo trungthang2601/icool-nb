@@ -11,7 +11,7 @@
 /** Chuẩn ES module — app.js import() rồi gán globalThis.TELEGRAM_CONFIG */
 export const TELEGRAM_CONFIG = {
   BOT_TOKEN: "8488858047:AAEtC7KlC2omv6IWkQPoHg4JKlrT-e2VB3A",
-  CHAT_ID: "819607634", // Private chat ID (để nhận thông báo cá nhân)
+  CHAT_ID: "1049752212", // Private chat ID (tài khoản Thang Quang — lấy từ getUpdates)
   GROUP_CHAT_IDS: [
     "-5070808095",
   ],
