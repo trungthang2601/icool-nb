@@ -1354,6 +1354,11 @@
     dropdownUserName.textContent = currentUserProfile.displayName;
     dropdownUserRole.textContent = currentUserProfile.role;
     renderSidebarNav();
+    try {
+      if (typeof initIssueChatbot === "function") initIssueChatbot();
+    } catch (e) {
+      console.warn("Chatbot init lỗi:", e?.message || e);
+    }
   }
 
   // Switches shell layout into logged-out mode and clears session profile state.
@@ -1362,6 +1367,8 @@
     appContainer.classList.add("hidden");
     currentUserProfile = null;
     activeViewId = null;
+    const chatRoot = document.getElementById("icoolChatbot");
+    if (chatRoot) chatRoot.style.display = "none";
   }
 
   // Renders sidebar menu based on allowed views for current profile.
@@ -8596,6 +8603,26 @@
       resolutionInfoContainer.classList.add("hidden");
     }
 
+    // Hiển thị "Cách giải quyết" (cạnh Thảo luận) gồm 2 mục: Nguyên nhân + Cách xử lý
+    const resolutionMethodContainer = modal.querySelector("#resolutionMethodContainer");
+    const detailResolutionCauseWrap = modal.querySelector("#detailResolutionCauseWrap");
+    const detailResolutionCause = modal.querySelector("#detailResolutionCause");
+    const detailResolutionMethodWrap = modal.querySelector("#detailResolutionMethodWrap");
+    const detailResolutionMethod = modal.querySelector("#detailResolutionMethod");
+    if (resolutionMethodContainer) {
+      const causeText = (report.resolutionCause || "").trim();
+      const methodText = (report.resolutionMethod || "").trim();
+      if (detailResolutionCause && detailResolutionCauseWrap) {
+        detailResolutionCause.textContent = causeText;
+        detailResolutionCauseWrap.classList.toggle("hidden", !causeText);
+      }
+      if (detailResolutionMethod && detailResolutionMethodWrap) {
+        detailResolutionMethod.textContent = methodText;
+        detailResolutionMethodWrap.classList.toggle("hidden", !methodText);
+      }
+      resolutionMethodContainer.classList.toggle("hidden", !causeText && !methodText);
+    }
+
     // 2. Điền dữ liệu cho Status (bao gồm "Đã hủy" nếu status hiện tại là "Đã hủy")
     const statusOptions = report.status === "Đã hủy" 
       ? ISSUE_STATUSES 
@@ -9150,6 +9177,18 @@
     newCommentInput.disabled = isResolved; // Cho phép comment nếu chưa giải quyết, kể cả là nhân viên
     addCommentBtn.disabled = isResolved; // Tương tự
 
+    // Ô nhập "Cách giải quyết" (Nguyên nhân + Cách xử lý): prefill + khóa nếu không được phép sửa
+    const resolutionCauseInput = modal.querySelector("#resolutionCauseInput");
+    if (resolutionCauseInput) {
+      resolutionCauseInput.value = report.resolutionCause || "";
+      resolutionCauseInput.disabled = getShouldLock();
+    }
+    const resolutionMethodInput = modal.querySelector("#resolutionMethodInput");
+    if (resolutionMethodInput) {
+      resolutionMethodInput.value = report.resolutionMethod || "";
+      resolutionMethodInput.disabled = getShouldLock();
+    }
+
     // Ẩn toàn bộ phần "Hành Động" nếu đã giải quyết
     if (isResolved) {
       actionsContainer.classList.add("hidden");
@@ -9160,11 +9199,22 @@
     // Ẩn nút "Cập nhật" (dùng riêng cho trường hợp nhân viên xem)
     updateBtn.classList.toggle("hidden", !canManage);
 
-    // Ẩn/hiện ô upload ảnh sửa chữa
+    // Ẩn/hiện ô upload ảnh sửa chữa + ô nhập "Cách giải quyết"
+    const resolutionMethodInputContainer = modal.querySelector("#resolutionMethodInputContainer");
+    const resolutionEmptyHint = modal.querySelector("#resolutionEmptyHint");
     const toggleRepairedImageInput = () => {
       // Chỉ hiện khi CHUẨN BỊ chuyển sang "Đã giải quyết" VÀ chưa bị khóa
       const showUpload = statusSelect.value === "Đã giải quyết" && !isResolved;
       repairedImageUploadContainer.classList.toggle("hidden", !showUpload);
+      if (resolutionMethodInputContainer) {
+        resolutionMethodInputContainer.classList.toggle("hidden", !showUpload);
+      }
+      // Gợi ý khi tab "Cách giải quyết" không có gì để hiển thị
+      if (resolutionEmptyHint) {
+        const displayHidden = !resolutionMethodContainer || resolutionMethodContainer.classList.contains("hidden");
+        const inputHidden = !resolutionMethodInputContainer || resolutionMethodInputContainer.classList.contains("hidden");
+        resolutionEmptyHint.classList.toggle("hidden", !(displayHidden && inputHidden));
+      }
     };
 
     toggleRepairedImageInput();
@@ -9177,7 +9227,25 @@
     
     // 6. Setup mention autocomplete
     setupMentionAutocomplete(issueId);
+
+    // 7. Mặc định mở tab "Cách giải quyết"
+    setIssueDetailTab(modal, "resolution");
     // --- KẾT THÚC LOGIC QUẢN LÝ ---
+  }
+
+  // Chuyển tab trong modal Chi Tiết Sự Cố ("resolution" | "discussion").
+  function setIssueDetailTab(modal, tabName) {
+    if (!modal) return;
+    modal.querySelectorAll(".issue-tab-btn").forEach((btn) => {
+      btn.classList.toggle("active", btn.getAttribute("data-issue-tab") === tabName);
+    });
+    const panels = {
+      resolution: modal.querySelector("#issueTabResolution"),
+      discussion: modal.querySelector("#issueTabDiscussion"),
+    };
+    Object.entries(panels).forEach(([name, el]) => {
+      if (el) el.classList.toggle("hidden", name !== tabName);
+    });
   }
 
   //
@@ -9369,6 +9437,17 @@
         updateData.resolvedDate = new Date().toISOString();
         updateData.resolverId = currentUser.uid; // Ghi nhận ai là người giải quyết
         updateData.resolverName = currentUserProfile.displayName; // Ghi nhận tên người giải quyết
+        // Ghi nhận "Cách giải quyết" do người xử lý nhập: nguyên nhân + cách xử lý
+        const resolutionCauseInput = modal.querySelector("#resolutionCauseInput");
+        const resolutionCauseValue = resolutionCauseInput ? resolutionCauseInput.value.trim() : "";
+        if (resolutionCauseValue) {
+          updateData.resolutionCause = resolutionCauseValue;
+        }
+        const resolutionMethodInput = modal.querySelector("#resolutionMethodInput");
+        const resolutionMethodValue = resolutionMethodInput ? resolutionMethodInput.value.trim() : "";
+        if (resolutionMethodValue) {
+          updateData.resolutionMethod = resolutionMethodValue;
+        }
       }
       // ▲▲▲ KẾT THÚC THAY ĐỔI ▲▲▲
 
@@ -13893,6 +13972,12 @@ ${priorityIcon} <b>Mức độ ưu tiên:</b> ${escapeTelegramHtml(reportData.pr
     issueDetailModal
       .querySelector("#updateIssueBtn")
       .addEventListener("click", handleUpdateIssueDetails);
+    // Tab "Cách giải quyết" / "Thảo luận": bấm tab nào hiện nội dung đó
+    issueDetailModal.querySelectorAll(".issue-tab-btn").forEach((btn) => {
+      btn.addEventListener("click", () =>
+        setIssueDetailTab(issueDetailModal, btn.getAttribute("data-issue-tab"))
+      );
+    });
     issueDetailModal
       .querySelector("#addCommentBtn")
       .addEventListener("click", handleAddComment);
@@ -14899,3 +14984,576 @@ ${priorityIcon} <b>Mức độ ưu tiên:</b> ${escapeTelegramHtml(reportData.pr
       console.error('   Error message:', error.message);
     }
   };
+
+  // =====================================================================
+  // CHATBOT TRA CỨU SỰ CỐ (Mức A - không dùng AI, miễn phí)
+  // Tra cứu báo cáo sự cố bằng từ khóa tiếng Việt + xuất Excel.
+  // Tôn trọng phân quyền: dùng getScopedIssuesQuery() nên role "Chi nhánh"
+  // chỉ thấy dữ liệu chi nhánh của mình.
+  // =====================================================================
+
+  const CHATBOT_ISSUE_TYPES = ["Kỹ thuật", "Vận hành", "Hệ thống", "Con người", "Khác"];
+  const CHATBOT_STATUSES = ["Chờ xử lý", "Đang xử lý", "Đã giải quyết"];
+  const CHATBOT_FETCH_PAGE = 500; // số bản ghi mỗi lượt đọc Firestore
+  const CHATBOT_FETCH_MAX_PAGES = 40; // trần an toàn (~20.000 bản ghi)
+  let chatbotLastResults = []; // lưu kết quả tìm gần nhất để xuất Excel
+  let chatbotLastFilters = null; // lưu bộ lọc gần nhất để đặt tiêu đề file Excel
+
+  // Bỏ dấu tiếng Việt + thường hóa để so khớp linh hoạt.
+  function chatbotNormalize(str) {
+    if (str == null) return "";
+    return String(str)
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/đ/g, "d")
+      .replace(/Đ/g, "d")
+      .toLowerCase()
+      .trim();
+  }
+
+  // Phân tích câu hỏi tiếng Việt -> bộ lọc { branch, issueType, status, reporterName, dateFrom, dateTo, intent, rangeLabel }
+  function parseChatbotQuery(rawText) {
+    const text = String(rawText || "");
+    const norm = chatbotNormalize(text);
+    const filters = {
+      branch: "",
+      issueType: "",
+      status: "",
+      reporterName: "",
+      keyword: "",
+      dateFrom: null,
+      dateTo: null,
+      rangeLabel: "",
+      intent: "list",
+    };
+
+    // Ý định: đếm/thống kê hay xuất excel hay liệt kê
+    if (/(xuat|tai|export).*(excel|file)|xuat excel|file excel/.test(norm)) {
+      filters.intent = "export";
+    } else if (/(bao nhieu|so luong|dem|thong ke|tong so|co may)/.test(norm)) {
+      filters.intent = "count";
+    }
+
+    // Chi nhánh: so khớp tên (đã bỏ dấu) trong câu
+    for (const b of ALL_BRANCHES) {
+      if (norm.includes(chatbotNormalize(b))) {
+        filters.branch = b;
+        break;
+      }
+    }
+
+    // Loại sự cố
+    for (const t of CHATBOT_ISSUE_TYPES) {
+      if (norm.includes(chatbotNormalize(t))) {
+        filters.issueType = t;
+        break;
+      }
+    }
+
+    // Trạng thái (nhận diện cả cách nói thông dụng)
+    if (/(da giai quyet|da xu ly xong|hoan thanh|da xong|resolved)/.test(norm)) {
+      filters.status = "Đã giải quyết";
+    } else if (/(dang xu ly|dang giai quyet|in progress)/.test(norm)) {
+      filters.status = "Đang xử lý";
+    } else if (/(cho xu ly|chua xu ly|chua giai quyet|cho giai quyet|pending|moi)/.test(norm)) {
+      filters.status = "Chờ xử lý";
+    }
+
+    // Người gửi: "nguoi gui <ten>" / "do <ten> gui" / "bao cao cua <ten>"
+    const reporterMatch = text.match(/(?:người gửi|nguoi gui|báo cáo của|bao cao cua|gửi bởi|gui boi)\s+([^,.;]+)/i);
+    if (reporterMatch && reporterMatch[1]) {
+      filters.reporterName = reporterMatch[1].trim().replace(/\s+(tháng|thang|ngày|ngay|trong|của|cua).*$/i, "").trim();
+    }
+
+    // Từ khóa tìm trong mô tả / nguyên nhân / cách xử lý
+    filters.keyword = extractChatbotKeyword(text);
+
+    // ----- Khoảng thời gian -----
+    const now = new Date();
+    const startOfDay = (d) => new Date(d.getFullYear(), d.getMonth(), d.getDate(), 0, 0, 0, 0);
+    const endOfDay = (d) => new Date(d.getFullYear(), d.getMonth(), d.getDate(), 23, 59, 59, 999);
+
+    // Khoảng tường minh: "tu dd/mm/yyyy den dd/mm/yyyy"
+    const rangeMatch = text.match(/(?:từ|tu)\s*(\d{1,2})[/-](\d{1,2})(?:[/-](\d{2,4}))?\s*(?:đến|den|->|-)\s*(\d{1,2})[/-](\d{1,2})(?:[/-](\d{2,4}))?/i);
+    const monthYearMatch = norm.match(/thang\s*(\d{1,2})(?:\s*[/-]\s*|\s+nam\s+|\s+)(\d{4})/);
+    const monthOnlyMatch = norm.match(/thang\s*(\d{1,2})(?![\d])/);
+    const yearOnlyMatch = norm.match(/nam\s*(\d{4})/);
+
+    if (rangeMatch) {
+      const fY = rangeMatch[3] ? normalizeYear(rangeMatch[3]) : now.getFullYear();
+      const tY = rangeMatch[6] ? normalizeYear(rangeMatch[6]) : now.getFullYear();
+      filters.dateFrom = startOfDay(new Date(fY, parseInt(rangeMatch[2]) - 1, parseInt(rangeMatch[1])));
+      filters.dateTo = endOfDay(new Date(tY, parseInt(rangeMatch[5]) - 1, parseInt(rangeMatch[4])));
+      filters.rangeLabel = `từ ${formatChatbotDate(filters.dateFrom)} đến ${formatChatbotDate(filters.dateTo)}`;
+    } else if (/hom nay/.test(norm)) {
+      filters.dateFrom = startOfDay(now);
+      filters.dateTo = endOfDay(now);
+      filters.rangeLabel = "hôm nay";
+    } else if (/hom qua/.test(norm)) {
+      const y = new Date(now);
+      y.setDate(y.getDate() - 1);
+      filters.dateFrom = startOfDay(y);
+      filters.dateTo = endOfDay(y);
+      filters.rangeLabel = "hôm qua";
+    } else if (/tuan nay/.test(norm)) {
+      const day = (now.getDay() + 6) % 7; // thứ 2 = 0
+      const monday = new Date(now);
+      monday.setDate(now.getDate() - day);
+      filters.dateFrom = startOfDay(monday);
+      filters.dateTo = endOfDay(now);
+      filters.rangeLabel = "tuần này";
+    } else if (/thang nay/.test(norm)) {
+      filters.dateFrom = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0);
+      filters.dateTo = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
+      filters.rangeLabel = `tháng ${now.getMonth() + 1}/${now.getFullYear()}`;
+    } else if (/thang truoc/.test(norm)) {
+      filters.dateFrom = new Date(now.getFullYear(), now.getMonth() - 1, 1, 0, 0, 0, 0);
+      filters.dateTo = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59, 999);
+      filters.rangeLabel = `tháng ${filters.dateFrom.getMonth() + 1}/${filters.dateFrom.getFullYear()}`;
+    } else if (/quy\s*([1-4])/.test(norm)) {
+      const qm = norm.match(/quy\s*([1-4])/);
+      const q = parseInt(qm[1]);
+      const qy = yearOnlyMatch ? parseInt(yearOnlyMatch[1]) : now.getFullYear();
+      filters.dateFrom = new Date(qy, (q - 1) * 3, 1, 0, 0, 0, 0);
+      filters.dateTo = new Date(qy, q * 3, 0, 23, 59, 59, 999);
+      filters.rangeLabel = `quý ${q}/${qy}`;
+    } else if (monthYearMatch) {
+      const m = parseInt(monthYearMatch[1]);
+      const y = parseInt(monthYearMatch[2]);
+      filters.dateFrom = new Date(y, m - 1, 1, 0, 0, 0, 0);
+      filters.dateTo = new Date(y, m, 0, 23, 59, 59, 999);
+      filters.rangeLabel = `tháng ${m}/${y}`;
+    } else if (monthOnlyMatch) {
+      const m = parseInt(monthOnlyMatch[1]);
+      const y = yearOnlyMatch ? parseInt(yearOnlyMatch[1]) : now.getFullYear();
+      if (m >= 1 && m <= 12) {
+        filters.dateFrom = new Date(y, m - 1, 1, 0, 0, 0, 0);
+        filters.dateTo = new Date(y, m, 0, 23, 59, 59, 999);
+        filters.rangeLabel = `tháng ${m}/${y}`;
+      }
+    } else if (yearOnlyMatch) {
+      const y = parseInt(yearOnlyMatch[1]);
+      filters.dateFrom = new Date(y, 0, 1, 0, 0, 0, 0);
+      filters.dateTo = new Date(y, 11, 31, 23, 59, 59, 999);
+      filters.rangeLabel = `năm ${y}`;
+    }
+
+    return filters;
+  }
+
+  function normalizeYear(y) {
+    const n = parseInt(y);
+    if (n < 100) return 2000 + n;
+    return n;
+  }
+
+  // Trích từ khóa tìm trong mô tả/nguyên nhân/cách xử lý.
+  // Hỗ trợ: trong ngoặc kép, hoặc sau các cụm dẫn ("mô tả", "nguyên nhân", "chứa", "có từ", "từ khóa", "liên quan").
+  function extractChatbotKeyword(text) {
+    const quoted = text.match(/["'“”‘’]([^"'“”‘’]{2,})["'“”‘’]/);
+    if (quoted) return quoted[1].trim();
+    const m = text.match(
+      /(?:mô tả|mo ta|nguyên nhân|nguyen nhan|cách xử lý|cach xu ly|chứa|chua|có chữ|co chu|có từ|co tu|từ khóa|tu khoa|liên quan(?:\s*(?:đến|tới|toi))?|lien quan(?:\s*den)?)\s+(.+)$/i
+    );
+    if (m && m[1]) {
+      let kw = m[1].trim();
+      // Cắt phần điều kiện thời gian/cấu trúc nếu nằm phía sau từ khóa
+      kw = kw
+        .replace(/\s+(tháng|thang|tuần|tuan|hôm nay|hom nay|hôm qua|hom qua|năm|nam|quý|quy|từ ngày|tu ngay|chi nhánh|chi nhanh|trạng thái|trang thai|ngày|ngay|người gửi|nguoi gui)\b.*$/i, "")
+        .trim();
+      // Bỏ các hư từ ở cuối
+      kw = kw.replace(/\s+(không|khong|nhé|nhe|ạ|a|vậy|vay|đi|di)\s*$/i, "").trim();
+      if (kw.length >= 2) return kw;
+    }
+    return "";
+  }
+
+  function formatChatbotDate(d) {
+    if (!d) return "";
+    const date = d.toDate ? d.toDate() : new Date(d);
+    if (isNaN(date.getTime())) return "";
+    return date.toLocaleDateString("vi-VN");
+  }
+
+  function chatbotReportDateToJs(report) {
+    const v = report?.reportDate;
+    if (!v) return null;
+    const d = v.toDate ? v.toDate() : new Date(v);
+    return isNaN(d.getTime()) ? null : d;
+  }
+
+  // Một báo cáo có khớp toàn bộ bộ lọc không (so khớp client-side).
+  function chatbotReportMatches(report, filters) {
+    if (filters.branch && (report.issueBranch || "") !== filters.branch) return false;
+    if (filters.issueType && (report.issueType || "") !== filters.issueType) return false;
+    if (filters.status && (report.status || "") !== filters.status) return false;
+    if (filters.reporterName) {
+      if (chatbotNormalize(report.reporterName) !== chatbotNormalize(filters.reporterName)) return false;
+    }
+    if (filters.keyword) {
+      const kw = chatbotNormalize(filters.keyword);
+      const haystack = chatbotNormalize(
+        [report.issueDescription, report.resolutionCause, report.resolutionMethod]
+          .filter(Boolean)
+          .join(" ")
+      );
+      if (!haystack.includes(kw)) return false;
+    }
+    if (filters.dateFrom || filters.dateTo) {
+      const d = chatbotReportDateToJs(report);
+      if (!d) return false;
+      if (filters.dateFrom && d < filters.dateFrom) return false;
+      if (filters.dateTo && d > filters.dateTo) return false;
+    }
+    return true;
+  }
+
+  // Đọc báo cáo từ Firestore (phân trang), tôn trọng phân quyền, rồi lọc client-side.
+  async function chatbotFetchReports(filters) {
+    let all = [];
+    let lastVisible = null;
+    for (let i = 0; i < CHATBOT_FETCH_MAX_PAGES; i++) {
+      let q = getScopedIssuesQuery();
+      q = query(q, orderBy("reportDate", "desc"), limit(CHATBOT_FETCH_PAGE));
+      if (lastVisible) q = query(q, startAfter(lastVisible));
+      const snap = await getDocs(q);
+      all = all.concat(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
+      if (snap.docs.length < CHATBOT_FETCH_PAGE) break;
+      lastVisible = snap.docs[snap.docs.length - 1];
+    }
+    return all.filter((r) => chatbotReportMatches(r, filters));
+  }
+
+  // Mô tả bộ lọc đang áp dụng cho người dùng đọc.
+  function describeChatbotFilters(filters) {
+    const parts = [];
+    if (filters.branch) parts.push(`chi nhánh <b>${filters.branch}</b>`);
+    if (filters.issueType) parts.push(`loại <b>${filters.issueType}</b>`);
+    if (filters.status) parts.push(`trạng thái <b>${filters.status}</b>`);
+    if (filters.reporterName) parts.push(`người gửi <b>${filters.reporterName}</b>`);
+    if (filters.keyword) parts.push(`nội dung chứa <b>"${escapeChatbotHtml(filters.keyword)}"</b>`);
+    if (filters.rangeLabel) parts.push(`thời gian <b>${filters.rangeLabel}</b>`);
+    return parts.length ? parts.join(", ") : "tất cả báo cáo";
+  }
+
+  // Xuất danh sách báo cáo (kết quả chat) ra Excel.
+  function chatbotExportToExcel(reports, filters) {
+    if (typeof XLSX === "undefined") {
+      addChatbotMessage("bot", "Thư viện Excel chưa tải xong. Vui lòng tải lại trang rồi thử lại.");
+      return;
+    }
+    if (!reports || reports.length === 0) {
+      addChatbotMessage("bot", "Không có dữ liệu để xuất.");
+      return;
+    }
+    const fmt = (v) => {
+      const d = v?.toDate ? v.toDate() : v ? new Date(v) : null;
+      return d && !isNaN(d.getTime()) ? d.toLocaleString("vi-VN") : "";
+    };
+    const rows = reports.map((r) => ({
+      "Chi nhánh": r.issueBranch || "N/A",
+      "Người gửi": r.reporterName || "N/A",
+      "Loại sự cố": r.issueType || "N/A",
+      "Mức độ ưu tiên": r.priority || "N/A",
+      "Ngày báo cáo": fmt(r.reportDate),
+      "Trạng thái": r.status || "N/A",
+      "Người được giao": r.assigneeName || "Chưa giao",
+      "Người giải quyết": r.resolverName || "Chưa giải quyết",
+      "Ngày giải quyết": r.resolvedDate ? fmt(r.resolvedDate) : "Chưa giải quyết",
+      "Mô tả": r.issueDescription || "",
+    }));
+    const title = `Tra cứu sự cố - ${describeChatbotFilters(filters).replace(/<\/?b>/g, "")}`;
+    const headers = Object.keys(rows[0]);
+    const aoa = [[title], headers];
+    rows.forEach((row) => aoa.push(headers.map((h) => row[h])));
+    const ws = XLSX.utils.aoa_to_sheet(aoa);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Tra cứu sự cố");
+    const stamp = new Date().toISOString().split("T")[0].replace(/-/g, "");
+    XLSX.writeFile(wb, `tra_cuu_su_co_${stamp}.xlsx`);
+    try {
+      logActivity("Chatbot Export Issue Search", { recordCount: rows.length }, "issue");
+    } catch (e) {
+      /* bỏ qua lỗi log */
+    }
+  }
+
+  // Render một danh sách báo cáo trong khung chat (tối đa 8 dòng).
+  // Chỉ hiển thị nút "Xuất Excel" khi showExport = true (người dùng yêu cầu xuất).
+  function renderChatbotResults(reports, filters, showExport = false) {
+    const total = reports.length;
+    if (total === 0) {
+      addChatbotMessage(
+        "bot",
+        `Không tìm thấy báo cáo nào khớp với ${describeChatbotFilters(filters)}.<br>Bạn thử đổi từ khóa hoặc bỏ bớt điều kiện nhé.`
+      );
+      return;
+    }
+
+    const SHOW = 8;
+    const statusColor = (s) => {
+      if (s === "Đã giải quyết") return "#16a34a";
+      if (s === "Đang xử lý") return "#d97706";
+      return "#dc2626";
+    };
+    let html = `Tìm thấy <b>${total}</b> báo cáo khớp với ${describeChatbotFilters(filters)}.`;
+    html += `<div class="icoolChat-results">`;
+    reports.slice(0, SHOW).forEach((r) => {
+      const d = chatbotReportDateToJs(r);
+      html += `
+        <div class="icoolChat-item">
+          <div class="icoolChat-item-top">
+            <span class="icoolChat-branch">${r.issueBranch || "N/A"}</span>
+            <span class="icoolChat-status" style="color:${statusColor(r.status)}">${r.status || "N/A"}</span>
+          </div>
+          <div class="icoolChat-item-meta">
+            <span>${r.issueType || "N/A"}</span> ·
+            <span>${r.reporterName || "N/A"}</span> ·
+            <span>${d ? d.toLocaleDateString("vi-VN") : "N/A"}</span>
+          </div>
+          ${r.issueDescription ? `<div class="icoolChat-desc">${escapeChatbotHtml(r.issueDescription).slice(0, 120)}</div>` : ""}
+        </div>`;
+    });
+    html += `</div>`;
+    if (total > SHOW) html += `<div class="icoolChat-more">…và ${total - SHOW} báo cáo khác.</div>`;
+    if (showExport) {
+      html += `<button type="button" class="icoolChat-export-btn" data-chatbot-export="1"><i class="fas fa-file-excel"></i> Xuất Excel (${total})</button>`;
+    }
+
+    addChatbotMessage("bot", html);
+    chatbotLastResults = reports;
+    chatbotLastFilters = filters;
+  }
+
+  function escapeChatbotHtml(str) {
+    if (str == null) return "";
+    return String(str).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  }
+
+  // Xử lý một tin nhắn người dùng gửi.
+  async function handleChatbotInput(rawText) {
+    const text = String(rawText || "").trim();
+    if (!text) return;
+    addChatbotMessage("user", escapeChatbotHtml(text));
+
+    const norm = chatbotNormalize(text);
+    // Lời chào / trợ giúp
+    if (/^(hi|hello|chao|xin chao|help|tro giup|huong dan|\?)$/.test(norm) || norm.length < 2) {
+      addChatbotMessage("bot", chatbotHelpText());
+      return;
+    }
+
+    const filters = parseChatbotQuery(text);
+    const typingId = addChatbotMessage("bot", `<span class="icoolChat-typing">Đang tra cứu…</span>`);
+
+    try {
+      const reports = await chatbotFetchReports(filters);
+      removeChatbotMessage(typingId);
+
+      if (filters.intent === "count") {
+        const byStatus = {};
+        reports.forEach((r) => {
+          const s = r.status || "Khác";
+          byStatus[s] = (byStatus[s] || 0) + 1;
+        });
+        let html = `Có <b>${reports.length}</b> báo cáo khớp với ${describeChatbotFilters(filters)}.`;
+        const keys = Object.keys(byStatus);
+        if (keys.length > 1) {
+          html += `<div class="icoolChat-results">`;
+          keys.forEach((k) => {
+            html += `<div class="icoolChat-item"><div class="icoolChat-item-top"><span>${k}</span><b>${byStatus[k]}</b></div></div>`;
+          });
+          html += `</div>`;
+        }
+        if (reports.length > 0) {
+          chatbotLastResults = reports;
+          chatbotLastFilters = filters;
+        }
+        addChatbotMessage("bot", html);
+      } else if (filters.intent === "export") {
+        renderChatbotResults(reports, filters, true);
+        if (reports.length > 0) chatbotExportToExcel(reports, filters);
+      } else {
+        renderChatbotResults(reports, filters, false);
+      }
+    } catch (err) {
+      removeChatbotMessage(typingId);
+      console.error("Chatbot query lỗi:", err);
+      addChatbotMessage("bot", `Có lỗi khi tra cứu: ${escapeChatbotHtml(err?.message || String(err))}`);
+    }
+  }
+
+  function chatbotHelpText() {
+    return `Mình giúp bạn tra cứu <b>báo cáo sự cố</b> và xuất Excel. Bạn thử gõ:
+      <div class="icoolChat-examples">
+        <button type="button" class="icoolChat-chip" data-chatbot-suggest="sự cố chưa xử lý">sự cố chưa xử lý</button>
+        <button type="button" class="icoolChat-chip" data-chatbot-suggest="sự cố chi nhánh Mạc Đĩnh Chi tháng này">chi nhánh Mạc Đĩnh Chi tháng này</button>
+        <button type="button" class="icoolChat-chip" data-chatbot-suggest="có bao nhiêu sự cố hệ thống tháng này">bao nhiêu sự cố hệ thống tháng này</button>
+        <button type="button" class="icoolChat-chip" data-chatbot-suggest="xuất excel sự cố đã giải quyết tháng trước">xuất excel đã giải quyết tháng trước</button>
+        <button type="button" class="icoolChat-chip" data-chatbot-suggest='sự cố mô tả "không mở được máy"'>tìm theo mô tả "không mở được máy"</button>
+      </div>
+      Mình hiểu được: <b>chi nhánh, loại sự cố, trạng thái, người gửi, thời gian</b> (hôm nay, tuần này, tháng N, quý N, từ… đến…).<br>
+      Tìm theo nội dung: đặt từ khóa trong ngoặc kép hoặc sau chữ <b>mô tả / nguyên nhân / chứa / từ khóa</b> — ví dụ: <i>sự cố chứa "treo máy"</i>.`;
+  }
+
+  // ----- Khung chat (DOM) -----
+  function addChatbotMessage(role, html) {
+    const body = document.getElementById("icoolChatBody");
+    if (!body) return null;
+    const id = "msg-" + Date.now() + "-" + Math.random().toString(36).slice(2, 7);
+    const wrap = document.createElement("div");
+    wrap.className = `icoolChat-msg icoolChat-msg-${role}`;
+    wrap.id = id;
+    wrap.innerHTML = `<div class="icoolChat-bubble">${html}</div>`;
+    body.appendChild(wrap);
+    body.scrollTop = body.scrollHeight;
+    return id;
+  }
+
+  function removeChatbotMessage(id) {
+    if (!id) return;
+    const el = document.getElementById(id);
+    if (el) el.remove();
+  }
+
+  function initIssueChatbot() {
+    if (!currentUserProfile) return;
+    let root = document.getElementById("icoolChatbot");
+    if (root) {
+      root.style.display = "";
+      return;
+    }
+
+    injectChatbotStyles();
+
+    root = document.createElement("div");
+    root.id = "icoolChatbot";
+    root.innerHTML = `
+      <button type="button" id="icoolChatToggle" title="Trợ lý tra cứu sự cố">
+        <i class="fas fa-comments"></i>
+      </button>
+      <div id="icoolChatPanel" class="icoolChat-hidden">
+        <div id="icoolChatHeader">
+          <div class="icoolChat-title"><i class="fas fa-robot"></i> Trợ lý tra cứu sự cố</div>
+          <button type="button" id="icoolChatClose" title="Đóng"><i class="fas fa-times"></i></button>
+        </div>
+        <div id="icoolChatBody"></div>
+        <form id="icoolChatForm">
+          <input type="text" id="icoolChatInput" placeholder="Hỏi: sự cố chưa xử lý tháng này…" autocomplete="off" />
+          <button type="submit" id="icoolChatSend" title="Gửi"><i class="fas fa-paper-plane"></i></button>
+        </form>
+      </div>`;
+    document.body.appendChild(root);
+
+    const panel = root.querySelector("#icoolChatPanel");
+    const toggle = root.querySelector("#icoolChatToggle");
+    const closeBtn = root.querySelector("#icoolChatClose");
+    const form = root.querySelector("#icoolChatForm");
+    const input = root.querySelector("#icoolChatInput");
+    const body = root.querySelector("#icoolChatBody");
+
+    let greeted = false;
+    const openPanel = () => {
+      panel.classList.remove("icoolChat-hidden");
+      toggle.classList.add("icoolChat-open");
+      if (!greeted) {
+        addChatbotMessage("bot", chatbotHelpText());
+        greeted = true;
+      }
+      setTimeout(() => input.focus(), 50);
+    };
+    const closePanel = () => {
+      panel.classList.add("icoolChat-hidden");
+      toggle.classList.remove("icoolChat-open");
+    };
+
+    toggle.addEventListener("click", () => {
+      if (panel.classList.contains("icoolChat-hidden")) openPanel();
+      else closePanel();
+    });
+    closeBtn.addEventListener("click", closePanel);
+
+    form.addEventListener("submit", (e) => {
+      e.preventDefault();
+      const val = input.value;
+      input.value = "";
+      handleChatbotInput(val);
+    });
+
+    // Bắt sự kiện cho nút gợi ý và nút xuất Excel (event delegation)
+    body.addEventListener("click", (e) => {
+      const suggest = e.target.closest("[data-chatbot-suggest]");
+      if (suggest) {
+        handleChatbotInput(suggest.getAttribute("data-chatbot-suggest"));
+        return;
+      }
+      const exportBtn = e.target.closest("[data-chatbot-export]");
+      if (exportBtn) {
+        chatbotExportToExcel(chatbotLastResults, chatbotLastFilters || parseChatbotQuery(""));
+      }
+    });
+  }
+
+  function injectChatbotStyles() {
+    if (document.getElementById("icoolChatStyles")) return;
+    const style = document.createElement("style");
+    style.id = "icoolChatStyles";
+    style.textContent = `
+      #icoolChatbot { position: fixed; right: 20px; bottom: 20px; z-index: 9999; font-family: 'Inter', sans-serif; }
+      #icoolChatToggle { width: 56px; height: 56px; border-radius: 50%; border: none; cursor: pointer;
+        background: linear-gradient(135deg,#6d28d9,#4f46e5); color:#fff; font-size: 22px;
+        box-shadow: 0 6px 20px rgba(79,70,229,.45); transition: transform .15s ease; }
+      #icoolChatToggle:hover { transform: scale(1.07); }
+      #icoolChatToggle.icoolChat-open { transform: scale(.92); }
+      #icoolChatPanel { position: absolute; right: 0; bottom: 70px; width: 360px; max-width: calc(100vw - 40px);
+        height: 520px; max-height: calc(100vh - 120px); background:#fff; border-radius: 16px; display:flex; flex-direction:column;
+        box-shadow: 0 16px 48px rgba(15,23,42,.28); overflow:hidden; border:1px solid #e2e8f0; }
+      #icoolChatPanel.icoolChat-hidden { display:none; }
+      #icoolChatHeader { background: linear-gradient(135deg,#6d28d9,#4f46e5); color:#fff; padding: 12px 16px;
+        display:flex; align-items:center; justify-content:space-between; }
+      #icoolChatHeader .icoolChat-title { font-weight:600; font-size:15px; display:flex; align-items:center; gap:8px; }
+      #icoolChatClose { background:transparent; border:none; color:#fff; cursor:pointer; font-size:16px; opacity:.85; }
+      #icoolChatClose:hover { opacity:1; }
+      #icoolChatBody { flex:1; overflow-y:auto; padding: 14px; background:#f8fafc; display:flex; flex-direction:column; gap:10px; }
+      .icoolChat-msg { display:flex; }
+      .icoolChat-msg-user { justify-content:flex-end; }
+      .icoolChat-msg-bot { justify-content:flex-start; }
+      .icoolChat-bubble { max-width: 85%; padding: 10px 12px; border-radius: 14px; font-size: 13.5px; line-height:1.45; word-wrap:break-word; }
+      .icoolChat-msg-user .icoolChat-bubble { background:#4f46e5; color:#fff; border-bottom-right-radius:4px; }
+      .icoolChat-msg-bot .icoolChat-bubble { background:#fff; color:#1e293b; border:1px solid #e2e8f0; border-bottom-left-radius:4px; }
+      .icoolChat-results { margin-top:8px; display:flex; flex-direction:column; gap:6px; }
+      .icoolChat-item { background:#f1f5f9; border-radius:8px; padding:8px 10px; }
+      .icoolChat-item-top { display:flex; justify-content:space-between; gap:8px; font-weight:600; font-size:12.5px; }
+      .icoolChat-branch { color:#0f172a; }
+      .icoolChat-status { font-size:12px; white-space:nowrap; }
+      .icoolChat-item-meta { font-size:11.5px; color:#64748b; margin-top:2px; }
+      .icoolChat-desc { font-size:11.5px; color:#475569; margin-top:4px; font-style:italic; }
+      .icoolChat-more { font-size:12px; color:#64748b; margin-top:6px; }
+      .icoolChat-export-btn { margin-top:10px; background:#16a34a; color:#fff; border:none; border-radius:8px;
+        padding:8px 12px; font-size:13px; cursor:pointer; display:inline-flex; align-items:center; gap:6px; }
+      .icoolChat-export-btn:hover { background:#15803d; }
+      .icoolChat-examples { display:flex; flex-direction:column; gap:6px; margin:8px 0; }
+      .icoolChat-chip { text-align:left; background:#ede9fe; color:#5b21b6; border:none; border-radius:8px;
+        padding:7px 10px; font-size:12.5px; cursor:pointer; }
+      .icoolChat-chip:hover { background:#ddd6fe; }
+      .icoolChat-typing { color:#64748b; font-style:italic; }
+      #icoolChatForm { display:flex; gap:8px; padding:10px; border-top:1px solid #e2e8f0; background:#fff; }
+      #icoolChatInput { flex:1; border:1px solid #cbd5e1; border-radius:10px; padding:10px 12px; font-size:13.5px; outline:none; }
+      #icoolChatInput:focus { border-color:#6d28d9; box-shadow:0 0 0 3px rgba(109,40,217,.12); }
+      #icoolChatSend { background:#6d28d9; color:#fff; border:none; border-radius:10px; width:42px; cursor:pointer; font-size:15px; }
+      #icoolChatSend:hover { background:#5b21b6; }
+      @media (max-width: 480px) {
+        #icoolChatPanel {
+          position: fixed;
+          left: 8px;
+          right: 8px;
+          bottom: 84px;
+          width: auto;
+          max-width: none;
+          height: 68vh;
+          max-height: calc(100dvh - 100px);
+        }
+      }
+    `;
+    document.head.appendChild(style);
+  }

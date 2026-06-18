@@ -1360,15 +1360,56 @@
               </div>
             </div>
             <div class="pt-4 border-t">
-              <h4 class="font-semibold text-slate-700 mb-2">Thảo luận</h4>
-              <div id="detailIssueComments"
-                class="space-y-3 max-h-60 overflow-y-auto pr-2 mb-4 bg-slate-50 p-2 rounded-md"></div>
-              <div class="flex flex-col sm:flex-row gap-2 relative">
-                <div class="flex-grow relative">
-                  <input type="text" id="newCommentInput" class="input-field w-full pr-10" placeholder="Thêm bình luận... (Gõ @ để tag người dùng)" />
-                  <div id="mentionSuggestions" class="hidden absolute top-full left-0 right-0 mt-1 bg-white border border-slate-200 rounded-lg shadow-lg max-h-48 overflow-y-auto z-50"></div>
+              <!-- Tab bar: bấm tab nào hiện nội dung tab đó -->
+              <div id="issueDetailTabs" class="flex gap-1 border-b border-slate-200 mb-3">
+                <button type="button" class="issue-tab-btn px-3 py-2 text-sm font-semibold border-b-2 -mb-px transition-colors" data-issue-tab="resolution">
+                  <i class="fas fa-screwdriver-wrench mr-1"></i>Cách giải quyết
+                </button>
+                <button type="button" class="issue-tab-btn px-3 py-2 text-sm font-semibold border-b-2 -mb-px transition-colors" data-issue-tab="discussion">
+                  <i class="fas fa-comments mr-1"></i>Thảo luận
+                </button>
+              </div>
+
+              <!-- Tab: Cách giải quyết -->
+              <div id="issueTabResolution" class="issue-tab-panel">
+                <div id="resolutionMethodContainer" class="hidden">
+                  <div id="detailResolutionCauseWrap" class="mt-1 hidden">
+                    <p class="text-sm font-medium text-slate-600 mb-1">Nguyên nhân</p>
+                    <p id="detailResolutionCause"
+                      class="p-3 bg-amber-50 border border-amber-100 rounded-md text-sm text-slate-700 whitespace-pre-line"></p>
+                  </div>
+                  <div id="detailResolutionMethodWrap" class="mt-2 hidden">
+                    <p class="text-sm font-medium text-slate-600 mb-1">Cách xử lý</p>
+                    <p id="detailResolutionMethod"
+                      class="p-3 bg-green-50 border border-green-100 rounded-md text-sm text-slate-700 whitespace-pre-line"></p>
+                  </div>
                 </div>
-                <button id="addCommentBtn" class="btn-primary w-full sm:w-auto whitespace-nowrap">Gửi</button>
+                <div id="resolutionMethodInputContainer" class="hidden">
+                  <div>
+                    <label for="resolutionCauseInput" class="font-medium text-sm">Nguyên nhân:</label>
+                    <textarea id="resolutionCauseInput" rows="2" class="input-field mt-1 w-full"
+                      placeholder="Nguyên nhân gây ra sự cố..."></textarea>
+                  </div>
+                  <div class="mt-3">
+                    <label for="resolutionMethodInput" class="font-medium text-sm">Cách xử lý:</label>
+                    <textarea id="resolutionMethodInput" rows="3" class="input-field mt-1 w-full"
+                      placeholder="Thao tác khắc phục đã thực hiện..."></textarea>
+                  </div>
+                </div>
+                <p id="resolutionEmptyHint" class="text-sm text-slate-400 italic hidden">Chưa có thông tin cách giải quyết.</p>
+              </div>
+
+              <!-- Tab: Thảo luận -->
+              <div id="issueTabDiscussion" class="issue-tab-panel hidden">
+                <div id="detailIssueComments"
+                  class="space-y-3 max-h-60 overflow-y-auto pr-2 mb-4 bg-slate-50 p-2 rounded-md"></div>
+                <div class="flex flex-col sm:flex-row gap-2 relative">
+                  <div class="flex-grow relative">
+                    <input type="text" id="newCommentInput" class="input-field w-full pr-10" placeholder="Thêm bình luận... (Gõ @ để tag người dùng)" />
+                    <div id="mentionSuggestions" class="hidden absolute top-full left-0 right-0 mt-1 bg-white border border-slate-200 rounded-lg shadow-lg max-h-48 overflow-y-auto z-50"></div>
+                  </div>
+                  <button id="addCommentBtn" class="btn-primary w-full sm:w-auto whitespace-nowrap">Gửi</button>
+                </div>
               </div>
             </div>
           </div>
