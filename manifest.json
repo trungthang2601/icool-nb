@@ -1,14 +1,19 @@
 {
+  "id": "/",
   "name": "ICOOL - Hệ thống vận hành",
   "short_name": "ICOOL",
   "description": "Hệ thống quản lý sự cố, chấm công và vận hành ICOOL",
   "lang": "vi",
+  "dir": "ltr",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
+  "display_override": ["standalone", "minimal-ui"],
   "orientation": "portrait-primary",
   "background_color": "#ffffff",
   "theme_color": "#4f46e5",
+  "categories": ["business", "productivity", "utilities"],
+  "prefer_related_applications": false,
   "icons": [
     {
       "src": "assets/images/icon-192.png",
