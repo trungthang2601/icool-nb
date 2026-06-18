@@ -7,7 +7,14 @@
   <title>Hệ thống Vận hành Thông minh</title>
   <link rel="icon" type="image/jpeg" href="assets/images/icool-logo.jpg" />
   <link rel="shortcut icon" type="image/jpeg" href="assets/images/icool-logo.jpg" />
-  <link rel="apple-touch-icon" href="assets/images/icool-logo.jpg" />
+  <link rel="apple-touch-icon" href="assets/images/icon-192.png" />
+  <!-- PWA: cài web như app, mở toàn màn hình -->
+  <link rel="manifest" href="manifest.json" />
+  <meta name="theme-color" content="#4f46e5" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <meta name="apple-mobile-web-app-title" content="ICOOL" />
   <script src="https://cdn.tailwindcss.com"></script>
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" rel="stylesheet" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -118,6 +125,12 @@
         Đăng nhập
       </button>
       <div id="authMessage" class="hidden mt-4 p-3 rounded-lg text-sm text-center"></div>
+      <div class="text-center pt-2 border-t border-slate-100">
+        <button id="installAppLoginBtn" type="button"
+          class="text-sm font-medium text-indigo-600 hover:text-indigo-500 inline-flex items-center gap-1.5">
+          <i class="fas fa-mobile-screen-button"></i> Cài đặt ứng dụng
+        </button>
+      </div>
     </div>
   </div>
 
@@ -198,6 +211,9 @@
                 <a href="#" id="myProfileDropdownBtn"
                   class="flex items-center p-2 hover:bg-slate-100"><i
                     class="fas fa-user fa-fw mr-2"></i>Hồ Sơ Của Tôi</a>
+                <a href="#" id="installAppDropdownBtn"
+                  class="flex items-center p-2 hover:bg-slate-100"><i
+                    class="fas fa-mobile-screen-button fa-fw mr-2"></i>Cài Đặt Ứng Dụng</a>
                 <a href="#" id="logoutDropdownBtn"
                   class="flex items-center p-2 text-red-600 hover:bg-slate-100 rounded-b-md"><i
                     class="fas fa-sign-out-alt fa-fw mr-2"></i>Thoát</a>
@@ -1869,7 +1885,7 @@
     })();
   </script>
   <!-- Module sau body: DOM đầy đủ trước khi app chạy; ?v= ép trình duyệt tải lại bundle -->
-  <script src="app.js?v=6" type="module"></script>
+  <script src="app.js?v=7" type="module"></script>
   <script>
     (function () {
       function failsafeDismissSkeleton() {

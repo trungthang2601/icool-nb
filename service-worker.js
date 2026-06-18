@@ -1,5 +1,5 @@
 // Service Worker for offline support
-const CACHE_NAME = 'icool-app-v13';
+const CACHE_NAME = 'icool-app-v18';
 const CDN_CACHE_NAME = 'icool-cdn-v1';
 
 // Resources to cache
@@ -8,8 +8,13 @@ const STATIC_ASSETS = [
   '/index.html',
   '/app.js',
   '/style.css',
+  '/manifest.json',
   '/assets/images/icool-logo.jpg',
-  '/assets/images/spaa-logo.png'
+  '/assets/images/spaa-logo.png',
+  '/assets/images/install-qr.png',
+  '/assets/images/icon-192.png',
+  '/assets/images/icon-512.png',
+  '/assets/images/icon-maskable-512.png'
 ];
 
 // CDN resources to cache (will be cached on demand)

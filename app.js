@@ -625,6 +625,11 @@
                 if (newWorker.state === "activated") {
                   console.log("✅ Service Worker đã được cập nhật");
                 }
+                // Có bản mới VÀ trang đang được điều khiển bởi SW cũ -> mời tải lại
+                if (newWorker.state === "installed" && navigator.serviceWorker.controller) {
+                  console.log("✅ Đã có bản cập nhật mới của ứng dụng");
+                  showAppUpdateToast();
+                }
               });
             }
           });
@@ -15557,3 +15562,112 @@ ${priorityIcon} <b>Mức độ ưu tiên:</b> ${escapeTelegramHtml(reportData.pr
     `;
     document.head.appendChild(style);
   }
+
+  // =====================================================================
+  // PWA: thông báo cập nhật + cài đặt ứng dụng (QR + nút cài + hướng dẫn iPhone)
+  // =====================================================================
+
+  // Hiện thanh thông báo khi có bản cập nhật mới (PWA) — bấm để tải lại.
+  function showAppUpdateToast() {
+    if (document.getElementById("appUpdateToast")) return;
+    const toast = document.createElement("div");
+    toast.id = "appUpdateToast";
+    toast.style.cssText =
+      "position:fixed;left:50%;bottom:24px;transform:translateX(-50%);z-index:10000;" +
+      "background:#1e293b;color:#fff;padding:12px 16px;border-radius:12px;display:flex;align-items:center;gap:12px;" +
+      "box-shadow:0 10px 30px rgba(0,0,0,.3);font-family:'Inter',sans-serif;font-size:14px;max-width:calc(100vw - 32px);";
+    toast.innerHTML =
+      '<span><i class="fas fa-arrows-rotate" style="margin-right:8px"></i>Đã có phiên bản mới</span>' +
+      '<button id="appUpdateReloadBtn" style="background:#4f46e5;color:#fff;border:none;border-radius:8px;padding:7px 14px;font-weight:600;cursor:pointer;white-space:nowrap;">Tải lại</button>' +
+      '<button id="appUpdateDismissBtn" style="background:transparent;color:#94a3b8;border:none;cursor:pointer;font-size:16px;">&times;</button>';
+    document.body.appendChild(toast);
+    document.getElementById("appUpdateReloadBtn").addEventListener("click", () => window.location.reload());
+    document.getElementById("appUpdateDismissBtn").addEventListener("click", () => toast.remove());
+  }
+
+  // ---- Cài đặt ứng dụng (PWA): QR + nút cài đặt + hướng dẫn iPhone ----
+  let deferredInstallPrompt = null;
+  window.addEventListener("beforeinstallprompt", (e) => {
+    // Chặn prompt mặc định để tự hiện nút "Cài đặt ngay"
+    e.preventDefault();
+    deferredInstallPrompt = e;
+    const btn = document.getElementById("installAppActionBtn");
+    if (btn) btn.classList.remove("hidden");
+  });
+
+  function isIosDevice() {
+    return (
+      /iphone|ipad|ipod/i.test(navigator.userAgent) ||
+      (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1)
+    );
+  }
+
+  function openInstallAppModal() {
+    let modal = document.getElementById("installAppModal");
+    if (!modal) {
+      const isIos = isIosDevice();
+      modal = document.createElement("div");
+      modal.id = "installAppModal";
+      modal.style.cssText =
+        "position:fixed;inset:0;z-index:10001;background:rgba(15,23,42,.55);display:flex;" +
+        "align-items:center;justify-content:center;padding:16px;font-family:'Inter',sans-serif;";
+      modal.innerHTML =
+        '<div style="background:#fff;border-radius:16px;max-width:380px;width:100%;max-height:90vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.3);">' +
+        '<div style="display:flex;justify-content:space-between;align-items:center;padding:14px 18px;border-bottom:1px solid #e2e8f0;">' +
+        '<h3 style="font-weight:700;font-size:16px;color:#1e293b;margin:0;"><i class="fas fa-mobile-screen-button" style="color:#4f46e5;margin-right:8px"></i>Cài đặt ứng dụng ICOOL</h3>' +
+        '<button id="installAppCloseBtn" style="background:none;border:none;font-size:22px;color:#64748b;cursor:pointer;line-height:1;">&times;</button>' +
+        "</div>" +
+        '<div style="padding:18px;text-align:center;">' +
+        '<p style="font-size:13.5px;color:#475569;margin:0 0 14px;">Quét mã QR bằng điện thoại để mở và cài ứng dụng:</p>' +
+        '<img src="assets/images/install-qr.png" alt="QR cài đặt ICOOL" style="width:200px;height:200px;border:1px solid #e2e8f0;border-radius:12px;padding:8px;background:#fff;" />' +
+        '<p style="font-size:12px;color:#94a3b8;margin:8px 0 16px;word-break:break-all;">https://post.iticool.com</p>' +
+        '<button id="installAppActionBtn" class="' +
+        (deferredInstallPrompt ? "" : "hidden") +
+        '" style="background:#4f46e5;color:#fff;border:none;border-radius:10px;padding:11px 18px;font-weight:600;font-size:14px;cursor:pointer;width:100%;margin-bottom:12px;"><i class="fas fa-download" style="margin-right:8px"></i>Cài đặt ngay</button>' +
+        '<div style="text-align:left;background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:12px;font-size:12.5px;color:#475569;line-height:1.5;">' +
+        (isIos
+          ? '<b>iPhone/iPad (Safari):</b><br>1. Mở bằng <b>Safari</b><br>2. Bấm nút Chia sẻ <i class="fas fa-arrow-up-from-bracket"></i><br>3. Chọn <b>"Thêm vào MH chính"</b>'
+          : '<b>Android (Chrome):</b><br>1. Bấm <b>"Cài đặt ngay"</b> ở trên<br>(hoặc menu ⋮ → "Cài đặt ứng dụng")<br><br><b>iPhone:</b> mở bằng Safari → Chia sẻ → "Thêm vào MH chính".') +
+        "</div>" +
+        "</div>" +
+        "</div>";
+      document.body.appendChild(modal);
+      modal.addEventListener("click", (e) => {
+        if (e.target === modal) modal.style.display = "none";
+      });
+      modal.querySelector("#installAppCloseBtn").addEventListener("click", () => {
+        modal.style.display = "none";
+      });
+      modal.querySelector("#installAppActionBtn").addEventListener("click", async () => {
+        if (!deferredInstallPrompt) {
+          alert("Trình duyệt chưa sẵn sàng cài đặt. Vui lòng dùng Chrome (Android) hoặc làm theo hướng dẫn cho iPhone.");
+          return;
+        }
+        deferredInstallPrompt.prompt();
+        await deferredInstallPrompt.userChoice;
+        deferredInstallPrompt = null;
+        modal.style.display = "none";
+      });
+    }
+    modal.style.display = "flex";
+  }
+
+  (function wireInstallAppButton() {
+    const btn = document.getElementById("installAppDropdownBtn");
+    if (btn) {
+      btn.addEventListener("click", (e) => {
+        e.preventDefault();
+        const menu = document.getElementById("userDropdownMenu");
+        if (menu) menu.classList.remove("show");
+        openInstallAppModal();
+      });
+    }
+    // Nút cài đặt ngay tại màn hình đăng nhập (trước khi đăng nhập)
+    const loginBtn = document.getElementById("installAppLoginBtn");
+    if (loginBtn) {
+      loginBtn.addEventListener("click", (e) => {
+        e.preventDefault();
+        openInstallAppModal();
+      });
+    }
+  })();
