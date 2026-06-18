@@ -1885,6 +1885,16 @@
     })();
   </script>
   <!-- Module sau body: DOM đầy đủ trước khi app chạy; ?v= ép trình duyệt tải lại bundle -->
+  <!-- Đăng ký Service Worker độc lập (không phụ thuộc app.js) để PWA/PWABuilder luôn nhận diện -->
+  <script>
+    if ("serviceWorker" in navigator) {
+      window.addEventListener("load", function () {
+        navigator.serviceWorker.register("/service-worker.js").catch(function (e) {
+          console.warn("SW register (inline) failed:", e);
+        });
+      });
+    }
+  </script>
   <script src="app.js?v=7" type="module"></script>
   <script>
     (function () {

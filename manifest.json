@@ -14,6 +14,22 @@
   "theme_color": "#4f46e5",
   "categories": ["business", "productivity", "utilities"],
   "prefer_related_applications": false,
+  "screenshots": [
+    {
+      "src": "assets/images/screenshot-mobile.png",
+      "type": "image/png",
+      "sizes": "1080x1920",
+      "form_factor": "narrow",
+      "label": "Màn hình đăng nhập ICOOL trên điện thoại"
+    },
+    {
+      "src": "assets/images/screenshot-desktop.png",
+      "type": "image/png",
+      "sizes": "1280x800",
+      "form_factor": "wide",
+      "label": "Màn hình đăng nhập ICOOL trên máy tính"
+    }
+  ],
   "icons": [
     {
       "src": "assets/images/icon-192.png",
