@@ -512,6 +512,7 @@
   let authEmailInput, authPasswordInput, loginBtn, authMessage;
   let loggedInUserDisplay, dropdownUserName, dropdownUserRole;
   let notificationToggle, notificationBadge, notificationMenu, notificationList;
+  let latestNotifications = [];
   let editAccountModal,
     issueDetailModal,
     cameraModal,
@@ -989,9 +990,9 @@
         console.log(`Escalating issue: ${issueDoc.id}`);
         const message = `CẢNH BÁO: Sự cố tại '${issueData.issueBranch}' (${issueData.issueType}) đã quá hạn xử lý!`;
 
-        // Send notification to all users
+        // Send notification to all users (kèm issueId để bấm thông báo mở đúng sự cố)
         for (const userId of allUserIds) {
-          await sendNotification(userId, message);
+          await sendNotification(userId, message, issueDoc.id);
         }
 
         // Mark as escalated to prevent re-notifying
@@ -1584,7 +1585,68 @@
   }
 
   // Renders notification list, unread count, and item action handlers.
+  function isIssueRelatedNotification(n) {
+    const msg = n.message || "";
+    return Boolean(
+      n.issueId ||
+      /Sự cố tại '/.test(msg) ||
+      /nhiệm vụ mới:/i.test(msg)
+    );
+  }
+
+  // Tìm issueId từ nội dung thông báo cũ (trước khi lưu issueId vào notification).
+  async function resolveIssueIdFromNotificationMessage(message) {
+    if (!message) return null;
+
+    const escalationMatch = message.match(/Sự cố tại '([^']+)'\s*\(([^)]+)\)/);
+    if (escalationMatch) {
+      const [, branch, issueType] = escalationMatch;
+      const q = query(
+        collection(db, `/artifacts/${canvasAppId}/public/data/issueReports`),
+        where("issueBranch", "==", branch),
+        where("issueType", "==", issueType),
+        limit(10)
+      );
+      const snap = await getDocs(q);
+      if (!snap.empty) {
+        const sorted = snap.docs
+          .map((d) => ({ id: d.id, data: d.data() }))
+          .sort((a, b) => {
+            const ta = a.data.reportDate ? new Date(a.data.reportDate).getTime() : 0;
+            const tb = b.data.reportDate ? new Date(b.data.reportDate).getTime() : 0;
+            return tb - ta;
+          });
+        return sorted[0].id;
+      }
+    }
+
+    const taskMatch = message.match(/nhiệm vụ mới:\s*(.+?)\s*tại\s*(.+)$/i);
+    if (taskMatch) {
+      const [, issueType, branch] = taskMatch;
+      const q = query(
+        collection(db, `/artifacts/${canvasAppId}/public/data/issueReports`),
+        where("issueBranch", "==", branch.trim()),
+        where("issueType", "==", issueType.trim()),
+        limit(10)
+      );
+      const snap = await getDocs(q);
+      if (!snap.empty) {
+        const sorted = snap.docs
+          .map((d) => ({ id: d.id, data: d.data() }))
+          .sort((a, b) => {
+            const ta = a.data.reportDate ? new Date(a.data.reportDate).getTime() : 0;
+            const tb = b.data.reportDate ? new Date(b.data.reportDate).getTime() : 0;
+            return tb - ta;
+          });
+        return sorted[0].id;
+      }
+    }
+
+    return null;
+  }
+
   function renderNotifications(notifications) {
+    latestNotifications = notifications;
     const unreadCount = notifications.filter((n) => !n.read).length;
     notificationBadge.textContent = unreadCount;
     notificationBadge.classList.toggle("show", unreadCount > 0);
@@ -1608,7 +1670,7 @@
                 ? new Date(n.timestamp.toDate()).toLocaleString("vi-VN")
                 : "Vừa xong";
               const hasIssueId = n.issueId ? `data-issue-id="${n.issueId}"` : "";
-              const clickableClass = n.issueId ? "notification-clickable" : "";
+              const clickableClass = isIssueRelatedNotification(n) ? "notification-clickable" : "";
               const readButton = !n.read 
                 ? `<button class="mark-read-btn text-xs text-indigo-600 hover:text-indigo-700 ml-2" data-notification-id="${n.id}" title="Đánh dấu đã đọc">
                     <i class="fas fa-check"></i>
@@ -1617,7 +1679,7 @@
               return `<div class="notification-item p-3 hover:bg-slate-50 flex items-start justify-between ${
                 clickableClass
               } ${n.read ? "" : "unread"}" ${hasIssueId} data-notification-id="${n.id}">
-                <div class="flex-1 ${n.issueId ? "cursor-pointer" : ""}">
+                <div class="flex-1 ${clickableClass ? "cursor-pointer" : ""}">
                   <p class="text-sm">${escapeHtml(n.message || "")}</p>
                   <p class="text-xs text-slate-400 mt-1">${escapeHtml(timestamp)}</p>
                 </div>
@@ -13942,8 +14004,16 @@ ${priorityIcon} <b>Mức độ ưu tiên:</b> ${escapeTelegramHtml(reportData.pr
 
       const clickableItem = e.target.closest(".notification-clickable");
       if (!clickableItem) return;
-      const issueId = clickableItem.getAttribute("data-issue-id");
       const notificationId = clickableItem.getAttribute("data-notification-id");
+      let issueId = clickableItem.getAttribute("data-issue-id");
+      if (!issueId && notificationId) {
+        const notification = latestNotifications.find((n) => n.id === notificationId);
+        if (notification?.issueId) {
+          issueId = notification.issueId;
+        } else if (notification?.message) {
+          issueId = await resolveIssueIdFromNotificationMessage(notification.message);
+        }
+      }
       if (!issueId) return;
 
       if (notificationId && !clickableItem.classList.contains("read")) {
