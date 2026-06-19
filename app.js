@@ -15121,17 +15121,31 @@ ${priorityIcon} <b>Mức độ ưu tiên:</b> ${escapeTelegramHtml(reportData.pr
       status: "",
       reporterName: "",
       keyword: "",
+      reportId: "",
       dateFrom: null,
       dateTo: null,
       rangeLabel: "",
       intent: "list",
     };
 
-    // Ý định: đếm/thống kê hay xuất excel hay liệt kê
-    if (/(xuat|tai|export).*(excel|file)|xuat excel|file excel/.test(norm)) {
+    // Ý định: đếm/thống kê, xuất ID, xuất excel hay liệt kê
+    if (/(xuat|tai|export|lay|danh sach|list).*\bid\b|\bid\b.*(su co|suc co|bao cao)|ma su co/.test(norm)) {
+      filters.intent = "export_ids";
+    } else if (/(xuat|tai|export).*(excel|file)|xuat excel|file excel/.test(norm)) {
       filters.intent = "export";
     } else if (/(bao nhieu|so luong|dem|thong ke|tong so|co may)/.test(norm)) {
       filters.intent = "count";
+    }
+
+    // Tra cứu trực tiếp theo mã ID sự cố (Firestore document id)
+    const idExplicit = text.match(/\b(?:id|ma)\s*(?:su\s*co|sự\s*cố|bao\s*cao)?\s*[:#]?\s*([A-Za-z0-9]{15,28})\b/i);
+    const idBare = text.match(/\b([A-Za-z0-9]{18,28})\b/);
+    if (idExplicit) {
+      filters.reportId = idExplicit[1];
+    } else if (idBare && /(id|ma|tra cuu|tim|chi tiet|su co|suc co)/.test(norm)) {
+      filters.reportId = idBare[1];
+    } else if (/^[A-Za-z0-9]{18,28}$/.test(text.trim())) {
+      filters.reportId = text.trim();
     }
 
     // Chi nhánh: so khớp tên (đã bỏ dấu) trong câu
@@ -15236,6 +15250,21 @@ ${priorityIcon} <b>Mức độ ưu tiên:</b> ${escapeTelegramHtml(reportData.pr
       filters.dateFrom = new Date(y, 0, 1, 0, 0, 0, 0);
       filters.dateTo = new Date(y, 11, 31, 23, 59, 59, 999);
       filters.rangeLabel = `năm ${y}`;
+    } else {
+      // Một ngày cụ thể: "ngày 24/5/2026" hoặc "24/5/2026"
+      const singleDayMatch =
+        text.match(/(?:ngày|ngay)\s*(\d{1,2})[/-](\d{1,2})(?:[/-](\d{2,4}))?/i) ||
+        text.match(/(?:^|\s)(\d{1,2})[/-](\d{1,2})[/-](\d{2,4})(?:\s|$)/);
+      if (singleDayMatch) {
+        const day = parseInt(singleDayMatch[1]);
+        const month = parseInt(singleDayMatch[2]);
+        const year = singleDayMatch[3] ? normalizeYear(singleDayMatch[3]) : now.getFullYear();
+        if (day >= 1 && day <= 31 && month >= 1 && month <= 12) {
+          filters.dateFrom = startOfDay(new Date(year, month - 1, day));
+          filters.dateTo = endOfDay(new Date(year, month - 1, day));
+          filters.rangeLabel = `ngày ${day}/${month}/${year}`;
+        }
+      }
     }
 
     return filters;
@@ -15284,6 +15313,7 @@ ${priorityIcon} <b>Mức độ ưu tiên:</b> ${escapeTelegramHtml(reportData.pr
 
   // Một báo cáo có khớp toàn bộ bộ lọc không (so khớp client-side).
   function chatbotReportMatches(report, filters) {
+    if (filters.reportId && report.id !== filters.reportId) return false;
     if (filters.branch && (report.issueBranch || "") !== filters.branch) return false;
     if (filters.issueType && (report.issueType || "") !== filters.issueType) return false;
     if (filters.status && (report.status || "") !== filters.status) return false;
@@ -15310,6 +15340,17 @@ ${priorityIcon} <b>Mức độ ưu tiên:</b> ${escapeTelegramHtml(reportData.pr
 
   // Đọc báo cáo từ Firestore (phân trang), tôn trọng phân quyền, rồi lọc client-side.
   async function chatbotFetchReports(filters) {
+    if (filters.reportId) {
+      const docRef = doc(
+        db,
+        `/artifacts/${canvasAppId}/public/data/issueReports`,
+        filters.reportId
+      );
+      const docSnap = await getDoc(docRef);
+      if (!docSnap.exists()) return [];
+      return [{ id: docSnap.id, ...docSnap.data() }];
+    }
+
     let all = [];
     let lastVisible = null;
     for (let i = 0; i < CHATBOT_FETCH_MAX_PAGES; i++) {
@@ -15332,6 +15373,7 @@ ${priorityIcon} <b>Mức độ ưu tiên:</b> ${escapeTelegramHtml(reportData.pr
     if (filters.status) parts.push(`trạng thái <b>${filters.status}</b>`);
     if (filters.reporterName) parts.push(`người gửi <b>${filters.reporterName}</b>`);
     if (filters.keyword) parts.push(`nội dung chứa <b>"${escapeChatbotHtml(filters.keyword)}"</b>`);
+    if (filters.reportId) parts.push(`ID <b>${escapeChatbotHtml(filters.reportId)}</b>`);
     if (filters.rangeLabel) parts.push(`thời gian <b>${filters.rangeLabel}</b>`);
     return parts.length ? parts.join(", ") : "tất cả báo cáo";
   }
@@ -15351,6 +15393,7 @@ ${priorityIcon} <b>Mức độ ưu tiên:</b> ${escapeTelegramHtml(reportData.pr
       return d && !isNaN(d.getTime()) ? d.toLocaleString("vi-VN") : "";
     };
     const rows = reports.map((r) => ({
+      "ID sự cố": r.id || "",
       "Chi nhánh": r.issueBranch || "N/A",
       "Người gửi": r.reporterName || "N/A",
       "Loại sự cố": r.issueType || "N/A",
@@ -15378,9 +15421,45 @@ ${priorityIcon} <b>Mức độ ưu tiên:</b> ${escapeTelegramHtml(reportData.pr
     }
   }
 
+  // Xuất danh sách ID sự cố ra file .txt (một ID mỗi dòng).
+  function chatbotExportIds(reports, filters) {
+    if (!reports || reports.length === 0) {
+      addChatbotMessage("bot", "Không có ID để xuất.");
+      return;
+    }
+    const ids = reports.map((r) => r.id).filter(Boolean);
+    const blob = new Blob([ids.join("\n") + "\n"], { type: "text/plain;charset=utf-8" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    const stamp = new Date().toISOString().split("T")[0].replace(/-/g, "");
+    a.download = `id_su_co_${stamp}.txt`;
+    a.click();
+    URL.revokeObjectURL(a.href);
+    try {
+      logActivity("Chatbot Export Issue IDs", { recordCount: ids.length }, "issue");
+    } catch (e) {
+      /* bỏ qua */
+    }
+  }
+
+  function chatbotCopyText(text) {
+    if (navigator.clipboard?.writeText) {
+      return navigator.clipboard.writeText(text);
+    }
+    const ta = document.createElement("textarea");
+    ta.value = text;
+    ta.style.position = "fixed";
+    ta.style.left = "-9999px";
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand("copy");
+    document.body.removeChild(ta);
+    return Promise.resolve();
+  }
+
   // Render một danh sách báo cáo trong khung chat (tối đa 8 dòng).
-  // Chỉ hiển thị nút "Xuất Excel" khi showExport = true (người dùng yêu cầu xuất).
-  function renderChatbotResults(reports, filters, showExport = false) {
+  // exportMode: false | "excel" | "ids"
+  function renderChatbotResults(reports, filters, exportMode = false) {
     const total = reports.length;
     if (total === 0) {
       addChatbotMessage(
@@ -15406,6 +15485,7 @@ ${priorityIcon} <b>Mức độ ưu tiên:</b> ${escapeTelegramHtml(reportData.pr
             <span class="icoolChat-branch">${r.issueBranch || "N/A"}</span>
             <span class="icoolChat-status" style="color:${statusColor(r.status)}">${r.status || "N/A"}</span>
           </div>
+          <div class="icoolChat-item-id">ID: <button type="button" class="icoolChat-id-code" data-copy-id="${escapeChatbotHtml(r.id)}" title="Bấm để sao chép">${escapeChatbotHtml(r.id)}</button></div>
           <div class="icoolChat-item-meta">
             <span>${r.issueType || "N/A"}</span> ·
             <span>${r.reporterName || "N/A"}</span> ·
@@ -15416,8 +15496,11 @@ ${priorityIcon} <b>Mức độ ưu tiên:</b> ${escapeTelegramHtml(reportData.pr
     });
     html += `</div>`;
     if (total > SHOW) html += `<div class="icoolChat-more">…và ${total - SHOW} báo cáo khác.</div>`;
-    if (showExport) {
-      html += `<button type="button" class="icoolChat-export-btn" data-chatbot-export="1"><i class="fas fa-file-excel"></i> Xuất Excel (${total})</button>`;
+    if (exportMode === "excel") {
+      html += `<button type="button" class="icoolChat-export-btn" data-chatbot-export="excel"><i class="fas fa-file-excel"></i> Xuất Excel (${total})</button>`;
+    } else if (exportMode === "ids") {
+      html += `<button type="button" class="icoolChat-export-btn icoolChat-export-ids-btn" data-chatbot-export="ids"><i class="fas fa-list"></i> Tải file ID (${total})</button>`;
+      html += `<button type="button" class="icoolChat-export-btn icoolChat-copy-ids-btn" data-chatbot-copy-ids="1"><i class="fas fa-copy"></i> Sao chép tất cả ID</button>`;
     }
 
     addChatbotMessage("bot", html);
@@ -15470,8 +15553,11 @@ ${priorityIcon} <b>Mức độ ưu tiên:</b> ${escapeTelegramHtml(reportData.pr
           chatbotLastFilters = filters;
         }
         addChatbotMessage("bot", html);
+      } else if (filters.intent === "export_ids") {
+        renderChatbotResults(reports, filters, "ids");
+        if (reports.length > 0) chatbotExportIds(reports, filters);
       } else if (filters.intent === "export") {
-        renderChatbotResults(reports, filters, true);
+        renderChatbotResults(reports, filters, "excel");
         if (reports.length > 0) chatbotExportToExcel(reports, filters);
       } else {
         renderChatbotResults(reports, filters, false);
@@ -15490,9 +15576,11 @@ ${priorityIcon} <b>Mức độ ưu tiên:</b> ${escapeTelegramHtml(reportData.pr
         <button type="button" class="icoolChat-chip" data-chatbot-suggest="sự cố chi nhánh Mạc Đĩnh Chi tháng này">chi nhánh Mạc Đĩnh Chi tháng này</button>
         <button type="button" class="icoolChat-chip" data-chatbot-suggest="có bao nhiêu sự cố hệ thống tháng này">bao nhiêu sự cố hệ thống tháng này</button>
         <button type="button" class="icoolChat-chip" data-chatbot-suggest="xuất excel sự cố đã giải quyết tháng trước">xuất excel đã giải quyết tháng trước</button>
+        <button type="button" class="icoolChat-chip" data-chatbot-suggest="xuất id sự cố ngày 24/5/2026">xuất id sự cố ngày 24/5/2026</button>
         <button type="button" class="icoolChat-chip" data-chatbot-suggest='sự cố mô tả "không mở được máy"'>tìm theo mô tả "không mở được máy"</button>
       </div>
-      Mình hiểu được: <b>chi nhánh, loại sự cố, trạng thái, người gửi, thời gian</b> (hôm nay, tuần này, tháng N, quý N, từ… đến…).<br>
+      Mình hiểu được: <b>chi nhánh, loại sự cố, trạng thái, người gửi, thời gian</b> (hôm nay, tuần này, tháng N, <b>ngày dd/mm/yyyy</b>, quý N, từ… đến…).<br>
+      Xuất dữ liệu: <b>xuất excel …</b> hoặc <b>xuất id sự cố …</b>. Tra theo mã: gõ <b>id JAlZ8dZfwEVOb5ecaYwo</b> hoặc chỉ mã ID.<br>
       Tìm theo nội dung: đặt từ khóa trong ngoặc kép hoặc sau chữ <b>mô tả / nguyên nhân / chứa / từ khóa</b> — ví dụ: <i>sự cố chứa "treo máy"</i>.`;
   }
 
@@ -15589,7 +15677,28 @@ ${priorityIcon} <b>Mức độ ưu tiên:</b> ${escapeTelegramHtml(reportData.pr
       }
       const exportBtn = e.target.closest("[data-chatbot-export]");
       if (exportBtn) {
-        chatbotExportToExcel(chatbotLastResults, chatbotLastFilters || parseChatbotQuery(""));
+        const mode = exportBtn.getAttribute("data-chatbot-export");
+        if (mode === "ids") chatbotExportIds(chatbotLastResults, chatbotLastFilters);
+        else chatbotExportToExcel(chatbotLastResults, chatbotLastFilters || parseChatbotQuery(""));
+        return;
+      }
+      const copyAllBtn = e.target.closest("[data-chatbot-copy-ids]");
+      if (copyAllBtn) {
+        const ids = (chatbotLastResults || []).map((r) => r.id).filter(Boolean).join("\n");
+        if (!ids) return;
+        chatbotCopyText(ids).then(() => {
+          addChatbotMessage("bot", `Đã sao chép <b>${chatbotLastResults.length}</b> ID vào clipboard.`);
+        });
+        return;
+      }
+      const copyIdBtn = e.target.closest("[data-copy-id]");
+      if (copyIdBtn) {
+        const id = copyIdBtn.getAttribute("data-copy-id");
+        if (!id) return;
+        chatbotCopyText(id).then(() => {
+          copyIdBtn.textContent = "Đã copy!";
+          setTimeout(() => { copyIdBtn.textContent = id; }, 1500);
+        });
       }
     });
   }
@@ -15627,11 +15736,18 @@ ${priorityIcon} <b>Mức độ ưu tiên:</b> ${escapeTelegramHtml(reportData.pr
       .icoolChat-branch { color:#0f172a; }
       .icoolChat-status { font-size:12px; white-space:nowrap; }
       .icoolChat-item-meta { font-size:11.5px; color:#64748b; margin-top:2px; }
+      .icoolChat-item-id { font-size:11px; color:#475569; margin-top:3px; }
+      .icoolChat-id-code { background:#e2e8f0; border:none; border-radius:4px; padding:1px 6px; font-family:monospace; font-size:10.5px; cursor:pointer; color:#334155; max-width:100%; overflow:hidden; text-overflow:ellipsis; }
+      .icoolChat-id-code:hover { background:#cbd5e1; }
       .icoolChat-desc { font-size:11.5px; color:#475569; margin-top:4px; font-style:italic; }
       .icoolChat-more { font-size:12px; color:#64748b; margin-top:6px; }
       .icoolChat-export-btn { margin-top:10px; background:#16a34a; color:#fff; border:none; border-radius:8px;
-        padding:8px 12px; font-size:13px; cursor:pointer; display:inline-flex; align-items:center; gap:6px; }
+        padding:8px 12px; font-size:13px; cursor:pointer; display:inline-flex; align-items:center; gap:6px; margin-right:6px; }
       .icoolChat-export-btn:hover { background:#15803d; }
+      .icoolChat-export-ids-btn { background:#4f46e5; }
+      .icoolChat-export-ids-btn:hover { background:#4338ca; }
+      .icoolChat-copy-ids-btn { background:#0ea5e9; }
+      .icoolChat-copy-ids-btn:hover { background:#0284c7; }
       .icoolChat-examples { display:flex; flex-direction:column; gap:6px; margin:8px 0; }
       .icoolChat-chip { text-align:left; background:#ede9fe; color:#5b21b6; border:none; border-radius:8px;
         padding:7px 10px; font-size:12.5px; cursor:pointer; }
