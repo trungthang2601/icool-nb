@@ -15128,9 +15128,13 @@ ${priorityIcon} <b>Mức độ ưu tiên:</b> ${escapeTelegramHtml(reportData.pr
       intent: "list",
     };
 
-    // Ý định: đếm/thống kê, xuất ID, xuất excel hay liệt kê
-    if (/(xuat|tai|export|lay|danh sach|list).*\bid\b|\bid\b.*(su co|suc co|bao cao)|ma su co/.test(norm)) {
-      filters.intent = "export_ids";
+    // Ý định: đếm/thống kê, hiện ID, tải file ID, sao chép ID, xuất excel hay liệt kê
+    if (/(xuat|tai|export|download).*\b(id|ma)\b.*(file|txt)|\b(file|txt)\b.*\b(id|ma)\b|(tai|xuat)\s*file\s*(id|ma)/.test(norm)) {
+      filters.intent = "download_id_file";
+    } else if (/(sao chep|copy).*\b(id|ma)\b|\b(id|ma)\b.*(sao chep|copy)/.test(norm)) {
+      filters.intent = "copy_ids";
+    } else if (/(xuat|xem|hien|hien thi|lay|danh sach|list).*\b(id|ma)\b|\b(id|ma)\b.*(su co|suc co|bao cao)|ma su co/.test(norm)) {
+      filters.intent = "show_ids";
     } else if (/(xuat|tai|export).*(excel|file)|xuat excel|file excel/.test(norm)) {
       filters.intent = "export";
     } else if (/(bao nhieu|so luong|dem|thong ke|tong so|co may)/.test(norm)) {
@@ -15485,7 +15489,7 @@ ${priorityIcon} <b>Mức độ ưu tiên:</b> ${escapeTelegramHtml(reportData.pr
             <span class="icoolChat-branch">${r.issueBranch || "N/A"}</span>
             <span class="icoolChat-status" style="color:${statusColor(r.status)}">${r.status || "N/A"}</span>
           </div>
-          <div class="icoolChat-item-id">ID: <button type="button" class="icoolChat-id-code" data-copy-id="${escapeChatbotHtml(r.id)}" title="Bấm để sao chép">${escapeChatbotHtml(r.id)}</button></div>
+          ${exportMode === "ids" ? `<div class="icoolChat-item-id">ID: <button type="button" class="icoolChat-id-code" data-copy-id="${escapeChatbotHtml(r.id)}" title="Bấm để sao chép">${escapeChatbotHtml(r.id)}</button></div>` : ""}
           <div class="icoolChat-item-meta">
             <span>${r.issueType || "N/A"}</span> ·
             <span>${r.reporterName || "N/A"}</span> ·
@@ -15498,9 +15502,6 @@ ${priorityIcon} <b>Mức độ ưu tiên:</b> ${escapeTelegramHtml(reportData.pr
     if (total > SHOW) html += `<div class="icoolChat-more">…và ${total - SHOW} báo cáo khác.</div>`;
     if (exportMode === "excel") {
       html += `<button type="button" class="icoolChat-export-btn" data-chatbot-export="excel"><i class="fas fa-file-excel"></i> Xuất Excel (${total})</button>`;
-    } else if (exportMode === "ids") {
-      html += `<button type="button" class="icoolChat-export-btn icoolChat-export-ids-btn" data-chatbot-export="ids"><i class="fas fa-list"></i> Tải file ID (${total})</button>`;
-      html += `<button type="button" class="icoolChat-export-btn icoolChat-copy-ids-btn" data-chatbot-copy-ids="1"><i class="fas fa-copy"></i> Sao chép tất cả ID</button>`;
     }
 
     addChatbotMessage("bot", html);
@@ -15553,9 +15554,19 @@ ${priorityIcon} <b>Mức độ ưu tiên:</b> ${escapeTelegramHtml(reportData.pr
           chatbotLastFilters = filters;
         }
         addChatbotMessage("bot", html);
-      } else if (filters.intent === "export_ids") {
+      } else if (filters.intent === "show_ids" || filters.intent === "download_id_file") {
         renderChatbotResults(reports, filters, "ids");
-        if (reports.length > 0) chatbotExportIds(reports, filters);
+        if (filters.intent === "download_id_file" && reports.length > 0) {
+          chatbotExportIds(reports, filters);
+        }
+      } else if (filters.intent === "copy_ids") {
+        if (reports.length > 0) {
+          const ids = reports.map((r) => r.id).filter(Boolean).join("\n");
+          await chatbotCopyText(ids);
+          addChatbotMessage("bot", `Đã sao chép <b>${reports.length}</b> ID vào clipboard.`);
+        } else {
+          addChatbotMessage("bot", "Không có ID để sao chép.");
+        }
       } else if (filters.intent === "export") {
         renderChatbotResults(reports, filters, "excel");
         if (reports.length > 0) chatbotExportToExcel(reports, filters);
@@ -15577,10 +15588,11 @@ ${priorityIcon} <b>Mức độ ưu tiên:</b> ${escapeTelegramHtml(reportData.pr
         <button type="button" class="icoolChat-chip" data-chatbot-suggest="có bao nhiêu sự cố hệ thống tháng này">bao nhiêu sự cố hệ thống tháng này</button>
         <button type="button" class="icoolChat-chip" data-chatbot-suggest="xuất excel sự cố đã giải quyết tháng trước">xuất excel đã giải quyết tháng trước</button>
         <button type="button" class="icoolChat-chip" data-chatbot-suggest="xuất id sự cố ngày 24/5/2026">xuất id sự cố ngày 24/5/2026</button>
+        <button type="button" class="icoolChat-chip" data-chatbot-suggest="tải file id sự cố ngày 24/5/2026">tải file id (txt)</button>
         <button type="button" class="icoolChat-chip" data-chatbot-suggest='sự cố mô tả "không mở được máy"'>tìm theo mô tả "không mở được máy"</button>
       </div>
       Mình hiểu được: <b>chi nhánh, loại sự cố, trạng thái, người gửi, thời gian</b> (hôm nay, tuần này, tháng N, <b>ngày dd/mm/yyyy</b>, quý N, từ… đến…).<br>
-      Xuất dữ liệu: <b>xuất excel …</b> hoặc <b>xuất id sự cố …</b>. Tra theo mã: gõ <b>id JAlZ8dZfwEVOb5ecaYwo</b> hoặc chỉ mã ID.<br>
+      <b>Xuất id …</b> → hiện ID trên màn hình. <b>Tải file id …</b> → tải .txt. <b>Sao chép id …</b> → copy clipboard. Tra mã: <b>id JAlZ8dZfwEVOb5ecaYwo</b>.<br>
       Tìm theo nội dung: đặt từ khóa trong ngoặc kép hoặc sau chữ <b>mô tả / nguyên nhân / chứa / từ khóa</b> — ví dụ: <i>sự cố chứa "treo máy"</i>.`;
   }
 
@@ -15677,18 +15689,7 @@ ${priorityIcon} <b>Mức độ ưu tiên:</b> ${escapeTelegramHtml(reportData.pr
       }
       const exportBtn = e.target.closest("[data-chatbot-export]");
       if (exportBtn) {
-        const mode = exportBtn.getAttribute("data-chatbot-export");
-        if (mode === "ids") chatbotExportIds(chatbotLastResults, chatbotLastFilters);
-        else chatbotExportToExcel(chatbotLastResults, chatbotLastFilters || parseChatbotQuery(""));
-        return;
-      }
-      const copyAllBtn = e.target.closest("[data-chatbot-copy-ids]");
-      if (copyAllBtn) {
-        const ids = (chatbotLastResults || []).map((r) => r.id).filter(Boolean).join("\n");
-        if (!ids) return;
-        chatbotCopyText(ids).then(() => {
-          addChatbotMessage("bot", `Đã sao chép <b>${chatbotLastResults.length}</b> ID vào clipboard.`);
-        });
+        chatbotExportToExcel(chatbotLastResults, chatbotLastFilters || parseChatbotQuery(""));
         return;
       }
       const copyIdBtn = e.target.closest("[data-copy-id]");
@@ -15742,12 +15743,8 @@ ${priorityIcon} <b>Mức độ ưu tiên:</b> ${escapeTelegramHtml(reportData.pr
       .icoolChat-desc { font-size:11.5px; color:#475569; margin-top:4px; font-style:italic; }
       .icoolChat-more { font-size:12px; color:#64748b; margin-top:6px; }
       .icoolChat-export-btn { margin-top:10px; background:#16a34a; color:#fff; border:none; border-radius:8px;
-        padding:8px 12px; font-size:13px; cursor:pointer; display:inline-flex; align-items:center; gap:6px; margin-right:6px; }
+        padding:8px 12px; font-size:13px; cursor:pointer; display:inline-flex; align-items:center; gap:6px; }
       .icoolChat-export-btn:hover { background:#15803d; }
-      .icoolChat-export-ids-btn { background:#4f46e5; }
-      .icoolChat-export-ids-btn:hover { background:#4338ca; }
-      .icoolChat-copy-ids-btn { background:#0ea5e9; }
-      .icoolChat-copy-ids-btn:hover { background:#0284c7; }
       .icoolChat-examples { display:flex; flex-direction:column; gap:6px; margin:8px 0; }
       .icoolChat-chip { text-align:left; background:#ede9fe; color:#5b21b6; border:none; border-radius:8px;
         padding:7px 10px; font-size:12.5px; cursor:pointer; }
