@@ -1272,6 +1272,40 @@
   }
 
   // Resolves login strictly from loginName and signs in.
+  async function resolveLoginEmailFromInput(input) {
+    const usersRef = collection(db, `/artifacts/${canvasAppId}/users`);
+    const trimmed = input.trim();
+
+    // 1) loginName khớp chính xác
+    let snap = await getDocs(
+      query(usersRef, where("loginName", "==", trimmed), limit(1))
+    );
+    if (!snap.empty) return snap.docs[0].data().email || "";
+
+    // 2) MSNV (nhiều người hay nhập số thay vì loginName)
+    snap = await getDocs(
+      query(usersRef, where("employeeId", "==", trimmed), limit(1))
+    );
+    if (!snap.empty) return snap.docs[0].data().email || "";
+
+    // 3) loginName không phân biệt hoa thường (Hieunx1366 vs hieunx1366)
+    const variants = new Set([
+      trimmed,
+      trimmed.toLowerCase(),
+      trimmed.toUpperCase(),
+      trimmed.charAt(0).toUpperCase() + trimmed.slice(1).toLowerCase(),
+    ]);
+    for (const candidate of variants) {
+      if (candidate === trimmed) continue;
+      snap = await getDocs(
+        query(usersRef, where("loginName", "==", candidate), limit(1))
+      );
+      if (!snap.empty) return snap.docs[0].data().email || "";
+    }
+
+    return "";
+  }
+
   async function handleLogin() {
     const input = authEmailInput.value.trim();
     const password = authPasswordInput.value;
@@ -1293,20 +1327,11 @@
     let email = "";
     try {
       console.log("Đang tìm email từ tên đăng nhập:", input);
-      const usersRef = collection(db, `/artifacts/${canvasAppId}/users`);
-      const q = query(usersRef, where("loginName", "==", input), limit(1));
-      const querySnapshot = await getDocs(q);
+      email = await resolveLoginEmailFromInput(input);
 
-      if (querySnapshot.empty) {
-        authMessage.textContent = "Không tìm thấy tên đăng nhập.";
-        authMessage.className = "p-3 rounded-lg text-sm text-center alert-error";
-        authMessage.classList.remove("hidden");
-        return;
-      }
-
-      email = querySnapshot.docs[0].data().email || "";
       if (!email) {
-        authMessage.textContent = "Tài khoản chưa có email đăng nhập hợp lệ. Vui lòng liên hệ quản trị.";
+        authMessage.textContent =
+          "Không tìm thấy tên đăng nhập. Dùng tên đăng nhập (vd: Hieunx1366) hoặc MSNV (vd: 1366), không dùng email.";
         authMessage.className = "p-3 rounded-lg text-sm text-center alert-error";
         authMessage.classList.remove("hidden");
         return;
