@@ -15098,6 +15098,8 @@ ${priorityIcon} <b>Mức độ ưu tiên:</b> ${escapeTelegramHtml(reportData.pr
   const CHATBOT_FETCH_MAX_PAGES = 40; // trần an toàn (~20.000 bản ghi)
   let chatbotLastResults = []; // lưu kết quả tìm gần nhất để xuất Excel
   let chatbotLastFilters = null; // lưu bộ lọc gần nhất để đặt tiêu đề file Excel
+  let chatbotPendingPersonQuery = null; // chờ user chọn: gửi lên hay giải quyết
+  let chatbotPendingTimeQuery = null; // chờ user chọn khoảng thời gian
 
   // Bỏ dấu tiếng Việt + thường hóa để so khớp linh hoạt.
   function chatbotNormalize(str) {
@@ -15111,6 +15113,326 @@ ${priorityIcon} <b>Mức độ ưu tiên:</b> ${escapeTelegramHtml(reportData.pr
       .trim();
   }
 
+  // Kiểm tra chuỗi trích ra có phải tên người thật (không phải cụm chi nhánh/liên quan)
+  const CHATBOT_PERSON_STOP_WORDS = new Set([
+    "xuat", "cong", "viec", "thang", "ngay", "hom", "nay", "truoc", "tuan", "quy",
+    "su", "co", "bao", "cao", "lien", "quan", "chi", "nhanh", "danh", "sach", "excel",
+    "export", "da", "gui", "giai", "quyet", "cua", "cho", "nhan", "vien", "tat", "ca",
+  ]);
+
+  function isLikelyPersonName(name) {
+    if (!name || name.length < 2) return false;
+    const n = chatbotNormalize(name);
+    if (/^(lien quan|chi nhanh|van phong|cong viec|su co|bao cao|tat ca|toan bo)/.test(n)) return false;
+    if (n.includes("lien quan") || n.includes("chi nhanh")) return false;
+    const parts = n.split(/\s+/).filter((p) => p.length >= 2 && !CHATBOT_PERSON_STOP_WORDS.has(p));
+    if (!parts.length) return false;
+    for (const b of ALL_BRANCHES) {
+      const bNorm = chatbotNormalize(b);
+      const short = chatbotNormalize(b.replace(/^ICOOL\s+/i, ""));
+      if (n === bNorm || n === short) return false;
+      if (short.length >= 3 && (n.includes(short) || short.includes(n))) return false;
+    }
+    return true;
+  }
+
+  // "liên quan đến [X]" — chỉ coi X là tên người khi giống họ tên Việt Nam (≥2 từ, họ phổ biến hoặc viết hoa)
+  function isLikelyPersonNameFromLienQuan(name, originalText) {
+    if (!isLikelyPersonName(name)) return false;
+    const parts = chatbotNormalize(name).split(/\s+/).filter(Boolean);
+    if (parts.length < 2) return false;
+    const nameTokens = new Set([
+      "tran", "nguyen", "le", "pham", "hoang", "huynh", "phan", "vu", "vo", "dang", "bui", "do", "ho", "ngo",
+      "duong", "ly", "truong", "dinh", "cao", "thai", "trung", "van", "thi", "minh", "duc", "toan", "thang",
+      "dung", "anh", "hung", "linh", "mai", "nam", "son", "tuan", "long", "quang", "khanh", "phuc", "hanh",
+      "khoa", "binh", "cuong", "dat", "hieu", "khoi", "luan", "nghia", "phong", "quan", "tam", "vinh", "xuan",
+      "yen", "ha", "lam", "loc", "nhan", "phuoc", "quy", "sy", "tien", "tri", "tu", "uy", "vy",
+    ]);
+    if (parts.some((p) => nameTokens.has(p))) return true;
+    // Chỉ nhận viết hoa Latin (Trần Văn Dũng) — tránh nhầm "đến treo máy" vì ký tự đ/Đ
+    return /\b[A-Z][a-zA-Zà-ỹÀ-Ỹ]*(?:\s+[A-Z][a-zA-Zà-ỹÀ-Ỹ]*)+\b/.test(String(originalText || ""));
+  }
+
+  // Trích tên người từ câu hỏi (người gửi, người được giao, công việc của…).
+  function extractChatbotPersonName(text, norm) {
+    // Câu hỏi về chi nhánh ("liên quan đến chi nhánh …") — không trích tên
+    if (/(lien quan(?:\s*(?:den|toi|đến|tới))?)?\s*chi nhanh/.test(norm)) {
+      if (!/(?:công việc|cong viec|báo cáo|bao cao)\s+của\s+[A-ZÀ-Ỹ]/i.test(text)) return "";
+    }
+    const stopRe = /\s+(?:trong|tháng|thang|ngày|ngay|tuần|tuan|quý|quy|năm|nam|từ|tu|chi nhánh|chi nhanh|loại|loai|trạng thái|trang thai)\b/i;
+    const patterns = [
+      /(?:liên quan(?:\s*(?:đến|tới|den|toi))?)\s+(?!(?:chi\s*nh[áa]nh|chi nhanh)\b)([^,.;]+?)(?:\s+(?:trong|tháng|thang|ngày|ngay|tuần|tuan|quý|quy|năm|nam)\b|$)/i,
+      /(?:công việc|cong viec|việc|viec)\s+(?!(?:của|cua|liên quan|lien quan|chi\s*nh[áa]nh|chi nhanh)\b)(?:nhân viên|nhan vien|nv\s+)?([^,.;]+?)(?:\s+(?:tháng|thang|ngày|ngay|tuần|tuan|quý|quy|năm|nam)\b|\s*$)/i,
+      /(?:công việc|cong viec|việc|viec|báo cáo|bao cao)\s+của\s+(?:nhân viên|nhan vien|nv\s+)?([^,.;]+)/i,
+      /(?:người gửi|nguoi gui|báo cáo của|bao cao cua|gửi bởi|gui boi|được giao cho|duoc giao cho|giao cho)\s+([^,.;]+)/i,
+      /(?:do|bởi|boi)\s+([^,.;]+?)\s+(?:gửi|gui|báo cáo|bao cao)/i,
+      /(?:công việc|cong viec)\s+([A-ZÀ-Ỹ][^\s,;]+(?:\s+[A-ZÀ-Ỹ]?[^\s,;]+)*)\s+(?:gửi|gui|giải quyết|giai quyet)/i,
+    ];
+    for (const re of patterns) {
+      const m = text.match(re);
+      if (!m || !m[1]) continue;
+      let name = m[1].trim().replace(stopRe, " ").trim();
+      const isLienQuanPattern = /liên quan/i.test(re.source);
+      if (isLienQuanPattern ? isLikelyPersonNameFromLienQuan(name, text) : isLikelyPersonName(name)) return name;
+    }
+    return "";
+  }
+
+  // Khớp tên nhân viên với danh sách user trong hệ thống (hỗ trợ gõ tắt: "đức toàn", "trung thắng")
+  function findKnownPersonInQuery(norm, hint) {
+    const hintNorm = chatbotNormalize(hint || "");
+    const hintParts = hintNorm.split(/\s+/).filter((p) => p.length >= 2 && !CHATBOT_PERSON_STOP_WORDS.has(p));
+    const names = [
+      ...new Set(
+        [...(allUsersCache || []), ...(allUsersCacheUnfiltered || [])]
+          .map((u) => u.displayName)
+          .filter(Boolean)
+      ),
+    ];
+    let bestName = "";
+    let bestScore = 0;
+
+    for (const displayName of names) {
+      const nNorm = chatbotNormalize(displayName);
+      const parts = nNorm.split(/\s+/).filter((p) => p.length >= 2 && !CHATBOT_PERSON_STOP_WORDS.has(p));
+      if (!parts.length) continue;
+
+      let score = 0;
+      if (hintNorm && (nNorm === hintNorm || nNorm.includes(hintNorm) || hintNorm.includes(nNorm))) {
+        score += 100 + hintNorm.length;
+      }
+      const compareParts = hintParts.length ? hintParts : parts.filter((p) => norm.includes(p));
+      if (compareParts.length >= 2) {
+        const matched = compareParts.filter((hp) =>
+          parts.some((np) => np === hp || (hp.length >= 3 && np.includes(hp)))
+        );
+        if (matched.length >= 2) score += matched.reduce((s, p) => s + p.length, 0) + 20;
+      } else if (compareParts.length === 1 && compareParts[0].length >= 4) {
+        if (parts.some((np) => np === compareParts[0] || np.includes(compareParts[0]))) {
+          score += compareParts[0].length + 10;
+        }
+      }
+      if (score > bestScore) {
+        bestScore = score;
+        bestName = displayName;
+      }
+    }
+    return bestScore >= 10 ? bestName : hint || "";
+  }
+
+  function resolveChatbotPersonName(text, norm) {
+    const fromPattern = extractChatbotPersonName(text, norm);
+    return findKnownPersonInQuery(norm, fromPattern) || fromPattern || "";
+  }
+
+  function chatbotPersonMatches(report, personName, personRole) {
+    const target = chatbotNormalize(personName);
+    if (!target) return true;
+    const targetParts = target.split(/\s+/).filter((p) => p.length >= 2);
+    const byRole = {
+      reporter: [report.reporterName],
+      resolver: [report.resolverName],
+      assignee: [report.assigneeName],
+    };
+    const fields = personRole ? (byRole[personRole] || []) : [report.reporterName, report.assigneeName, report.resolverName];
+    return fields.filter(Boolean).some((name) => {
+      const n = chatbotNormalize(name);
+      if (n === target) return true;
+      if (n.includes(target)) return true;
+      if (!targetParts.length) return false;
+      const nameParts = n.split(/\s+/).filter(Boolean);
+      return targetParts.every((tp) =>
+        nameParts.some((np) => np === tp || (tp.length >= 3 && np.includes(tp)))
+      );
+    });
+  }
+
+  // Phân loại: công việc người đó gửi lên / giải quyết / được giao
+  function detectChatbotPersonRole(text, norm, personName) {
+    if (!personName) return "";
+    if (/(gui len|gui bao cao|da gui|nguoi gui|bao cao.*gui|gui.*bao cao)/.test(norm)) return "reporter";
+    if (/(duoc giao|giao cho|nhiem vu.*giao)/.test(norm)) return "assignee";
+    if (
+      /(giai quyet|da giai quyet|xu ly xong).*(cua|boi)|(?:cua|boi)\s+.*(giai quyet|da giai quyet)|cong viec.*(da )?giai quyet|công việc.*(đã )?giải quyết/.test(norm)
+    ) {
+      return "resolver";
+    }
+    if (/cong viec.*(da )?gui|công việc.*(đã )?gửi/.test(norm)) return "reporter";
+    return "";
+  }
+
+  // Trích chi nhánh từ "chi nhánh X", "liên quan đến chi nhánh X"
+  function extractChatbotBranch(text, norm) {
+    const branchMatch = text.match(
+      /(?:liên quan(?:\s*(?:đến|tới|den|toi))?)?\s*(?:chi nhánh|chi nhanh)\s+([^,.;]+?)(?:\s+(?:trong|tháng|thang|ngày|ngay|tuần|tuan|quý|quy|năm|nam|này|nay)\b|$)/i
+    );
+    if (branchMatch && branchMatch[1]) {
+      const candidate = chatbotNormalize(branchMatch[1].trim());
+      for (const b of ALL_BRANCHES) {
+        const bNorm = chatbotNormalize(b);
+        const short = chatbotNormalize(b.replace(/^ICOOL\s+/i, ""));
+        if (candidate === bNorm || candidate === short || bNorm.includes(candidate) || candidate.includes(short)) {
+          return b;
+        }
+      }
+    }
+    for (const b of ALL_BRANCHES) {
+      if (norm.includes(chatbotNormalize(b))) return b;
+    }
+    for (const b of ALL_BRANCHES) {
+      const short = b.replace(/^ICOOL\s+/i, "").trim();
+      if (short && norm.includes(chatbotNormalize(short))) return b;
+    }
+    return "";
+  }
+
+  function showChatbotPersonRoleClarification(personName, filters, originalText) {
+    chatbotPendingPersonQuery = { personName, filters: { ...filters }, originalText: originalText || "" };
+    addChatbotMessage(
+      "bot",
+      `Bạn muốn xem công việc của <b>${escapeChatbotHtml(personName)}</b> theo tiêu chí nào?
+      <div class="icoolChat-examples">
+        <button type="button" class="icoolChat-chip" data-chatbot-person-role="reporter">📤 Công việc đã gửi lên</button>
+        <button type="button" class="icoolChat-chip" data-chatbot-person-role="resolver">✅ Công việc đã giải quyết</button>
+      </div>
+      <span style="font-size:12px;color:#64748b">Hoặc gõ: <i>gửi lên</i> / <i>giải quyết</i></span>`
+    );
+  }
+
+  function chatbotHasDateFilter(filters) {
+    return !!(filters.dateFrom || filters.dateTo || (filters.rangeLabel && filters.rangeLabel !== "tất cả"));
+  }
+
+  function chatbotNeedsTimeClarification(filters) {
+    if (filters.reportId) return false;
+    if (chatbotHasDateFilter(filters)) return false;
+    return (
+      filters.wantsExport ||
+      ["export", "show_ids", "download_id_file", "copy_ids"].includes(filters.intent)
+    );
+  }
+
+  function applyChatbotTimePreset(preset, filters) {
+    const now = new Date();
+    const f = { ...filters, dateFrom: null, dateTo: null, rangeLabel: "" };
+    if (preset === "all") {
+      f.rangeLabel = "tất cả";
+    } else if (preset === "this_month") {
+      f.dateFrom = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0);
+      f.dateTo = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
+      f.rangeLabel = `tháng ${now.getMonth() + 1}/${now.getFullYear()}`;
+    } else if (preset === "last_month") {
+      f.dateFrom = new Date(now.getFullYear(), now.getMonth() - 1, 1, 0, 0, 0, 0);
+      f.dateTo = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59, 999);
+      f.rangeLabel = `tháng ${f.dateFrom.getMonth() + 1}/${f.dateFrom.getFullYear()}`;
+    } else if (preset === "this_year") {
+      f.dateFrom = new Date(now.getFullYear(), 0, 1, 0, 0, 0, 0);
+      f.dateTo = new Date(now.getFullYear(), 11, 31, 23, 59, 59, 999);
+      f.rangeLabel = `năm ${now.getFullYear()}`;
+    }
+    return f;
+  }
+
+  function mergePendingTimeFilters(pending, timeFields) {
+    const merged = parseChatbotQuery(pending.originalText || "");
+    return {
+      ...pending.filters,
+      ...timeFields,
+      reporterName: pending.filters.reporterName || merged.reporterName,
+      personRole: pending.filters.personRole || merged.personRole,
+    };
+  }
+
+  function showChatbotTimeClarification(filters, originalText) {
+    chatbotPendingTimeQuery = { filters: { ...filters }, originalText: originalText || "" };
+    const now = new Date();
+    const lastM = now.getMonth() === 0 ? 12 : now.getMonth();
+    const lastY = now.getMonth() === 0 ? now.getFullYear() - 1 : now.getFullYear();
+    addChatbotMessage(
+      "bot",
+      `Bạn muốn xuất/tra cứu trong khoảng thời gian nào?
+      <div class="icoolChat-examples">
+        <button type="button" class="icoolChat-chip" data-chatbot-time="this_month">📅 Tháng này (${now.getMonth() + 1}/${now.getFullYear()})</button>
+        <button type="button" class="icoolChat-chip" data-chatbot-time="last_month">📅 Tháng trước (${lastM}/${lastY})</button>
+        <button type="button" class="icoolChat-chip" data-chatbot-time="this_year">📅 Năm ${now.getFullYear()}</button>
+        <button type="button" class="icoolChat-chip" data-chatbot-time="all">📋 Tất cả (không giới hạn)</button>
+      </div>
+      <span style="font-size:12px;color:#64748b">Hoặc gõ: <i>tháng 5</i>, <i>tháng 5/2026</i>, <i>tất cả</i></span>`
+    );
+  }
+
+  async function proceedChatbotFlow(filters, originalText = "") {
+    const resolved = { ...filters };
+    if (!resolved.reporterName && originalText) {
+      const reparsed = parseChatbotQuery(originalText);
+      resolved.reporterName = reparsed.reporterName;
+    }
+    if (resolved.reporterName && !resolved.personRole && !resolved.reportId) {
+      showChatbotPersonRoleClarification(resolved.reporterName, resolved, originalText);
+      return;
+    }
+    if (chatbotNeedsTimeClarification(resolved)) {
+      showChatbotTimeClarification(resolved, originalText);
+      return;
+    }
+    await runChatbotQuery(resolved);
+  }
+
+  async function runChatbotQuery(filters) {
+    const typingId = addChatbotMessage("bot", `<span class="icoolChat-typing">Đang tra cứu…</span>`);
+    try {
+      await loadUsersIntoCache();
+      const reports = await chatbotFetchReports(filters);
+      removeChatbotMessage(typingId);
+
+      if (filters.intent === "count") {
+        const byStatus = {};
+        reports.forEach((r) => {
+          const s = r.status || "Khác";
+          byStatus[s] = (byStatus[s] || 0) + 1;
+        });
+        let html = `Có <b>${reports.length}</b> báo cáo khớp với ${describeChatbotFilters(filters)}.`;
+        const keys = Object.keys(byStatus);
+        if (keys.length > 1) {
+          html += `<div class="icoolChat-results">`;
+          keys.forEach((k) => {
+            html += `<div class="icoolChat-item"><div class="icoolChat-item-top"><span>${k}</span><b>${byStatus[k]}</b></div></div>`;
+          });
+          html += `</div>`;
+        }
+        if (reports.length > 0) {
+          chatbotLastResults = reports;
+          chatbotLastFilters = filters;
+        }
+        addChatbotMessage("bot", html);
+      } else if (filters.intent === "show_ids" || filters.intent === "download_id_file") {
+        renderChatbotResults(reports, filters, "ids");
+        if (filters.intent === "download_id_file" && reports.length > 0) {
+          chatbotExportIds(reports, filters);
+        }
+      } else if (filters.intent === "copy_ids") {
+        if (reports.length > 0) {
+          const ids = reports.map((r) => r.id).filter(Boolean).join("\n");
+          await chatbotCopyText(ids);
+          addChatbotMessage("bot", `Đã sao chép <b>${reports.length}</b> ID vào clipboard.`);
+        } else {
+          addChatbotMessage("bot", "Không có ID để sao chép.");
+        }
+      } else if (filters.intent === "export") {
+        renderChatbotResults(reports, filters, "excel");
+        if (reports.length > 0) chatbotExportToExcel(reports, filters);
+      } else if (filters.wantsExport) {
+        renderChatbotResults(reports, filters, "work");
+      } else {
+        renderChatbotResults(reports, filters, false);
+      }
+    } catch (err) {
+      removeChatbotMessage(typingId);
+      console.error("Chatbot query lỗi:", err);
+      addChatbotMessage("bot", `Có lỗi khi tra cứu: ${escapeChatbotHtml(err?.message || String(err))}`);
+    }
+  }
+
   // Phân tích câu hỏi tiếng Việt -> bộ lọc { branch, issueType, status, reporterName, dateFrom, dateTo, intent, rangeLabel }
   function parseChatbotQuery(rawText) {
     const text = String(rawText || "");
@@ -15120,12 +15442,14 @@ ${priorityIcon} <b>Mức độ ưu tiên:</b> ${escapeTelegramHtml(reportData.pr
       issueType: "",
       status: "",
       reporterName: "",
+      personRole: "",
       keyword: "",
       reportId: "",
       dateFrom: null,
       dateTo: null,
       rangeLabel: "",
       intent: "list",
+      wantsExport: false,
     };
 
     // Ý định: đếm/thống kê, hiện ID, tải file ID, sao chép ID, xuất excel hay liệt kê
@@ -15152,13 +15476,8 @@ ${priorityIcon} <b>Mức độ ưu tiên:</b> ${escapeTelegramHtml(reportData.pr
       filters.reportId = text.trim();
     }
 
-    // Chi nhánh: so khớp tên (đã bỏ dấu) trong câu
-    for (const b of ALL_BRANCHES) {
-      if (norm.includes(chatbotNormalize(b))) {
-        filters.branch = b;
-        break;
-      }
-    }
+    // Chi nhánh: ưu tiên "chi nhánh X" / "liên quan đến chi nhánh X"
+    filters.branch = extractChatbotBranch(text, norm);
 
     // Loại sự cố
     for (const t of CHATBOT_ISSUE_TYPES) {
@@ -15177,14 +15496,27 @@ ${priorityIcon} <b>Mức độ ưu tiên:</b> ${escapeTelegramHtml(reportData.pr
       filters.status = "Chờ xử lý";
     }
 
-    // Người gửi: "nguoi gui <ten>" / "do <ten> gui" / "bao cao cua <ten>"
-    const reporterMatch = text.match(/(?:người gửi|nguoi gui|báo cáo của|bao cao cua|gửi bởi|gui boi)\s+([^,.;]+)/i);
-    if (reporterMatch && reporterMatch[1]) {
-      filters.reporterName = reporterMatch[1].trim().replace(/\s+(tháng|thang|ngày|ngay|trong|của|cua).*$/i, "").trim();
-    }
+    // Người liên quan + vai trò (gửi lên / giải quyết / được giao)
+    filters.reporterName = resolveChatbotPersonName(text, norm);
+    filters.personRole = detectChatbotPersonRole(text, norm, filters.reporterName);
+    filters.wantsExport = /(xuat|danh sach|export|liet ke)/.test(norm);
 
-    // Từ khóa tìm trong mô tả / nguyên nhân / cách xử lý
+    // Từ khóa tìm trong mô tả (không dùng khi đã lọc chi nhánh / người qua "liên quan đến …")
     filters.keyword = extractChatbotKeyword(text);
+    if (filters.keyword && filters.reporterName) {
+      const kwNorm = chatbotNormalize(filters.keyword);
+      const personNorm = chatbotNormalize(filters.reporterName);
+      if (kwNorm === personNorm || personNorm.includes(kwNorm) || kwNorm.includes(personNorm)) {
+        filters.keyword = "";
+      }
+    }
+    if (filters.keyword && filters.branch) {
+      const kwNorm = chatbotNormalize(filters.keyword);
+      const brNorm = chatbotNormalize(filters.branch.replace(/^ICOOL\s+/i, ""));
+      if (kwNorm.includes(brNorm) || brNorm.includes(kwNorm) || /^chi nhanh\b/.test(kwNorm)) {
+        filters.keyword = "";
+      }
+    }
 
     // ----- Khoảng thời gian -----
     const now = new Date();
@@ -15290,10 +15622,12 @@ ${priorityIcon} <b>Mức độ ưu tiên:</b> ${escapeTelegramHtml(reportData.pr
     );
     if (m && m[1]) {
       let kw = m[1].trim();
-      // Cắt phần điều kiện thời gian/cấu trúc nếu nằm phía sau từ khóa
+      // "liên quan đến chi nhánh …" là lọc chi nhánh; "liên quan đến [tên]" là lọc người
+      if (/^chi\s*nh[áa]nh\b/i.test(kw)) return "";
       kw = kw
         .replace(/\s+(tháng|thang|tuần|tuan|hôm nay|hom nay|hôm qua|hom qua|năm|nam|quý|quy|từ ngày|tu ngay|chi nhánh|chi nhanh|trạng thái|trang thai|ngày|ngay|người gửi|nguoi gui)\b.*$/i, "")
         .trim();
+      if (isLikelyPersonNameFromLienQuan(kw, text)) return "";
       // Bỏ các hư từ ở cuối
       kw = kw.replace(/\s+(không|khong|nhé|nhe|ạ|a|vậy|vay|đi|di)\s*$/i, "").trim();
       if (kw.length >= 2) return kw;
@@ -15322,7 +15656,7 @@ ${priorityIcon} <b>Mức độ ưu tiên:</b> ${escapeTelegramHtml(reportData.pr
     if (filters.issueType && (report.issueType || "") !== filters.issueType) return false;
     if (filters.status && (report.status || "") !== filters.status) return false;
     if (filters.reporterName) {
-      if (chatbotNormalize(report.reporterName) !== chatbotNormalize(filters.reporterName)) return false;
+      if (!chatbotPersonMatches(report, filters.reporterName, filters.personRole)) return false;
     }
     if (filters.keyword) {
       const kw = chatbotNormalize(filters.keyword);
@@ -15375,7 +15709,15 @@ ${priorityIcon} <b>Mức độ ưu tiên:</b> ${escapeTelegramHtml(reportData.pr
     if (filters.branch) parts.push(`chi nhánh <b>${filters.branch}</b>`);
     if (filters.issueType) parts.push(`loại <b>${filters.issueType}</b>`);
     if (filters.status) parts.push(`trạng thái <b>${filters.status}</b>`);
-    if (filters.reporterName) parts.push(`người gửi <b>${filters.reporterName}</b>`);
+    if (filters.reporterName) {
+      const roleLabels = { reporter: "gửi lên", resolver: "đã giải quyết", assignee: "được giao" };
+      const roleText = roleLabels[filters.personRole] || "";
+      parts.push(
+        roleText
+          ? `công việc <b>${roleText}</b> bởi <b>${escapeChatbotHtml(filters.reporterName)}</b>`
+          : `công việc của <b>${escapeChatbotHtml(filters.reporterName)}</b>`
+      );
+    }
     if (filters.keyword) parts.push(`nội dung chứa <b>"${escapeChatbotHtml(filters.keyword)}"</b>`);
     if (filters.reportId) parts.push(`ID <b>${escapeChatbotHtml(filters.reportId)}</b>`);
     if (filters.rangeLabel) parts.push(`thời gian <b>${filters.rangeLabel}</b>`);
@@ -15462,9 +15804,10 @@ ${priorityIcon} <b>Mức độ ưu tiên:</b> ${escapeTelegramHtml(reportData.pr
   }
 
   // Render một danh sách báo cáo trong khung chat (tối đa 8 dòng).
-  // exportMode: false | "excel" | "ids"
+  // exportMode: false | "excel" | "ids" | "work" (work = xuất công việc: có ID)
   function renderChatbotResults(reports, filters, exportMode = false) {
     const total = reports.length;
+    const showId = exportMode === "ids" || exportMode === "excel" || exportMode === "work";
     if (total === 0) {
       addChatbotMessage(
         "bot",
@@ -15489,7 +15832,7 @@ ${priorityIcon} <b>Mức độ ưu tiên:</b> ${escapeTelegramHtml(reportData.pr
             <span class="icoolChat-branch">${r.issueBranch || "N/A"}</span>
             <span class="icoolChat-status" style="color:${statusColor(r.status)}">${r.status || "N/A"}</span>
           </div>
-          ${exportMode === "ids" ? `<div class="icoolChat-item-id">ID: <button type="button" class="icoolChat-id-code" data-copy-id="${escapeChatbotHtml(r.id)}" title="Bấm để sao chép">${escapeChatbotHtml(r.id)}</button></div>` : ""}
+          ${showId ? `<div class="icoolChat-item-id">ID: <button type="button" class="icoolChat-id-code" data-copy-id="${escapeChatbotHtml(r.id)}" title="Bấm để sao chép">${escapeChatbotHtml(r.id)}</button></div>` : ""}
           <div class="icoolChat-item-meta">
             <span>${r.issueType || "N/A"}</span> ·
             <span>${r.reporterName || "N/A"}</span> ·
@@ -15500,9 +15843,6 @@ ${priorityIcon} <b>Mức độ ưu tiên:</b> ${escapeTelegramHtml(reportData.pr
     });
     html += `</div>`;
     if (total > SHOW) html += `<div class="icoolChat-more">…và ${total - SHOW} báo cáo khác.</div>`;
-    if (exportMode === "excel") {
-      html += `<button type="button" class="icoolChat-export-btn" data-chatbot-export="excel"><i class="fas fa-file-excel"></i> Xuất Excel (${total})</button>`;
-    }
 
     addChatbotMessage("bot", html);
     chatbotLastResults = reports;
@@ -15527,57 +15867,64 @@ ${priorityIcon} <b>Mức độ ưu tiên:</b> ${escapeTelegramHtml(reportData.pr
       return;
     }
 
-    const filters = parseChatbotQuery(text);
-    const typingId = addChatbotMessage("bot", `<span class="icoolChat-typing">Đang tra cứu…</span>`);
-
-    try {
-      const reports = await chatbotFetchReports(filters);
-      removeChatbotMessage(typingId);
-
-      if (filters.intent === "count") {
-        const byStatus = {};
-        reports.forEach((r) => {
-          const s = r.status || "Khác";
-          byStatus[s] = (byStatus[s] || 0) + 1;
-        });
-        let html = `Có <b>${reports.length}</b> báo cáo khớp với ${describeChatbotFilters(filters)}.`;
-        const keys = Object.keys(byStatus);
-        if (keys.length > 1) {
-          html += `<div class="icoolChat-results">`;
-          keys.forEach((k) => {
-            html += `<div class="icoolChat-item"><div class="icoolChat-item-top"><span>${k}</span><b>${byStatus[k]}</b></div></div>`;
-          });
-          html += `</div>`;
-        }
-        if (reports.length > 0) {
-          chatbotLastResults = reports;
-          chatbotLastFilters = filters;
-        }
-        addChatbotMessage("bot", html);
-      } else if (filters.intent === "show_ids" || filters.intent === "download_id_file") {
-        renderChatbotResults(reports, filters, "ids");
-        if (filters.intent === "download_id_file" && reports.length > 0) {
-          chatbotExportIds(reports, filters);
-        }
-      } else if (filters.intent === "copy_ids") {
-        if (reports.length > 0) {
-          const ids = reports.map((r) => r.id).filter(Boolean).join("\n");
-          await chatbotCopyText(ids);
-          addChatbotMessage("bot", `Đã sao chép <b>${reports.length}</b> ID vào clipboard.`);
-        } else {
-          addChatbotMessage("bot", "Không có ID để sao chép.");
-        }
-      } else if (filters.intent === "export") {
-        renderChatbotResults(reports, filters, "excel");
-        if (reports.length > 0) chatbotExportToExcel(reports, filters);
-      } else {
-        renderChatbotResults(reports, filters, false);
+    // Trả lời câu hỏi làm rõ vai trò người (gửi lên / giải quyết)
+    if (chatbotPendingPersonQuery) {
+      let role = "";
+      if (/(gui len|gui bao cao|da gui|nguoi gui)/.test(norm)) role = "reporter";
+      else if (/(giai quyet|da giai quyet|da xu ly|xu ly xong)/.test(norm)) role = "resolver";
+      if (role) {
+        const pending = chatbotPendingPersonQuery;
+        chatbotPendingPersonQuery = null;
+        await proceedChatbotFlow({ ...pending.filters, personRole: role }, pending.originalText || "");
+        return;
       }
-    } catch (err) {
-      removeChatbotMessage(typingId);
-      console.error("Chatbot query lỗi:", err);
-      addChatbotMessage("bot", `Có lỗi khi tra cứu: ${escapeChatbotHtml(err?.message || String(err))}`);
+      addChatbotMessage(
+        "bot",
+        `Chọn <b>Công việc đã gửi lên</b> hoặc <b>Công việc đã giải quyết</b> ở trên, hoặc gõ: <i>gửi lên</i> / <i>giải quyết</i>.`
+      );
+      return;
     }
+
+    // Trả lời câu hỏi làm rõ thời gian
+    if (chatbotPendingTimeQuery) {
+      const pending = chatbotPendingTimeQuery;
+      const mergeFilters = (timeFields) => mergePendingTimeFilters(pending, timeFields);
+      if (/tat ca|toan bo|all|khong gioi han|moi luc|full/.test(norm)) {
+        chatbotPendingTimeQuery = null;
+        await runChatbotQuery(mergeFilters(applyChatbotTimePreset("all", {})));
+        return;
+      }
+      if (/thang nay/.test(norm)) {
+        chatbotPendingTimeQuery = null;
+        await runChatbotQuery(mergeFilters(applyChatbotTimePreset("this_month", {})));
+        return;
+      }
+      if (/thang truoc/.test(norm)) {
+        chatbotPendingTimeQuery = null;
+        await runChatbotQuery(mergeFilters(applyChatbotTimePreset("last_month", {})));
+        return;
+      }
+      const timeParsed = parseChatbotQuery(text);
+      if (timeParsed.dateFrom || timeParsed.dateTo || timeParsed.rangeLabel) {
+        chatbotPendingTimeQuery = null;
+        await runChatbotQuery(
+          mergeFilters({
+            dateFrom: timeParsed.dateFrom,
+            dateTo: timeParsed.dateTo,
+            rangeLabel: timeParsed.rangeLabel,
+          })
+        );
+        return;
+      }
+      addChatbotMessage(
+        "bot",
+        `Chọn khoảng thời gian bằng nút phía trên, hoặc gõ: <i>tháng 5</i>, <i>tháng 5/2026</i>, <i>tháng này</i>, <i>tất cả</i>.`
+      );
+      return;
+    }
+
+    const filters = parseChatbotQuery(text);
+    await proceedChatbotFlow(filters, text);
   }
 
   function chatbotHelpText() {
@@ -15585,14 +15932,17 @@ ${priorityIcon} <b>Mức độ ưu tiên:</b> ${escapeTelegramHtml(reportData.pr
       <div class="icoolChat-examples">
         <button type="button" class="icoolChat-chip" data-chatbot-suggest="sự cố chưa xử lý">sự cố chưa xử lý</button>
         <button type="button" class="icoolChat-chip" data-chatbot-suggest="sự cố chi nhánh Mạc Đĩnh Chi tháng này">chi nhánh Mạc Đĩnh Chi tháng này</button>
+        <button type="button" class="icoolChat-chip" data-chatbot-suggest="công việc liên quan đến chi nhánh văn phòng tháng 5">chi nhánh văn phòng tháng 5</button>
+        <button type="button" class="icoolChat-chip" data-chatbot-suggest="công việc của Trần Văn Dũng tháng 6">công việc của Trần Văn Dũng tháng 6</button>
         <button type="button" class="icoolChat-chip" data-chatbot-suggest="có bao nhiêu sự cố hệ thống tháng này">bao nhiêu sự cố hệ thống tháng này</button>
         <button type="button" class="icoolChat-chip" data-chatbot-suggest="xuất excel sự cố đã giải quyết tháng trước">xuất excel đã giải quyết tháng trước</button>
         <button type="button" class="icoolChat-chip" data-chatbot-suggest="xuất id sự cố ngày 24/5/2026">xuất id sự cố ngày 24/5/2026</button>
         <button type="button" class="icoolChat-chip" data-chatbot-suggest="tải file id sự cố ngày 24/5/2026">tải file id (txt)</button>
         <button type="button" class="icoolChat-chip" data-chatbot-suggest='sự cố mô tả "không mở được máy"'>tìm theo mô tả "không mở được máy"</button>
       </div>
-      Mình hiểu được: <b>chi nhánh, loại sự cố, trạng thái, người gửi, thời gian</b> (hôm nay, tuần này, tháng N, <b>ngày dd/mm/yyyy</b>, quý N, từ… đến…).<br>
-      <b>Xuất id …</b> → hiện ID trên màn hình. <b>Tải file id …</b> → tải .txt. <b>Sao chép id …</b> → copy clipboard. Tra mã: <b>id JAlZ8dZfwEVOb5ecaYwo</b>.<br>
+      Mình hiểu được: <b>chi nhánh, loại sự cố, trạng thái, người, thời gian</b> (hôm nay, tuần này, tháng N, <b>ngày dd/mm/yyyy</b>).<br>
+      Hỏi công việc của ai → hỏi thêm: <b>gửi lên</b> hay <b>giải quyết</b>. Xuất/tra cứu không ghi thời gian → hỏi thêm: <b>tháng này / tháng trước / tất cả</b>.<br>
+      <b>Xuất công việc …</b> → hiện <b>ID</b> từng báo cáo (bấm ID để copy). Gõ <b>xuất excel …</b> khi cần tải file Excel.<br>
       Tìm theo nội dung: đặt từ khóa trong ngoặc kép hoặc sau chữ <b>mô tả / nguyên nhân / chứa / từ khóa</b> — ví dụ: <i>sự cố chứa "treo máy"</i>.`;
   }
 
@@ -15687,9 +16037,20 @@ ${priorityIcon} <b>Mức độ ưu tiên:</b> ${escapeTelegramHtml(reportData.pr
         handleChatbotInput(suggest.getAttribute("data-chatbot-suggest"));
         return;
       }
-      const exportBtn = e.target.closest("[data-chatbot-export]");
-      if (exportBtn) {
-        chatbotExportToExcel(chatbotLastResults, chatbotLastFilters || parseChatbotQuery(""));
+      const roleChip = e.target.closest("[data-chatbot-person-role]");
+      if (roleChip && chatbotPendingPersonQuery) {
+        const role = roleChip.getAttribute("data-chatbot-person-role");
+        const pending = chatbotPendingPersonQuery;
+        chatbotPendingPersonQuery = null;
+        proceedChatbotFlow({ ...pending.filters, personRole: role }, pending.originalText || "");
+        return;
+      }
+      const timeChip = e.target.closest("[data-chatbot-time]");
+      if (timeChip && chatbotPendingTimeQuery) {
+        const preset = timeChip.getAttribute("data-chatbot-time");
+        const pending = chatbotPendingTimeQuery;
+        chatbotPendingTimeQuery = null;
+        runChatbotQuery(mergePendingTimeFilters(pending, applyChatbotTimePreset(preset, {})));
         return;
       }
       const copyIdBtn = e.target.closest("[data-copy-id]");
