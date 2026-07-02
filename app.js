@@ -3277,6 +3277,7 @@
       (b) => `<option value="${b}">${b}</option>`
     ).join("");
     reportBtn.addEventListener("click", handleReportIssue);
+    initIssueReportImagePaste();
     
     // Prevent form submission on Enter key
     const issueReportForm = mainContentContainer.querySelector("#issueReportForm");
@@ -9434,7 +9435,9 @@
       }
     }
     
-    const repairedImageFile = modal.querySelector("#repairedImageInput").files[0];
+    const repairedImageFile =
+      modal.querySelector("#repairedImageInput").files[0] ||
+      modal.querySelector("#repairedImageInput")._pastedImageFile;
 
     const messageEl = modal.querySelector("#detailIssueMessage");
     const saveBtn = modal.querySelector("#updateIssueBtn");
@@ -9741,6 +9744,11 @@
           return `
                   <div class="text-sm">
                       <p><strong>${escapeHtml(comment.authorName)}:</strong> ${renderedText}</p>
+                      ${
+                        comment.imageUrl
+                          ? `<div class="mt-1"><a href="${escapeHtml(comment.imageUrl)}" target="_blank" rel="noopener"><img src="${escapeHtml(comment.imageUrl)}" alt="Ảnh đính kèm" class="max-h-48 rounded border border-slate-200 mt-1 cursor-pointer hover:opacity-90" loading="lazy" /></a></div>`
+                          : ""
+                      }
                       <p class="text-xs text-slate-400">${timestamp}</p>
                   </div>
               `;
@@ -11645,7 +11653,9 @@ ${priorityIcon} <b>Mức độ ưu tiên:</b> ${escapeTelegramHtml(reportData.pr
     const issueBranch = mainContentContainer.querySelector("#issueBranch").value;
     const issueDescription =
       mainContentContainer.querySelector("#issueDescription").value;
-    const imageFile = mainContentContainer.querySelector("#issueImage").files[0];
+    const imageFile =
+      mainContentContainer.querySelector("#issueImage").files[0] ||
+      mainContentContainer.querySelector("#issueImage")._pastedImageFile;
     const messageEl = mainContentContainer.querySelector("#issueMessage");
     const button = mainContentContainer.querySelector("#reportIssueBtn");
     // Kiểm tra xem có cần phạm vi sự cố không (ẩn nếu là "Văn phòng", "SPACE A&A" hoặc "VTCODE")
@@ -11689,8 +11699,7 @@ ${priorityIcon} <b>Mức độ ưu tiên:</b> ${escapeTelegramHtml(reportData.pr
       validationErrors.push("Mô tả chi tiết");
     }
     // Kiểm tra bắt buộc phải có hình ảnh
-    const imageInput = mainContentContainer.querySelector("#issueImage");
-    if (!imageFile || !imageInput || !imageInput.files || imageInput.files.length === 0) {
+    if (!imageFile) {
       validationErrors.push("Ảnh mô tả lỗi");
     }
     // Chỉ yêu cầu phạm vi sự cố nếu không phải "Văn phòng", "SPACE A&A" hoặc "VTCODE"
@@ -11712,7 +11721,8 @@ ${priorityIcon} <b>Mức độ ưu tiên:</b> ${escapeTelegramHtml(reportData.pr
         mainContentContainer.querySelector("#issueBranch")?.focus();
       } else if (!issueDescription || issueDescription.trim() === "") {
         mainContentContainer.querySelector("#issueDescription")?.focus();
-      } else if (!imageFile || !imageInput || !imageInput.files || imageInput.files.length === 0) {
+      } else if (!imageFile) {
+        const imageInput = mainContentContainer.querySelector("#issueImage");
         imageInput?.focus();
         imageInput?.scrollIntoView({ behavior: "smooth", block: "center" });
       }
@@ -11796,7 +11806,11 @@ ${priorityIcon} <b>Mức độ ưu tiên:</b> ${escapeTelegramHtml(reportData.pr
 
       // Reset các trường trong form
       mainContentContainer.querySelector("#issueDescription").value = "";
-      mainContentContainer.querySelector("#issueImage").value = "";
+      const issueImageEl = mainContentContainer.querySelector("#issueImage");
+      issueImageEl.value = "";
+      issueImageEl._pastedImageFile = null;
+      const issuePreview = mainContentContainer.querySelector("#issueImagePreview");
+      if (issuePreview) issuePreview.innerHTML = "";
 
       // Bỏ chọn tất cả checkbox
       mainContentContainer
@@ -13135,6 +13149,160 @@ ${priorityIcon} <b>Mức độ ưu tiên:</b> ${escapeTelegramHtml(reportData.pr
   }
 
   //
+   // --- Dán ảnh từ clipboard (Windows Snipping Tool, Ctrl+V) ---
+  function getClipboardImageFile(e) {
+    const items = e.clipboardData?.items;
+    if (!items) return null;
+    for (const item of items) {
+      if (item.type && item.type.startsWith("image/")) {
+        const blob = item.getAsFile();
+        if (!blob) continue;
+        const ext = item.type.split("/")[1]?.replace("jpeg", "jpg") || "png";
+        return new File([blob], `paste-${Date.now()}.${ext}`, { type: item.type });
+      }
+    }
+    return null;
+  }
+
+  function assignFileToImageInput(fileInput, file) {
+    if (!fileInput || !file) return false;
+    try {
+      const dt = new DataTransfer();
+      dt.items.add(file);
+      fileInput.files = dt.files;
+      fileInput._pastedImageFile = file;
+      fileInput.dispatchEvent(new Event("change", { bubbles: true }));
+      return true;
+    } catch (err) {
+      console.warn("assignFileToImageInput fallback:", err);
+      fileInput._pastedImageFile = file;
+      return true;
+    }
+  }
+
+  function showImagePastePreview(previewEl, file) {
+    if (!previewEl || !file) return;
+    const url = URL.createObjectURL(file);
+    previewEl.innerHTML = `
+      <div class="mt-2 p-2 bg-green-50 border border-green-200 rounded-lg">
+        <img src="${url}" alt="Ảnh đã dán" class="max-h-40 rounded border border-slate-200 object-contain" />
+        <p class="text-xs text-green-700 mt-1.5"><i class="fas fa-check-circle mr-1"></i>Đã dán ảnh từ clipboard (Ctrl+V)</p>
+      </div>`;
+  }
+
+  function bindImagePasteHandler(el, onImagePaste) {
+    if (!el || el.dataset.imagePasteBound) return;
+    el.dataset.imagePasteBound = "1";
+    el.addEventListener("paste", async (e) => {
+      const file = getClipboardImageFile(e);
+      if (!file) return;
+      e.preventDefault();
+      await onImagePaste(file);
+    });
+  }
+
+  function initIssueReportImagePaste() {
+    const desc = mainContentContainer?.querySelector("#issueDescription");
+    const zone = mainContentContainer?.querySelector("#issueImagePasteZone");
+    const fileInput = mainContentContainer?.querySelector("#issueImage");
+    const preview = mainContentContainer?.querySelector("#issueImagePreview");
+    if (!fileInput) return;
+
+    const applyPaste = (file) => {
+      assignFileToImageInput(fileInput, file);
+      showImagePastePreview(preview, file);
+    };
+
+    [desc, zone, fileInput].filter(Boolean).forEach((el) => bindImagePasteHandler(el, applyPaste));
+
+    fileInput.addEventListener("change", () => {
+      const f = fileInput.files?.[0];
+      if (f) showImagePastePreview(preview, f);
+      else if (preview) preview.innerHTML = "";
+    });
+  }
+
+  function initIssueDetailImagePaste() {
+    const modal = document.getElementById("issueDetailModal");
+    if (!modal) return;
+
+    const repairedZone = modal.querySelector("#repairedImageUploadContainer");
+    const repairedInput = modal.querySelector("#repairedImageInput");
+    const repairedPreview = modal.querySelector("#repairedImagePreview");
+    const commentInput = modal.querySelector("#newCommentInput");
+    const commentZone = modal.querySelector("#commentPasteZone");
+    const discussionPanel = modal.querySelector("#issueTabDiscussion");
+
+    if (repairedInput) {
+      const applyRepaired = (file) => {
+        assignFileToImageInput(repairedInput, file);
+        showImagePastePreview(repairedPreview, file);
+      };
+      [repairedZone, repairedInput].filter(Boolean).forEach((el) =>
+        bindImagePasteHandler(el, applyRepaired)
+      );
+      repairedInput.addEventListener("change", () => {
+        const f = repairedInput.files?.[0];
+        if (f) showImagePastePreview(repairedPreview, f);
+        else if (repairedPreview) repairedPreview.innerHTML = "";
+      });
+    }
+
+    const applyCommentImage = async (file) => {
+      const issueId = modal.querySelector("#detailIssueId")?.value;
+      if (!issueId) return;
+      await handlePasteCommentImage(issueId, file);
+    };
+    [commentInput, commentZone, discussionPanel].filter(Boolean).forEach((el) =>
+      bindImagePasteHandler(el, applyCommentImage)
+    );
+  }
+
+  async function handlePasteCommentImage(issueId, imageFile) {
+    const modal = document.getElementById("issueDetailModal");
+    const messageEl = modal?.querySelector("#detailIssueMessage");
+    try {
+      if (messageEl) {
+        messageEl.textContent = "Đang tải ảnh lên…";
+        messageEl.className = "p-3 rounded-lg text-sm text-center alert-info";
+        messageEl.classList.remove("hidden");
+      }
+      const compressed = await compressImage(imageFile);
+      const storageRef = ref(
+        storage,
+        `comment_images/${issueId}/${Date.now()}-${compressed.name || imageFile.name}`
+      );
+      await uploadBytes(storageRef, compressed);
+      const imageUrl = await getDownloadURL(storageRef);
+
+      const commentsCol = collection(
+        db,
+        `/artifacts/${canvasAppId}/public/data/issueReports/${issueId}/comments`
+      );
+      await addDoc(commentsCol, {
+        text: "📷 Ảnh đính kèm",
+        imageUrl,
+        authorId: currentUser.uid,
+        authorName: currentUserProfile.displayName,
+        timestamp: serverTimestamp(),
+      });
+
+      if (messageEl) {
+        messageEl.textContent = "✓ Đã đăng ảnh vào thảo luận.";
+        messageEl.className = "p-3 rounded-lg text-sm text-center alert-success";
+        setTimeout(() => messageEl.classList.add("hidden"), 3000);
+      }
+      logActivity("Add Comment Image", { issueId }, "issue");
+    } catch (error) {
+      console.error("Paste comment image error:", error);
+      if (messageEl) {
+        messageEl.textContent = `Lỗi khi tải ảnh: ${error.message || error}`;
+        messageEl.className = "p-3 rounded-lg text-sm text-center alert-error";
+      }
+    }
+  }
+
+  //
    // Compresses an image file before upload.
    // @param {File|Blob} imageFile - The image file to compress
    // @param {Object} options - Compression options (optional)
@@ -14081,6 +14249,7 @@ ${priorityIcon} <b>Mức độ ưu tiên:</b> ${escapeTelegramHtml(reportData.pr
     issueDetailModal
       .querySelector("#addCommentBtn")
       .addEventListener("click", handleAddComment);
+    initIssueDetailImagePaste();
 
     const statusSelect = issueDetailModal.querySelector("#detailIssueStatus");
     const repairedImageUploadContainer = issueDetailModal.querySelector(

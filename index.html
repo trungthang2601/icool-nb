@@ -574,11 +574,12 @@
                   <textarea id="issueDescription" class="textarea-field h-32"
                     placeholder="Mô tả chi tiết về sự cố, nguyên nhân (nếu biết), và các thông tin liên quan..."></textarea>
                   <p class="text-xs text-slate-500 mt-1.5">
-                    <i class="fas fa-info-circle mr-1"></i>Vui lòng mô tả rõ ràng để hỗ trợ xử lý nhanh chóng
+                    <i class="fas fa-info-circle mr-1"></i>Vui lòng mô tả rõ ràng để hỗ trợ xử lý nhanh chóng.
+                    <span class="text-indigo-600">Có thể <b>Ctrl+V</b> dán ảnh chụp màn hình vào đây.</span>
                   </p>
                 </div>
 
-                <div>
+                <div id="issueImagePasteZone">
                   <label for="issueImage" class="block text-slate-600 text-sm font-medium mb-2">
                     <i class="fas fa-image mr-1"></i>Ảnh mô tả lỗi <span class="text-red-500">*</span>
                   </label>
@@ -588,8 +589,9 @@
                       <i class="fas fa-compress mr-1"></i>Ảnh sẽ được nén tự động
                     </span>
                   </div>
+                  <div id="issueImagePreview"></div>
                   <p class="text-xs text-slate-500 mt-1.5">
-                    <i class="fas fa-lightbulb mr-1"></i>Vui lòng tải lên ảnh để mô tả sự cố rõ ràng hơn (bắt buộc)
+                    <i class="fas fa-paste mr-1"></i>Chọn file hoặc <b>Ctrl+V</b> dán ảnh từ Snipping Tool / clipboard Windows.
                   </p>
                 </div>
               </div>
@@ -1420,12 +1422,13 @@
                 <div id="detailIssueComments"
                   class="space-y-3 max-h-60 overflow-y-auto pr-2 mb-4 bg-slate-50 p-2 rounded-md"></div>
                 <div class="flex flex-col sm:flex-row gap-2 relative">
-                  <div class="flex-grow relative">
-                    <input type="text" id="newCommentInput" class="input-field w-full pr-10" placeholder="Thêm bình luận... (Gõ @ để tag người dùng)" />
+                  <div class="flex-grow relative" id="commentPasteZone">
+                    <input type="text" id="newCommentInput" class="input-field w-full pr-10" placeholder="Thêm bình luận... (Gõ @ để tag, Ctrl+V dán ảnh)" />
                     <div id="mentionSuggestions" class="hidden absolute top-full left-0 right-0 mt-1 bg-white border border-slate-200 rounded-lg shadow-lg max-h-48 overflow-y-auto z-50"></div>
                   </div>
                   <button id="addCommentBtn" class="btn-primary w-full sm:w-auto whitespace-nowrap">Gửi</button>
                 </div>
+                <p class="text-xs text-slate-500 mt-1"><i class="fas fa-paste mr-1"></i>Có thể <b>Ctrl+V</b> dán ảnh chụp màn hình trực tiếp vào ô bình luận.</p>
               </div>
             </div>
           </div>
@@ -1483,6 +1486,8 @@
               <div id="repairedImageUploadContainer" class="hidden mt-4">
                 <label for="repairedImageInput" class="font-medium text-sm">Ảnh sửa chữa (bắt buộc):</label>
                 <input type="file" id="repairedImageInput" class="input-field mt-1" accept="image/*" />
+                <div id="repairedImagePreview"></div>
+                <p class="text-xs text-slate-500 mt-1"><i class="fas fa-paste mr-1"></i>Chọn file hoặc <b>Ctrl+V</b> dán ảnh từ clipboard.</p>
               </div>
               <button id="updateIssueBtn" class="btn-primary w-full mt-4">
                 Cập nhật
