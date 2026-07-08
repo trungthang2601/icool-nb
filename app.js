@@ -9677,7 +9677,7 @@
       if (isResolved) {
         console.log("📤 Đang gửi thông báo Telegram khi giải quyết...");
         await sendTelegramResolvedNotification(
-          originalData,
+          { ...originalData, ...updateData, id: issueId },
           currentUserProfile.displayName,
           issueId
         );
@@ -11649,6 +11649,8 @@ ${priorityIcon} <b>Mức độ ưu tiên:</b> ${escapeTelegramHtml(reportData.pr
       });
 
       const deviceInfo = detectDevice();
+      const causeText = (reportData.resolutionCause || "").trim();
+      const methodText = (reportData.resolutionMethod || "").trim();
       
       const message = `✅ <b>SỰ CỐ ĐÃ ĐƯỢC GIẢI QUYẾT</b>
 
@@ -11659,7 +11661,9 @@ ${priorityIcon} <b>Mức độ ưu tiên:</b> ${escapeTelegramHtml(reportData.pr
 💻 <b>Thiết bị:</b> ${escapeTelegramHtml(deviceInfo)}
 🆔 <b>Mã báo cáo:</b> ${escapeTelegramHtml(reportId || reportData.id || "N/A")}
 
-📝 <b>Mô tả:</b> ${escapeTelegramHtml(reportData.issueDescription || "N/A")}`;
+📝 <b>Mô tả:</b> ${escapeTelegramHtml(reportData.issueDescription || "N/A")}
+🔍 <b>Nguyên nhân:</b> ${escapeTelegramHtml(causeText || "N/A")}
+🛠️ <b>Cách giải quyết:</b> ${escapeTelegramHtml(methodText || "N/A")}`;
 
       console.log("📤 Đang gửi message giải quyết đến Telegram:", message.substring(0, 100) + "...");
       await sendTelegramMessage(message);
