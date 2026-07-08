@@ -9491,6 +9491,30 @@
         return;
       }
 
+      const resolutionCauseInput = modal.querySelector("#resolutionCauseInput");
+      const resolutionMethodInput = modal.querySelector("#resolutionMethodInput");
+      const resolutionCauseValue = resolutionCauseInput ? resolutionCauseInput.value.trim() : "";
+      const resolutionMethodValue = resolutionMethodInput ? resolutionMethodInput.value.trim() : "";
+      const existingCause = (originalData.resolutionCause || "").trim();
+      const existingMethod = (originalData.resolutionMethod || "").trim();
+
+      if (newStatus === "Đã giải quyết") {
+        const causeOk = resolutionCauseValue || existingCause;
+        const methodOk = resolutionMethodValue || existingMethod;
+        if (!causeOk || !methodOk) {
+          setIssueDetailTab(modal, "resolution");
+          messageEl.textContent =
+            "Vui lòng điền đầy đủ Nguyên nhân và Cách xử lý (tab Cách giải quyết) trước khi hoàn tất sự cố.";
+          messageEl.className = "p-3 rounded-lg text-sm text-center alert-error";
+          messageEl.classList.remove("hidden");
+          saveBtn.disabled = false;
+          saveBtn.innerHTML = `Cập nhật`;
+          if (!causeOk) resolutionCauseInput?.focus();
+          else resolutionMethodInput?.focus();
+          return;
+        }
+      }
+
       const updateData = {
         status: newStatus,
       };
@@ -9533,15 +9557,15 @@
         updateData.resolverId = currentUser.uid; // Ghi nhận ai là người giải quyết
         updateData.resolverName = currentUserProfile.displayName; // Ghi nhận tên người giải quyết
         // Ghi nhận "Cách giải quyết" do người xử lý nhập: nguyên nhân + cách xử lý
-        const resolutionCauseInput = modal.querySelector("#resolutionCauseInput");
-        const resolutionCauseValue = resolutionCauseInput ? resolutionCauseInput.value.trim() : "";
         if (resolutionCauseValue) {
           updateData.resolutionCause = resolutionCauseValue;
+        } else if (existingCause) {
+          updateData.resolutionCause = existingCause;
         }
-        const resolutionMethodInput = modal.querySelector("#resolutionMethodInput");
-        const resolutionMethodValue = resolutionMethodInput ? resolutionMethodInput.value.trim() : "";
         if (resolutionMethodValue) {
           updateData.resolutionMethod = resolutionMethodValue;
+        } else if (existingMethod) {
+          updateData.resolutionMethod = existingMethod;
         }
       }
       // ▲▲▲ KẾT THÚC THAY ĐỔI ▲▲▲

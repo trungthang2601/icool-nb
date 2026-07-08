@@ -1404,15 +1404,16 @@
                 </div>
                 <div id="resolutionMethodInputContainer" class="hidden">
                   <div>
-                    <label for="resolutionCauseInput" class="font-medium text-sm">Nguyên nhân:</label>
-                    <textarea id="resolutionCauseInput" rows="2" class="input-field mt-1 w-full"
+                    <label for="resolutionCauseInput" class="font-medium text-sm">Nguyên nhân: <span class="text-red-500">*</span></label>
+                    <textarea id="resolutionCauseInput" rows="2" class="input-field mt-1 w-full" required
                       placeholder="Nguyên nhân gây ra sự cố..."></textarea>
                   </div>
                   <div class="mt-3">
-                    <label for="resolutionMethodInput" class="font-medium text-sm">Cách xử lý:</label>
-                    <textarea id="resolutionMethodInput" rows="3" class="input-field mt-1 w-full"
+                    <label for="resolutionMethodInput" class="font-medium text-sm">Cách xử lý: <span class="text-red-500">*</span></label>
+                    <textarea id="resolutionMethodInput" rows="3" class="input-field mt-1 w-full" required
                       placeholder="Thao tác khắc phục đã thực hiện..."></textarea>
                   </div>
+                  <p class="text-xs text-slate-500 mt-2"><span class="text-red-500">*</span> Bắt buộc khi chuyển trạng thái sang <b>Đã giải quyết</b></p>
                 </div>
                 <p id="resolutionEmptyHint" class="text-sm text-slate-400 italic hidden">Chưa có thông tin cách giải quyết.</p>
               </div>
